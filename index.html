@@ -2,280 +2,285 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Wolfy World: Dig For Treasures (Multiplayer)</title>
-    <!-- Librería PeerJS para multiplayer sin servidor propio -->
+    <title>Wolfy World: Dig For Treasures</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
-        body { font-family: 'Courier New', monospace; background-color: #1a1a2e; color: #e0e0e0; text-align: center; }
-        h1 { color: #f1c40f; }
-        .screen { display: none; max-width: 900px; margin: 0 auto; padding: 20px; }
-        .active { display: block; }
+        body { font-family: 'Verdana', sans-serif; background-color: #2c3e50; color: white; text-align: center; }
+        .screen { display: none; } .active { display: block; }
         
-        #game-area { 
-            width: 100%; height: 500px; background: #16213e; 
-            border: 4px solid #f39c12; position: relative; overflow: hidden; 
-        }
+        #game-area { width: 800px; height: 500px; background: #34495e; margin: 20px auto; position: relative; border: 5px solid #f1c40f; overflow: hidden; }
+        .player { width: 40px; height: 40px; background: #e74c3c; position: absolute; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: 0.2s; }
         
-        .player-dot { 
-            width: 40px; height: 40px; position: absolute; 
-            border-radius: 50%; border: 2px solid white; 
-            display: flex; align-items: center; justify-content: center; font-size: 20px;
-            transition: all 0.2s ease-out;
-        }
-
-        /* Minijuego Barra */
-        #mining-ui {
-            width: 400px; height: 50px; background: #333; 
-            margin: 20px auto; position: relative; border: 3px solid #fff;
-            display: none; cursor: pointer;
-        }
-        #target-zone { width: 60px; height: 100%; background: #2ecc71; position: absolute; left: 170px; opacity: 0.8; }
+        #mining-bar { width: 300px; height: 30px; background: #000; margin: 10px auto; position: relative; display: none; border: 2px solid white; cursor: pointer; }
+        #green-zone { width: 50px; height: 100%; background: #2ecc71; position: absolute; left: 125px; opacity: 0.7; }
         #cursor { width: 10px; height: 100%; background: #f1c40f; position: absolute; left: 0; }
 
-        #ui-panel { background: #0f3460; padding: 15px; margin-top: 10px; border-radius: 10px; }
-        button { padding: 10px; margin: 5px; background: #2ecc71; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        .shovel-btn { background: #3498db; }
+        button { padding: 10px 20px; margin: 5px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
         input { padding: 10px; border-radius: 5px; border: none; }
+        #room-info { background: #e67e22; padding: 5px; display: inline-block; margin-bottom: 10px; border-radius: 5px; }
     </style>
 </head>
 <body>
 
-    <!-- Pantalla de Conexión -->
+    <!-- Pantalla de Inicio -->
     <div id="login-screen" class="screen active">
-        <h1>🐺 Wolfy World: Multiplayer</h1>
-        <input type="text" id="username" placeholder="Nombre de Lobito" value="Lobito Gamma">
-        <br><br>
-        <button onclick="createRoom()">🏠 Crear Sala (Host)</button>
-        <p>- O -</p>
-        <input type="text" id="room-id-input" placeholder="ID de la Sala">
-        <button onclick="joinRoom()">🚪 Unirse a Sala</button>
-        <p id="status-msg">Esperando conexión...</p>
+        <h1>🐺 Wolfy World: Dig For Treasures</h1>
+        <p>Introduce tu nombre y un Código de Sala (ej: LOBO1)</p>
+        <input type="text" id="username" placeholder="Nombre (ej: Lobito Gamma)" value="Lobito Gamma"><br><br>
+        <input type="text" id="room-code" placeholder="Código de Sala (ej: LOBO1)" value="LOBO1"><br><br>
+        <button onclick="hostGame()">🏠 Crear Sala (Host)</button>
+        <button onclick="joinGame()">🚪 Unirse a Sala</button>
+        <p id="status" style="color: #f1c40f;"></p>
     </div>
 
     <!-- Pantalla de Juego -->
     <div id="game-screen" class="screen">
-        <h2>Sala ID: <span id="display-room-id">...</span></h2>
-        <div id="game-area"></div>
+        <div id="room-info">Sala: <span id="current-room"></span></div>
+        <div id="game-area" onclick="movePlayer(event)"></div>
         
-        <div id="mining-ui">
-            <div id="target-zone"></div>
+        <div id="mining-bar">
+            <div id="green-zone"></div>
             <div id="cursor"></div>
         </div>
-        <button id="dig-btn" onclick="startMining()">⛏️ Excavar</button>
+        <button id="btn-dig" onclick="startMining()">⛏️ Excavar</button>
 
-        <div id="ui-panel">
-            <p>💰 <span id="money">0</span> PE | 🔨 <span id="shovel-name">Juguete</span></p>
+        <div style="background: #2c3e50; padding: 10px;">
+            <p>💰 <span id="money">0</span> PE | 🔨 <span id="shovel">Juguete</span></p>
             <button onclick="sellItem()">Vender Tesoro</button>
             <hr>
-            <button class="shovel-btn" onclick="buyShovel('training')">Entrenamiento (100 PE)</button>
-            <button class="shovel-btn" onclick="buyShovel('iron')">Hierro (500 PE)</button>
-            <button class="shovel-btn" onclick="buyShovel('steel')">Acero (1500 PE)</button>
-            <h3>Inventario:</h3>
-            <ul id="inv-list" style="list-style: none;"></ul>
+            <button onclick="buyShovel('training')">Pala Entrenamiento (100 PE)</button>
+            <button onclick="buyShovel('iron')">Pala Hierro (500 PE)</button>
+            <button onclick="buyShovel('steel')">Pala Acero (1500 PE)</button>
+            <ul id="inv" style="list-style: none;"></ul>
         </div>
     </div>
 
     <script>
         let peer;
-        let conn; // Conexión con el host
+        let conn; 
         let myId;
         let isHost = false;
-        let connections = []; // Lista de conexiones si eres host
+        let connections = [];
         
-        // Estado del juego local
-        let myData = { name: "Lobito", money: 0, shovel: 'toy', inventory: [], x: 100, y: 100, color: '#e74c3c' };
-        let otherPlayers = {}; // Datos de otros jugadores
-        let miningActive = false;
-        let cursorPos = 0;
-        let cursorDir = 1;
-        let miningInterval;
+        // Datos del jugador
+        let me = { name: "", money: 0, shovel: 'toy', inventory: [], x: 380, y: 230, color: '#f1c40f' };
+        let others = {};
+        
+        // Minijuego
+        let mining = false;
+        let pos = 0; 
+        let dir = 1;
+        let interval;
 
         const SHOVELS = {
-            toy: { name: "Juguete", power: 1 },
-            training: { name: "Entrenamiento", power: 2, cost: 100 },
-            iron: { name: "Hierro", power: 5, cost: 500 },
-            steel: { name: "Acero", power: 10, cost: 1500 }
+            toy: { n: "Juguete", p: 1 },
+            training: { n: "Entrenamiento", p: 2, c: 100 },
+            iron: { n: "Hierro", p: 5, c: 500 },
+            steel: { n: "Acero", p: 10, c: 1500 }
         };
 
-        // --- Lógica de Red (PeerJS) ---
-        function initPeer() {
-            peer = new Peer(); // Crea un ID automático
-            
+        function initPeer(customId) {
+            // Usamos el código de sala como parte del ID para evitar colisiones
+            const finalId = "wolfy-" + customId + "-" + Math.floor(Math.random() * 1000);
+            peer = new Peer(finalId);
+
             peer.on('open', (id) => {
                 myId = id;
-                document.getElementById('status-msg').innerText = "Listo. Tu ID: " + id;
+                document.getElementById('status').innerText = "Conectado al Rift...";
+                
+                if(isHost) {
+                    startHostLogic(customId);
+                }
             });
 
-            // Si alguien se conecta a ti (Eres Host)
             peer.on('connection', (c) => {
-                if(connections.length >= 5) { c.close(); return; } // Max 6 total
+                if(connections.length >= 5) { c.close(); return; }
                 connections.push(c);
-                setupConnection(c);
+                handleConnection(c);
                 
-                // Enviar estado actual al nuevo jugador
+                // Enviar estado inicial al que se une
                 c.on('open', () => {
-                    c.send({ type: 'init', hostData: myData, others: otherPlayers });
-                    broadcast({ type: 'playerJoined', player: myData });
+                    c.send({ type: 'init', host: me, others: others });
+                    broadcast({ type: 'newPlayer', p: me });
                 });
             });
-        }
-
-        function setupConnection(c) {
-            c.on('data', (data) => handleData(data, c.peer));
-            c.on('close', () => {
-                delete otherPlayers[c.peer];
-                renderPlayers();
-                if(isHost) broadcast({ type: 'playerLeft', id: c.peer });
+            
+            peer.on('error', (err) => {
+                document.getElementById('status').innerText = "Error: " + err.type;
             });
         }
 
-        function handleData(data, senderId) {
-            if (data.type === 'updateState') {
-                otherPlayers[senderId] = data.state;
-                renderPlayers();
-            } else if (data.type === 'chat' || data.type === 'trade') {
-                // Lógica futura para trade
-            }
+        function handleConnection(c) {
+            c.on('data', (data) => {
+                if(data.type === 'update') {
+                    others[data.id] = data.p;
+                    drawPlayers();
+                }
+            });
+            c.on('close', () => {
+                delete others[c.peer];
+                drawPlayers();
+            });
         }
 
         function broadcast(data) {
             connections.forEach(c => c.send(data));
         }
 
-        function sendToHost(data) {
-            if(conn) conn.send(data);
-        }
-
-        // --- Funciones de UI ---
-        function createRoom() {
+        function hostGame() {
             isHost = true;
-            myData.name = document.getElementById('username').value;
-            initPeer();
+            me.name = document.getElementById('username').value || "Host";
+            const room = document.getElementById('room-code').value.toUpperCase();
+            document.getElementById('current-room').innerText = room;
+            
+            // Creamos un ID basado en la sala para que sea más fácil de encontrar si quisiéramos buscarlo
+            initPeer(room + "-HOST");
+            
             setTimeout(() => {
-                document.getElementById('login-screen').classList.remove('active');
-                document.getElementById('game-screen').classList.add('active');
-                document.getElementById('display-room-id').innerText = myId;
-                renderPlayers();
-            }, 1000);
+                switchScreen();
+            }, 1500);
         }
 
-        function joinRoom() {
-            const hostId = document.getElementById('room-id-input').value;
-            myData.name = document.getElementById('username').value;
+        function joinGame() {
+            me.name = document.getElementById('username').value || "Guest";
+            const room = document.getElementById('room-code').value.toUpperCase();
+            const hostId = room + "-HOST";
             
             peer = new Peer();
             peer.on('open', () => {
                 conn = peer.connect(hostId);
-                setupConnection(conn);
+                handleConnection(conn);
                 
                 conn.on('open', () => {
-                    document.getElementById('login-screen').classList.remove('active');
-                    document.getElementById('game-screen').classList.add('active');
-                    document.getElementById('display-room-id').innerText = hostId;
+                    switchScreen();
+                    document.getElementById('current-room').innerText = room;
+                });
+                
+                conn.on('data', (data) => {
+                    if(data.type === 'init') {
+                        // Recibir datos del host
+                        me.money = 0; // Reiniciar dinero localmente o sincronizar
+                        drawPlayers();
+                    }
+                    if(data.type === 'newPlayer') {
+                        others[data.p.id || 'guest'] = data.p;
+                        drawPlayers();
+                    }
                 });
             });
         }
 
-        // --- Lógica del Juego ---
-        function updateMyState() {
-            const state = { ...myData };
-            if (isHost) broadcast({ type: 'updateState', state: state });
-            else sendToHost({ type: 'updateState', state: state });
-            renderPlayers();
+        function switchScreen() {
+            document.getElementById('login-screen').classList.remove('active');
+            document.getElementById('game-screen').classList.add('active');
+            drawPlayers();
             updateUI();
         }
 
-        function renderPlayers() {
+        // --- Lógica Visual y de Juego ---
+        function drawPlayers() {
             const area = document.getElementById('game-area');
             area.innerHTML = '';
             
-            // Dibujarme a mí
-            drawPlayer(myData.x, myData.y, myData.color, myData.name + " (Tú)");
+            // Dibujarme
+            createDot(me.x, me.y, me.color, me.name + " (Tú)");
             
-            // Dibujar a otros
-            for (let id in otherPlayers) {
-                let p = otherPlayers[id];
-                drawPlayer(p.x, p.y, p.color, p.name);
+            // Dibujar otros
+            for(let id in others) {
+                let p = others[id];
+                createDot(p.x, p.y, p.color, p.name);
             }
         }
 
-        function drawPlayer(x, y, color, label) {
-            let dot = document.createElement('div');
-            dot.className = 'player-dot';
-            dot.style.backgroundColor = color;
-            dot.style.left = x + 'px';
-            dot.style.top = y + 'px';
-            dot.innerText = "🐺";
-            dot.title = label;
-            document.getElementById('game-area').appendChild(dot);
+        function createDot(x, y, color, label) {
+            let d = document.createElement('div');
+            d.className = 'player';
+            d.style.left = x + 'px';
+            d.style.top = y + 'px';
+            d.style.backgroundColor = color;
+            d.innerText = "🐺";
+            d.title = label;
+            document.getElementById('game-area').appendChild(d);
         }
 
-        // Movimiento simple con click en el área
-        document.getElementById('game-area').addEventListener('click', (e) => {
+        function movePlayer(e) {
             const rect = e.target.getBoundingClientRect();
-            myData.x = e.clientX - rect.left - 20;
-            myData.y = e.clientY - rect.top - 20;
-            updateMyState();
-        });
+            me.x = e.clientX - rect.left - 20;
+            me.y = e.clientY - rect.top - 20;
+            
+            // Enviar movimiento
+            let data = { type: 'update', id: myId, p: me };
+            if(isHost) broadcast(data);
+            else if(conn) conn.send(data);
+            
+            drawPlayers();
+        }
 
         // --- Minijuego y Economía ---
         function startMining() {
-            if(miningActive) return;
-            miningActive = true;
-            document.getElementById('mining-ui').style.display = 'block';
-            document.getElementById('dig-btn').style.display = 'none';
+            if(mining) return;
+            mining = true;
+            document.getElementById('mining-bar').style.display = 'block';
+            document.getElementById('btn-dig').style.display = 'none';
             
-            miningInterval = setInterval(() => {
-                cursorPos += 6 * cursorDir;
-                if(cursorPos >= 390 || cursorPos <= 0) cursorDir *= -1;
-                document.getElementById('cursor').style.left = cursorPos + 'px';
+            interval = setInterval(() => {
+                pos += 5 * dir;
+                if(pos > 290 || pos < 0) dir *= -1;
+                document.getElementById('cursor').style.left = pos + 'px';
             }, 20);
         }
 
         function stopMining() {
-            if(!miningActive) return;
-            clearInterval(miningInterval);
-            miningActive = false;
-            document.getElementById('mining-ui').style.display = 'none';
-            document.getElementById('dig-btn').style.display = 'inline-block';
-
-            // Zona verde: 170 a 230
-            if(cursorPos >= 170 && cursorPos <= 230) {
-                myData.inventory.push({ name: 'Gema', value: 20 });
-                alert("¡Tesoro encontrado!");
+            if(!mining) return;
+            clearInterval(interval);
+            mining = false;
+            document.getElementById('mining-bar').style.display = 'none';
+            document.getElementById('btn-dig').style.display = 'inline-block';
+            
+            // Zona verde: 125 a 175
+            if(pos >= 125 && pos <= 175) {
+                me.inventory.push({n: "Gema", v: 20});
+                alert("¡Tesoro!");
             } else {
                 alert("Fallaste...");
             }
-            updateMyState();
+            sendUpdate();
         }
 
-        document.getElementById('mining-ui').addEventListener('click', stopMining);
+        document.getElementById('mining-bar').addEventListener('click', stopMining);
 
         function sellItem() {
-            if(myData.inventory.length > 0) {
-                let item = myData.inventory.pop();
-                myData.money += item.value;
-                updateMyState();
+            if(me.inventory.length > 0) {
+                let item = me.inventory.pop();
+                me.money += item.v;
+                sendUpdate();
             }
         }
 
         function buyShovel(type) {
-            let cost = SHOVELS[type].cost;
-            if(myData.money >= cost) {
-                myData.money -= cost;
-                myData.shovel = type;
-                updateMyState();
+            let s = SHOVELS[type];
+            if(me.money >= s.c) {
+                me.money -= s.c;
+                me.shovel = type;
+                sendUpdate();
             }
         }
 
+        function sendUpdate() {
+            updateUI();
+            let data = { type: 'update', id: myId, p: me };
+            if(isHost) broadcast(data);
+            else if(conn) conn.send(data);
+        }
+
         function updateUI() {
-            document.getElementById('money').innerText = myData.money;
-            document.getElementById('shovel-name').innerText = SHOVELS[myData.shovel].name;
-            let list = document.getElementById('inv-list');
+            document.getElementById('money').innerText = me.money;
+            document.getElementById('shovel').innerText = SHOVELS[me.shovel].n;
+            let list = document.getElementById('inv');
             list.innerHTML = '';
-            myData.inventory.forEach(i => {
+            me.inventory.forEach(i => {
                 let li = document.createElement('li');
-                li.innerText = i.name + " (" + i.value + " PE)";
+                li.innerText = i.n + " (" + i.v + " PE)";
                 list.appendChild(li);
             });
         }
