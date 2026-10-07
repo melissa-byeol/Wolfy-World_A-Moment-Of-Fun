@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Wolfy World: Dig For Treasures</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; background-color: #2c3e50; color: white; text-align: center; }
+        #game-area { width: 800px; height: 600px; background: #34495e; margin: 20px auto; position: relative; border: 4px solid #f1c40f; }
+        .player { width: 30px; height: 30px; background: #e74c3c; position: absolute; border-radius: 50%; }
+        #ui-panel { margin-top: 10px; }
+        button { padding: 10px; margin: 5px; cursor: pointer; background: #27ae60; color: white; border: none; border-radius: 5px; }
+        .shovel-btn { background: #2980b9; }
+    </style>
+</head>
+<body>
+    <h1>🐺 Wolfy World: Dig For Treasures</h1>
+    <div id="login-screen">
+        <input type="text" id="room-id" placeholder="ID de Sala">
+        <button onclick="joinGame()">Entrar al Rift</button>
+    </div>
+
+    <div id="game-screen" style="display:none;">
+        <div id="game-area"></div>
+        <div id="ui-panel">
+            <p>Dinero: <span id="money">0</span> PE</p>
+            <p>Pala Actual: <span id="current-shovel">Pala de Juguete</span></p>
+            <button onclick="startDigging()">⛏️ Excavar (Minijuego)</button>
+            <button onclick="sellRandomItem()">💰 Vender Objeto</button>
+            <hr>
+            <h3>Mejoras de Pala</h3>
+            <button class="shovel-btn" onclick="buyShovel('training')">Entrenamiento (100 PE)</button>
+            <button class="shovel-btn" onclick="buyShovel('iron')">Hierro (500 PE)</button>
+            <button class="shovel-btn" onclick="buyShovel('steel')">Acero (1500 PE)</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let myId = null;
+        let roomId = null;
+
+        function joinGame() {
+            roomId = document.getElementById('room-id').value || 'lobby1';
+            socket.emit('joinRoom', roomId);
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'block';
+        }
+
+        socket.on('initGame', (data) => {
+            myId = data.playerId;
+            updateUI(data.players[myId]);
+        });
+
+        socket.on('updateWallet', (amount) => {
+            document.getElementById('money').innerText = amount;
+        });
+
+        socket.on('shovelUpgraded', (type) => {
+            document.getElementById('current-shovel').innerText = type;
+        });
+
+        function startDigging() {
+            // Aquí iría la lógica visual de la barra verde
+            const success = Math.random() > 0.5; // Simulación temporal
+            socket.emit('digAttempt', { roomId, success });
+        }
+
+        socket.on('digResult', (data) => {
+            if (data.success) {
+                alert(`¡Encontraste: ${data.item.name}!`);
+            } else {
+                alert("Fallaste la excavación...");
+            }
+        });
+
+        function sellRandomItem() {
+            // En un juego real, seleccionarías del inventario
+            socket.emit('sellItem', { roomId, itemId: 'gem_blue' }); 
+        }
+
+        function buyShovel(type) {
+            socket.emit('buyUpgrade', { roomId, shovelType: type });
+        }
+
+        function updateUI(player) {
+            document.getElementById('money').innerText = player.money;
+            document.getElementById('current-shovel').innerText = player.shovel;
+        }
+    </script>
+</body>
+</html>
