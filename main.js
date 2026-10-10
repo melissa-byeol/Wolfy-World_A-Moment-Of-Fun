@@ -1,8 +1,8 @@
 /**
  * WOLFY WORLD - MAIN CONTROLLER
- * Une GameState, NetworkManager y la Interfaz de Usuario (DOM).
  */
 
+// Definimos App como una constante global explícita
 const App = {
     state: null,
     net: null,
@@ -10,21 +10,33 @@ const App = {
     mining: { active: false, interval: null, pos: 0, dir: 1 },
 
     init() {
+        // Esperamos a que el DOM esté completamente cargado
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.setup());
+        } else {
+            this.setup();
+        }
+    },
+
+    setup() {
+        console.log("Wolfy World Iniciando...");
+        
         // 1. Instanciar Módulos
         this.state = new GameState();
         this.net = new NetworkManager(this.state);
         
-        // 2. Cachear Elementos DOM importantes
+        // 2. Cachear Elementos DOM
         this.cacheDOM();
         
         // 3. Configurar Callbacks de Red
         this.net.onUpdateCallback = () => this.renderGame();
         
-        // 4. Bind Eventos de UI
+        // 4. Bind Eventos (La clave del fix)
         this.bindEvents();
         
-        // 5. Renderizar tiendas iniciales (vacías hasta entrar)
+        // 5. Render inicial
         this.renderBookShop();
+        console.log("Setup Completado.");
     },
 
     cacheDOM() {
@@ -37,20 +49,32 @@ const App = {
         this.ui.cursorLine = document.getElementById('cursor-line');
         this.ui.btnMine = document.getElementById('btn-mine-action');
         
-        // Botones de acción directa
+        // Botones Login
+        this.ui.btnCreateRoom = document.getElementById('btn-create-room');
+        this.ui.btnJoinRoom = document.getElementById('btn-join-room');
+        
+        // Botones Acción Directa
         this.ui.btnSellAll = document.getElementById('btn-sell-all');
         this.ui.btnBuyTraining = document.getElementById('btn-buy-training');
         this.ui.btnBuyIron = document.getElementById('btn-buy-iron');
         this.ui.btnBuySteel = document.getElementById('btn-buy-steel');
         
-        // Botones de Cromos
+        // Botones Cromos
         this.ui.btnPackSmall = document.getElementById('btn-pack-small');
         this.ui.btnPackBasic = document.getElementById('btn-pack-basic');
         this.ui.btnPackLarge = document.getElementById('btn-pack-large');
     },
 
     bindEvents() {
-        // Tabs
+        // --- LOGIN BUTTONS ---
+        if(this.ui.btnCreateRoom) {
+            this.ui.btnCreateRoom.addEventListener('click', () => this.createRoom());
+        }
+        if(this.ui.btnJoinRoom) {
+            this.ui.btnJoinRoom.addEventListener('click', () => this.joinRoom());
+        }
+
+        // --- TABS ---
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const target = e.target.dataset.target;
@@ -58,25 +82,32 @@ const App = {
             });
         });
 
-        // Movimiento en área de juego
-        this.ui.gameContainer.addEventListener('click', (e) => {
-            this.handleMove(e);
-        });
+        // --- MOVIMIENTO JUEGO ---
+        if(this.ui.gameContainer) {
+            this.ui.gameContainer.addEventListener('click', (e) => {
+                this.handleMove(e);
+            });
+        }
 
-        // Minería
-        this.ui.btnMine.addEventListener('click', () => this.toggleMining());
-        document.getElementById('mining-bar').addEventListener('click', () => this.stopMining());
+        // --- MINERÍA ---
+        if(this.ui.btnMine) {
+            this.ui.btnMine.addEventListener('click', () => this.toggleMining());
+        }
+        const miningBar = document.getElementById('mining-bar');
+        if(miningBar) {
+            miningBar.addEventListener('click', () => this.stopMining());
+        }
 
-        // Tienda Palas
-        this.ui.btnBuyTraining.addEventListener('click', () => this.buyShovel('training'));
-        this.ui.btnBuyIron.addEventListener('click', () => this.buyShovel('iron'));
-        this.ui.btnBuySteel.addEventListener('click', () => this.buyShovel('steel'));
-        this.ui.btnSellAll.addEventListener('click', () => this.sellAllTreasures());
+        // --- TIENDA PALAS ---
+        if(this.ui.btnBuyTraining) this.ui.btnBuyTraining.addEventListener('click', () => this.buyShovel('training'));
+        if(this.ui.btnBuyIron) this.ui.btnBuyIron.addEventListener('click', () => this.buyShovel('iron'));
+        if(this.ui.btnBuySteel) this.ui.btnBuySteel.addEventListener('click', () => this.buyShovel('steel'));
+        if(this.ui.btnSellAll) this.ui.btnSellAll.addEventListener('click', () => this.sellAllTreasures());
 
-        // Cromos
-        this.ui.btnPackSmall.addEventListener('click', () => this.openChromoPack('small'));
-        this.ui.btnPackBasic.addEventListener('click', () => this.openChromoPack('basic'));
-        this.ui.btnPackLarge.addEventListener('click', () => this.openChromoPack('large'));
+        // --- CROMOS ---
+        if(this.ui.btnPackSmall) this.ui.btnPackSmall.addEventListener('click', () => this.openChromoPack('small'));
+        if(this.ui.btnPackBasic) this.ui.btnPackBasic.addEventListener('click', () => this.openChromoPack('basic'));
+        if(this.ui.btnPackLarge) this.ui.btnPackLarge.addEventListener('click', () => this.openChromoPack('large'));
     },
 
     // --- FLUJO DE INICIO ---
@@ -118,27 +149,32 @@ const App = {
     },
 
     // --- UTILIDADES UI ---
-    showLoader(show) { this.ui.loader.style.display = show ? 'block' : 'none'; },
+    showLoader(show) { 
+        if(this.ui.loader) this.ui.loader.style.display = show ? 'block' : 'none'; 
+    },
     
     setStatus(msg, isError = false) {
-        this.ui.statusMsg.innerText = msg;
-        this.ui.statusMsg.style.color = isError ? '#e74c3c' : '#2ecc71';
+        if(this.ui.statusMsg) {
+            this.ui.statusMsg.innerText = msg;
+            this.ui.statusMsg.style.color = isError ? '#e74c3c' : '#2ecc71';
+        }
     },
 
     switchTab(tabName) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active-tab-content'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active-tab'));
         
-        document.getElementById(`tab-${tabName}`).classList.add('active-tab-content');
+        const content = document.getElementById(`tab-${tabName}`);
+        if(content) content.classList.add('active-tab-content');
         
         // Activar botón correcto
         const btns = document.querySelectorAll('.tab-btn');
-        if(tabName === 'mining') btns[0].classList.add('active-tab');
-        if(tabName === 'library') btns[1].classList.add('active-tab');
-        if(tabName === 'chromos') btns[2].classList.add('active-tab');
+        btns.forEach(b => {
+            if(b.dataset.target === tabName) b.classList.add('active-tab');
+        });
     },
 
-    // --- LÓGICA DE JUEGO (DELEGADA A STATE/NET) ---
+    // --- LÓGICA DE JUEGO ---
     handleMove(e) {
         if(this.mining.active) return; 
         
@@ -146,7 +182,6 @@ const App = {
         let x = e.clientX - rect.left - 20;
         let y = e.clientY - rect.top - 20;
         
-        // Límites
         x = Math.max(0, Math.min(x, rect.width - 40));
         y = Math.max(0, Math.min(y, rect.height - 40));
 
@@ -178,7 +213,6 @@ const App = {
         this.mining.active = false;
         this.ui.btnMine.innerText = "⛏️ Empezar a Excavar";
         
-        // Zona verde: 120 a 180
         if(this.mining.pos >= 120 && this.mining.pos <= 180) {
             const loot = this.state.mineTreasure();
             alert(`¡Encontraste ${loot.name}! (+${loot.val} PE)`);
@@ -233,7 +267,9 @@ const App = {
     // --- RENDERIZADO ESPECÍFICO ---
     renderBookShop() {
         const container = document.getElementById('book-shop');
+        if(!container) return;
         container.innerHTML = '';
+        
         BOOK_CATALOG.forEach(book => {
             const card = document.createElement('div');
             card.className = 'shop-card';
@@ -250,7 +286,6 @@ const App = {
                 </button>
             `;
             
-            // Adjuntar evento al botón generado dinámicamente
             const btn = card.querySelector('button');
             if(!owned) {
                 btn.onclick = () => this.purchaseBook(book.id);
@@ -262,6 +297,7 @@ const App = {
 
     renderOwnedBooks() {
         const list = document.getElementById('owned-books-list');
+        if(!list) return;
         list.innerHTML = '';
         if(this.state.ownedBooks.length === 0) {
             list.innerHTML = '<li>No posees libros aún.</li>';
@@ -279,6 +315,7 @@ const App = {
 
     renderChromoInventory() {
         const list = document.getElementById('chromo-inventory');
+        if(!list) return;
         list.innerHTML = '';
         if(this.state.chromoInventory.length === 0) {
             list.innerHTML = '<li>Sin cromos recientes.</li>';
@@ -291,28 +328,29 @@ const App = {
         });
     },
 
-    // --- RENDER GLOBAL (LLAMADO FRECUENTEMENTE) ---
+    // --- RENDER GLOBAL ---
     renderGame() {
-        // 1. Dibujar Jugadores (Solo si estamos en tab minería para ahorrar recursos, 
-        // aunque en este caso siempre dibujamos porque el contenedor está oculto/mostrado por CSS)
-        this.ui.gameContainer.innerHTML = '';
-        const players = this.state.getAllPlayers();
-        document.getElementById('player-count').innerText = players.length;
+        // 1. Dibujar Jugadores
+        if(this.ui.gameContainer) {
+            this.ui.gameContainer.innerHTML = '';
+            const players = this.state.getAllPlayers();
+            document.getElementById('player-count').innerText = players.length;
 
-        players.forEach(p => {
-            const dot = document.createElement('div');
-            dot.className = 'player-dot';
-            dot.style.left = p.x + 'px';
-            dot.style.top = p.y + 'px';
-            dot.style.background = p.color;
-            dot.innerText = "🐺";
-            
-            const label = document.createElement('div');
-            label.className = 'player-name';
-            label.innerText = p.name + (p.id === this.state.myId ? " (Tú)" : "");
-            dot.appendChild(label);
-            this.ui.gameContainer.appendChild(dot);
-        });
+            players.forEach(p => {
+                const dot = document.createElement('div');
+                dot.className = 'player-dot';
+                dot.style.left = p.x + 'px';
+                dot.style.top = p.y + 'px';
+                dot.style.background = p.color;
+                dot.innerText = "🐺";
+                
+                const label = document.createElement('div');
+                label.className = 'player-name';
+                label.innerText = p.name + (p.id === this.state.myId ? " (Tú)" : "");
+                dot.appendChild(label);
+                this.ui.gameContainer.appendChild(dot);
+            });
+        }
 
         // 2. Actualizar Stats Header
         const me = this.state.getLocalPlayer();
@@ -321,8 +359,6 @@ const App = {
             document.getElementById('ui-bt').innerText = this.state.biblioTokens;
             document.getElementById('ui-shovel').innerText = SHOVEL_DATA[me.shovel].name;
             
-            // XP Display
-            const xpNeededForNextLevel = (this.state.level * 1000) - ((this.state.level - 1) * 1000); // Simplificado: 1000 por nivel
             const currentLevelProgress = this.state.xp % 1000;
             document.getElementById('ui-xp-text').innerText = `${currentLevelProgress}/1000`;
             document.getElementById('ui-xp-bar').style.width = `${(currentLevelProgress / 1000) * 100}%`;
@@ -330,18 +366,20 @@ const App = {
 
         // 3. Actualizar Inventarios Locales
         const invList = document.getElementById('inventory-treasures');
-        invList.innerHTML = '';
-        if(me && me.inventory.length > 0) {
-            me.inventory.forEach(item => {
-                const li = document.createElement('li');
-                li.innerText = `${item.name}: ${item.val} PE`;
-                invList.appendChild(li);
-            });
-        } else {
-            invList.innerHTML = '<li>Inventario vacío</li>';
+        if(invList) {
+            invList.innerHTML = '';
+            if(me && me.inventory.length > 0) {
+                me.inventory.forEach(item => {
+                    const li = document.createElement('li');
+                    li.innerText = `${item.name}: ${item.val} PE`;
+                    invList.appendChild(li);
+                });
+            } else {
+                invList.innerHTML = '<li>Inventario vacío</li>';
+            }
         }
         
-        // Refrescar listas de librería/cromos si están visibles (opcional, pero bueno para consistencia)
+        // Refrescar listas secundarias
         if(document.getElementById('tab-library').classList.contains('active-tab-content')) {
              this.renderOwnedBooks();
         }
@@ -351,7 +389,6 @@ const App = {
     }
 };
 
-// Inicializar al cargar la página
-window.addEventListener('DOMContentLoaded', () => {
-    App.init();
-});
+// Lanzar la aplicación cuando el script termine de ejecutarse
+// Como usamos 'defer', sabemos que el DOM está listo y GameState/NetworkManager existen
+App.init();
