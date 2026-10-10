@@ -2,65 +2,84 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Wolfy World: Dig For Treasures</title>
-    <!-- Librerías externas -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wolfy World: Library & Chromos Update</title>
+    
+    <!-- Dependencia Externa: PeerJS -->
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
-    <!-- CSS propio -->
+    
+    <!-- CSS Propio -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- Pantalla de Inicio -->
+    <!-- LOGIN SCREEN -->
     <div id="login-screen" class="screen active">
-        <h1>🐺 Wolfy World: Dig For Treasures</h1>
-        <p>Introduce tu nombre y Código de Sala</p>
-        <input type="text" id="username" placeholder="Nombre (ej: Lobito Gamma)" value="Lobito Gamma"><br><br>
-        <input type="text" id="room-code" placeholder="Código de Sala (ej: LOBO1)" value="LOBO1"><br><br>
+        <h1>🐺 Wolfy World Online</h1>
+        <p>Versión: Biblioteca & Cromos Update</p>
         
-        <div class="mode-selector">
-            <label><input type="radio" name="net-mode" value="p2p" checked> 🌐 P2P (Sin Servidor)</label>
-            <label><input type="radio" name="net-mode" value="server"> ☁️ Servidor (Requiere backend)</label>
+        <input type="text" id="username" placeholder="Tu Nombre" value="Lobo Alpha">
+        <input type="text" id="room-code" placeholder="Código Sala (ej: LOBO1)" value="LIBRARY_TEST">
+        
+        <div style="margin: 15px 0;">
+            <button onclick="App.createRoom()" class="secondary">🏠 Crear Sala (Host)</button>
+            <button onclick="App.joinRoom()">🚪 Unirse a Sala</button>
         </div>
-        <br>
-        <button onclick="app.startGame()">▶️ Entrar al Mundo</button>
-        <p id="status" style="color: #f1c40f;"></p>
+        
+        <div id="status-msg"></div>
+        <div class="loader" id="loader"></div>
     </div>
 
-    <!-- Pantalla de Juego -->
+    <!-- GAME SCREEN -->
     <div id="game-screen" class="screen">
-        <header>
-            <div id="room-info">Sala: <span id="current-room"></span></div>
-            <div id="player-list">Jugadores online: 1</div>
+        <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h2 style="margin:0; color:#f1c40f; font-size:1.2em;">Sala: <span id="current-room-display">...</span></h2>
+            <div>Jugadores: <span id="player-count">1</span></div>
         </header>
-        
-        <div id="game-area" onclick="app.handleAreaClick(event)">
-            <!-- Los jugadores se dibujan aquí dinámicamente -->
-        </div>
-        
-        <div id="mining-bar">
-            <div id="green-zone"></div>
-            <div id="cursor"></div>
-        </div>
-        <button id="btn-dig" onclick="app.toggleMining()">⛏️ Excavar / Parar</button>
 
-        <footer>
-            <div class="stats">
-                💰 <span id="money">0</span> PE | 🔨 <span id="shovel-name">Juguete</span>
-            </div>
-            <div class="actions">
-                <button onclick="app.sellItem()">Vender Tesoro</button>
-                <hr>
-                <button onclick="app.buyShovel('training')">Entrenamiento (100 PE)</button>
-                <button onclick="app.buyShovel('iron')">Hierro (500 PE)</button>
-                <button onclick="app.buyShovel('steel')">Acero (1500 PE)</button>
-            </div>
-            <ul id="inventory-list" class="inventory"></ul>
-        </footer>
-    </div>
+        <!-- TABS NAVIGATION -->
+        <div class="tabs">
+            <button class="tab-btn active-tab" data-target="mining">⛏️ Minería</button>
+            <button class="tab-btn" data-target="library">📚 Biblioteca</button>
+            <button class="tab-btn" data-target="chromos">🃏 Cromos</button>
+        </div>
 
-    <!-- Scripts modulares -->
-    <script src="game-state.js"></script>
-    <script src="network-manager.js"></script>
-    <script src="main.js"></script>
-</body>
-</html>
+        <!-- CONTENT: MINING TAB -->
+        <div id="tab-mining" class="tab-content active-tab-content">
+            <div id="game-container">
+                <!-- Players injected here via JS -->
+            </div>
+
+            <div id="mining-ui">
+                <div id="mining-bar">
+                    <div id="green-zone"></div>
+                    <div id="cursor-line"></div>
+                </div>
+                <button id="btn-mine-action">⛏️ Empezar a Excavar</button>
+            </div>
+
+            <div class="stats-panel">
+                <div class="stat-item">💰 PE: <span id="ui-money" class="stat-val">0</span></div>
+                <div class="stat-item">🎟️ BT: <span id="ui-bt" class="stat-val">0</span></div>
+                <div class="stat-item">⭐ XP: <span id="ui-xp-text" class="stat-val">0/100</span></div>
+                <div class="stat-item"><div class="xp-bar-container"><div id="ui-xp-bar" class="xp-fill"></div></div></div>
+                <div class="stat-item">🔨 Pala: <span id="ui-shovel" class="stat-val">Juguete</span></div>
+            </div>
+
+            <ul id="inventory-treasures" class="item-list">
+                <li>Inventario vacío</li>
+            </ul>
+            
+            <div style="margin-top:5px;">
+                <small>Tienda Palas:</small><br>
+                <button id="btn-buy-training" class="shop-btn-small">Entrenamiento (100PE)</button>
+                <button id="btn-buy-iron" class="shop-btn-small">Hierro (500PE)</button>
+                <button id="btn-buy-steel" class="shop-btn-small">Acero (1500PE)</button>
+                <button id="btn-sell-all" class="sell-btn">Vender Todo</button>
+            </div>
+        </div>
+
+        <!-- CONTENT: LIBRARY TAB -->
+        <div id="tab-library" class="tab-content">
+            <h3>📚 Tienda de Libros (Colección 1)</h3>
+            <p style="font-size:0.8em; color:#aaa;">Compra libros para ganar XP y completar tu colección.</p>
