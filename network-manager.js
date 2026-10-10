@@ -1,7 +1,7 @@
 /**
  * WOLFY WORLD - NETWORK MANAGER
  * Abstracción sobre PeerJS para manejar conexiones P2P.
- * bruhh
+ * bruh
  */
 
 class NetworkManager {
