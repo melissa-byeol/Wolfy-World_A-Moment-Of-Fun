@@ -8,7 +8,7 @@ class NetworkManager {
     constructor(gameState) {
         this.state = gameState;
         this.peer = null;
-        this.connections = new Map(); // peerId -> conn object
+        this.connections = new Map();
         this.onUpdateCallback = null; // Función a llamar cuando llega data remota
     }
 
