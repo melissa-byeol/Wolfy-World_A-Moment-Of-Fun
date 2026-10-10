@@ -131,11 +131,12 @@
         </div>
 
     </div>
+        <!-- ... resto del HTML ... -->
 
-    <!-- SCRIPTS MODULARES 
-         IMPORTANTE: El orden debe ser State -> Net -> Main
-         Todos llevan 'defer' para esperar a que el DOM esté listo y PeerJS cargado
-    -->
+    <!-- Contenedor de Notificaciones Globales -->
+    <div id="toast-container"></div>
+
+    <!-- SCRIPTS MODULARES -->
     <script src="game-state.js" defer></script>
     <script src="network-manager.js" defer></script>
     <script src="main.js" defer></script>
