@@ -1,16 +1,15 @@
 /**
- * WOLFY WORLD - MAIN CONTROLLER
+ * WOLFY WORLD - MAIN CONTROLLER (With Toast Notifications)
  */
 
-// Definimos App como una constante global explícita
 const App = {
     state: null,
     net: null,
     ui: {},
     mining: { active: false, interval: null, pos: 0, dir: 1 },
+    toastContainer: null, // Referencia al DOM
 
     init() {
-        // Esperamos a que el DOM esté completamente cargado
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => this.setup());
         } else {
@@ -21,20 +20,20 @@ const App = {
     setup() {
         console.log("Wolfy World Iniciando...");
         
-        // 1. Instanciar Módulos
+        // Instanciar Módulos
         this.state = new GameState();
         this.net = new NetworkManager(this.state);
         
-        // 2. Cachear Elementos DOM
+        // Cachear DOM
         this.cacheDOM();
         
-        // 3. Configurar Callbacks de Red
+        // Configurar Red
         this.net.onUpdateCallback = () => this.renderGame();
         
-        // 4. Bind Eventos (La clave del fix)
+        // Bind Eventos
         this.bindEvents();
         
-        // 5. Render inicial
+        // Render inicial
         this.renderBookShop();
         console.log("Setup Completado.");
     },
@@ -63,6 +62,9 @@ const App = {
         this.ui.btnPackSmall = document.getElementById('btn-pack-small');
         this.ui.btnPackBasic = document.getElementById('btn-pack-basic');
         this.ui.btnPackLarge = document.getElementById('btn-pack-large');
+
+        // Toast Container
+        this.toastContainer = document.getElementById('toast-container');
     },
 
     bindEvents() {
@@ -110,32 +112,71 @@ const App = {
         if(this.ui.btnPackLarge) this.ui.btnPackLarge.addEventListener('click', () => this.openChromoPack('large'));
     },
 
+    // --- NUEVO SISTEMA DE NOTIFICACIONES ---
+    showToast(message, type = 'info', duration = 3000) {
+        if (!this.toastContainer) return;
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        // Icono simple basado en tipo
+        let icon = "ℹ️";
+        if(type === 'success') icon = "✅";
+        if(type === 'error') icon = "❌";
+        if(type === 'loot') icon = "💎";
+
+        toast.innerHTML = `<span>${icon}</span> <span style="flex-grow:1; margin-left:8px;">${message}</span>`;
+        
+        this.toastContainer.appendChild(toast);
+
+        // Remover automáticamente tras la duración + animación de salida
+        setTimeout(() => {
+            if(toast.parentNode) {
+                toast.remove();
+            }
+        }, duration + 500); // Sumamos tiempo extra para la animación fadeOut
+    },
+
     // --- FLUJO DE INICIO ---
     createRoom() {
         const name = document.getElementById('username').value.trim();
         const code = document.getElementById('room-code').value.trim().toUpperCase();
-        if(!name || !code) return this.setStatus("Faltan datos", true);
+        if(!name || !code) return this.showToast("Faltan datos", "error");
         
         this.showLoader(true);
-        this.setStatus("Creando sala...");
+        this.setStatus("Creando sala...", false);
         
         this.net.connectAsHost(code, name, 
-            () => { this.showLoader(false); this.startGameLoop(); }, 
-            (e) => { this.showLoader(false); this.setStatus("Error: "+e, true); }
+            () => { 
+                this.showLoader(false); 
+                this.startGameLoop(); 
+                this.showToast(`Sala ${code} creada correctamente`, "success");
+            }, 
+            (e) => { 
+                this.showLoader(false); 
+                this.showToast("Error al crear sala: " + e, "error"); 
+            }
         );
     },
 
     joinRoom() {
         const name = document.getElementById('username').value.trim();
         const code = document.getElementById('room-code').value.trim().toUpperCase();
-        if(!name || !code) return this.setStatus("Faltan datos", true);
+        if(!name || !code) return this.showToast("Faltan datos", "error");
         
         this.showLoader(true);
-        this.setStatus("Buscando sala...");
+        this.setStatus("Buscando sala...", false);
         
         this.net.connectAsClient(code, name,
-            () => { this.showLoader(false); this.startGameLoop(); }, 
-            (e) => { this.showLoader(false); this.setStatus(e, true); }
+            () => { 
+                this.showLoader(false); 
+                this.startGameLoop(); 
+                this.showToast(`Te has unido a la sala ${code}`, "success");
+            }, 
+            (e) => { 
+                this.showLoader(false); 
+                this.showToast(e, "error"); 
+            }
         );
     },
 
@@ -167,14 +208,13 @@ const App = {
         const content = document.getElementById(`tab-${tabName}`);
         if(content) content.classList.add('active-tab-content');
         
-        // Activar botón correcto
         const btns = document.querySelectorAll('.tab-btn');
         btns.forEach(b => {
             if(b.dataset.target === tabName) b.classList.add('active-tab');
         });
     },
 
-    // --- LÓGICA DE JUEGO ---
+    // --- LÓGICA DE JUEGO (Sin Alerts) ---
     handleMove(e) {
         if(this.mining.active) return; 
         
@@ -213,11 +253,13 @@ const App = {
         this.mining.active = false;
         this.ui.btnMine.innerText = "⛏️ Empezar a Excavar";
         
+        // Zona verde: 120 a 180
         if(this.mining.pos >= 120 && this.mining.pos <= 180) {
             const loot = this.state.mineTreasure();
-            alert(`¡Encontraste ${loot.name}! (+${loot.val} PE)`);
+            // ¡Notificación elegante!
+            this.showToast(`¡Encontraste ${loot.name}! (+${loot.val} PE)`, "loot");
         } else {
-            alert("Fallaste... Tierra dura.");
+            this.showToast("Fallaste... Tierra dura.", "error");
         }
         this.renderGame();
     },
@@ -225,42 +267,42 @@ const App = {
     sellAllTreasures() {
         const res = this.state.sellInventory();
         if(res.money > 0) {
-            alert(`Vendiste todo por ${res.money} PE.`);
+            this.showToast(`Vendiste todo por ${res.money} PE.`, "success");
             this.net.sendToHostOrBroadcast({ type: 'STATS_UPDATE', player: this.state.getLocalPlayer() });
             this.renderGame();
         } else {
-            alert("No tienes nada que vender.");
+            this.showToast("No tienes nada que vender.", "info");
         }
     },
 
     buyShovel(type) {
         if(this.state.buyShovel(type)) {
-            alert(`Compraste pala: ${SHOVEL_DATA[type].name}`);
+            this.showToast(`Compraste pala: ${SHOVEL_DATA[type].name}`, "success");
             this.renderGame();
         } else {
-            alert("Dinero insuficiente.");
+            this.showToast("Dinero insuficiente.", "error");
         }
     },
 
     purchaseBook(id) {
         if(this.state.buyBook(id)) {
-            alert("¡Libro comprado! XP añadida.");
+            this.showToast("¡Libro comprado! XP añadida.", "success");
             this.renderBookShop(); 
             this.renderOwnedBooks();
             this.renderGame(); 
         } else {
-            alert("No tienes suficientes BiblioTokens o ya lo tienes.");
+            this.showToast("No tienes suficientes BiblioTokens o ya lo tienes.", "error");
         }
     },
 
     openChromoPack(type) {
         const results = this.state.openChromoPack(type);
         if(results) {
-            alert(`¡Has abierto un paquete! Obtuviste ${results.length} páginas.`);
+            this.showToast(`¡Paquete abierto! Obtuviste ${results.length} páginas.`, "loot");
             this.renderChromoInventory();
             this.renderGame(); 
         } else {
-            alert("No tienes suficientes BiblioTokens.");
+            this.showToast("No tienes suficientes BiblioTokens.", "error");
         }
     },
 
@@ -389,6 +431,5 @@ const App = {
     }
 };
 
-// Lanzar la aplicación cuando el script termine de ejecutarse
-// Como usamos 'defer', sabemos que el DOM está listo y GameState/NetworkManager existen
+// Lanzar la aplicación
 App.init();
