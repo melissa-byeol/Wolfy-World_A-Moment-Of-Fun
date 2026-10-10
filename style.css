@@ -242,3 +242,52 @@ ul.item-list li {
     display: none; 
 }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* --- SISTEMA DE NOTIFICACIONES TOAST --- */
+#toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none; /* Para que los clicks pasen a través si están encima de botones */
+}
+
+.toast {
+    background: rgba(22, 33, 62, 0.95); /* Fondo oscuro semi-transparente */
+    border-left: 4px solid #f1c40f; /* Borde amarillo por defecto */
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    font-size: 14px;
+    font-weight: bold;
+    min-width: 250px;
+    max-width: 350px;
+    animation: slideInRight 0.3s ease-out forwards, fadeOut 0.5s ease-in 3s forwards;
+    pointer-events: auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Tipos de toasts */
+.toast.success { border-color: #2ecc71; } /* Verde */
+.toast.error { border-color: #e74c3c; }   /* Rojo */
+.toast.info { border-color: #3498db; }    /* Azul */
+.toast.loot { 
+    border-color: #f1c40f; 
+    background: linear-gradient(135deg, #16213e 0%, #2c3e50 100%);
+} /* Especial para tesoros */
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-10px); }
+}
