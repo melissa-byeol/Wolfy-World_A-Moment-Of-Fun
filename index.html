@@ -221,32 +221,29 @@
     </div>
 
     <!-- PROJECT MOONLIGHT -->
-    <div id="moonlight-screen" class="screen">
-        <button class="back-btn" data-back="menu-screen">← Menú</button>
-        <h2>🌙 Project Moonlight: Wolfy Stage</h2>
+    <!-- Dentro de #moonlight-screen -->
+<div class="song-card">
+    <h3>Bed of Thorns</h3>
+    <p>Artista: TXT</p>
+    <small class="small-note">Audio cargado desde /assets/</small>
+</div>
 
-        <div class="song-card">
-            <h3>Bed</h3>
-            <p>Artista: AND2BLE</p>
-            <p class="small-note">
-                Para usar el audio real, añade legalmente tu archivo en <code>assets/bed.mp3</code>
-                y descomenta el <code>&lt;source&gt;</code> en el HTML.
-            </p>
-        </div>
+<!-- EL ELEMENTO DE AUDIO -->
+<audio id="moon-audio" preload="auto">
+    <!-- Ruta relativa al archivo MP3 -->
+    <source src="assets/bed of thorns.mp3" type="audio/mpeg">
+    
+    <!-- Fallback si el navegador no soporta mpeg -->
+    Tu navegador no soporta la reproducción de audio.
+</audio>
 
-        <audio id="moon-audio" preload="auto">
-            <!-- Si tienes permiso/legalidad:
-            <source src="assets/bed.mp3" type="audio/mpeg">
-            -->
-        </audio>
+<canvas id="moon-canvas" class="rhythm-canvas"></canvas>
 
-        <canvas id="moon-canvas" class="rhythm-canvas"></canvas>
-
-        <div class="rhythm-controls">
-            <button id="btn-moon-start">▶️ Iniciar Stage</button>
-            <div class="key-hints">D / F / J / K o toca los carriles</div>
-        </div>
-
+<div class="rhythm-controls">
+    <button id="btn-moon-start">▶️ Iniciar Stage</button>
+    <div class="key-hints">Teclas: D / F / J / K</div>
+</div>
+    
         <div class="mini-stats">
             <span>Mejor score: <b id="moon-best">0</b></span>
             <span>Partidas: <b id="moon-plays">0</b></span>
