@@ -26,8 +26,8 @@ class RhythmGame {
             id: "bed_of_thorns",
             title: "Bed of Thorns",
             artist: "TXT",
-            duration: 180, // ~3 minutos (ajustar según tu MP3 real)
-            bpm: 96 // Tempo aproximado
+            duration: 168, // ~3 minutos (ajustar según tu MP3 real)
+            bpm: 88 // Tempo aproximado
         };
 
         this.running = false;
