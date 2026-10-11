@@ -3,57 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wolfy World: Library & Chromos Update</title>
-    
-    <!-- Eliminar error de favicon -->
-    <link rel="icon" href="data:,">
+    <title>Wolfy World: Hub Update</title>
 
-    <!-- Dependencia Externa: PeerJS -->
-    <!-- Usamos defer para que cargue después del parseo HTML -->
-    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js" defer></script>
-    
-    <!-- CSS Propio -->
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="style.css">
+
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js" defer></script>
 </head>
 <body>
 
-    <!-- LOGIN SCREEN -->
-    <div id="login-screen" class="screen active">
-        <h1>🐺 Wolfy World Online</h1>
-        <p>Versión: Biblioteca & Cromos Update</p>
-        
-        <input type="text" id="username" placeholder="Tu Nombre" value="Lobo Alpha">
-        <input type="text" id="room-code" placeholder="Código Sala (ej: LOBO1)" value="LIBRARY_TEST">
-        
-        <div style="margin: 15px 0;">
-            <!-- Quitamos onclick directo, usamos IDs -->
-            <button id="btn-create-room" class="secondary">🏠 Crear Sala (Host)</button>
-            <button id="btn-join-room">🚪 Unirse a Sala</button>
+    <!-- BOOT / CARGA -->
+    <div id="boot-screen" class="screen active">
+        <h1>🐺 Wolfy World</h1>
+        <p class="subtitle">Hub Update: Biblioteca, Cromos, Cartas y Project Moonlight</p>
+
+        <div class="boot-bar">
+            <div id="boot-fill"></div>
         </div>
-        
-        <div id="status-msg"></div>
-        <div class="loader" id="loader"></div>
+        <p id="boot-status">Iniciando...</p>
+
+        <div id="save-prompt" class="modal hidden">
+            <h3>No se encontró perfil guardado</h3>
+            <p>¿Quieres guardar tu progreso para no perderlo al recargar?</p>
+            <input type="text" id="boot-name" placeholder="Nombre de tu lobo" value="Lobo Invitado">
+            <div class="modal-actions">
+                <button id="btn-save-yes">💾 Sí, guardar progreso</button>
+                <button id="btn-save-no" class="secondary">👻 Jugar sin guardar</button>
+            </div>
+        </div>
     </div>
 
-    <!-- GAME SCREEN -->
-    <div id="game-screen" class="screen">
-        <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <h2 style="margin:0; color:#f1c40f; font-size:1.2em;">Sala: <span id="current-room-display">...</span></h2>
-            <div>Jugadores: <span id="player-count">1</span></div>
+    <!-- MENÚ PRINCIPAL -->
+    <div id="menu-screen" class="screen">
+        <header class="module-header">
+            <div>
+                <h2>🐺 <span id="menu-name">Lobo Invitado</span></h2>
+                <small>Nivel <span id="menu-level">1</span></small>
+            </div>
+            <div class="mini-stats">
+                <span>💰 <b id="menu-money">0</b> PE</span>
+                <span>🎟️ <b id="menu-bt">0</b> BT</span>
+                <span>⭐ <b id="menu-xp">0</b> XP</span>
+            </div>
         </header>
 
-        <!-- TABS NAVIGATION -->
-        <div class="tabs">
-            <button class="tab-btn active-tab" data-target="mining">⛏️ Minería</button>
-            <button class="tab-btn" data-target="library">📚 Biblioteca</button>
-            <button class="tab-btn" data-target="chromos">🃏 Cromos</button>
+        <div class="menu-grid">
+            <button class="menu-card" data-module="dig">
+                <span class="menu-icon">⛏️</span>
+                <strong>Dig For Treasures</strong>
+                <small>Minería multijugador por salas</small>
+            </button>
+
+            <button class="menu-card" data-module="shop">
+                <span class="menu-icon">🛒</span>
+                <strong>Tienda</strong>
+                <small>Cromos y cartas</small>
+            </button>
+
+            <button class="menu-card" data-module="library">
+                <span class="menu-icon">📚</span>
+                <strong>Biblioteca</strong>
+                <small>Colecciones activas</small>
+            </button>
+
+            <button class="menu-card" data-module="moonlight">
+                <span class="menu-icon">🌙</span>
+                <strong>Project Moonlight</strong>
+                <small>Wolfy Stage</small>
+            </button>
         </div>
 
-        <!-- CONTENT: MINING TAB -->
-        <div id="tab-mining" class="tab-content active-tab-content">
-            <div id="game-container">
-                <!-- Players injected here via JS -->
+        <div class="menu-footer">
+            <button id="btn-save-now" class="secondary">Guardar ahora</button>
+        </div>
+    </div>
+
+    <!-- DIG FOR TREASURES -->
+    <div id="dig-screen" class="screen">
+        <button class="back-btn" data-back="menu-screen">← Menú</button>
+
+        <div id="dig-lobby">
+            <h2>⛏️ Dig For Treasures Online</h2>
+            <input type="text" id="dig-username" placeholder="Nombre en sala">
+            <input type="text" id="dig-room" placeholder="Código de sala" value="LOBO1">
+            <div>
+                <button id="btn-dig-host">🏠 Crear Sala</button>
+                <button id="btn-dig-join" class="secondary">🚪 Unirse</button>
             </div>
+            <div id="dig-status"></div>
+            <div class="loader" id="dig-loader"></div>
+        </div>
+
+        <div id="dig-game" hidden>
+            <header class="module-header">
+                <h3>Sala: <span id="current-room-display">...</span></h3>
+                <div>Jugadores: <span id="player-count">1</span></div>
+            </header>
+
+            <div id="game-container"></div>
 
             <div id="mining-ui">
                 <div id="mining-bar">
@@ -64,81 +111,159 @@
             </div>
 
             <div class="stats-panel">
-                <div class="stat-item">💰 PE: <span id="ui-money" class="stat-val">0</span></div>
-                <div class="stat-item">🎟️ BT: <span id="ui-bt" class="stat-val">0</span></div>
-                <div class="stat-item">⭐ XP: <span id="ui-xp-text" class="stat-val">0/100</span></div>
-                <div class="stat-item"><div class="xp-bar-container"><div id="ui-xp-bar" class="xp-fill"></div></div></div>
-                <div class="stat-item">🔨 Pala: <span id="ui-shovel" class="stat-val">Juguete</span></div>
+                <div class="stat-item">💰 PE: <span id="dig-money" class="stat-val">0</span></div>
+                <div class="stat-item">🎟️ BT: <span id="dig-bt" class="stat-val">0</span></div>
+                <div class="stat-item">⭐ XP: <span id="dig-xp-text" class="stat-val">0/1000</span></div>
+                <div class="stat-item">
+                    <div class="xp-bar-container">
+                        <div id="dig-xp-bar" class="xp-fill"></div>
+                    </div>
+                </div>
+                <div class="stat-item">🔨 Pala: <span id="dig-shovel" class="stat-val">Juguete</span></div>
             </div>
 
-            <ul id="inventory-treasures" class="item-list">
+            <ul id="dig-inventory" class="item-list">
                 <li>Inventario vacío</li>
             </ul>
-            
-            <div style="margin-top:5px;">
-                <small>Tienda Palas:</small><br>
+
+            <div class="shop-inline">
                 <button id="btn-buy-training" class="shop-btn-small">Entrenamiento (100PE)</button>
                 <button id="btn-buy-iron" class="shop-btn-small">Hierro (500PE)</button>
                 <button id="btn-buy-steel" class="shop-btn-small">Acero (1500PE)</button>
                 <button id="btn-sell-all" class="sell-btn">Vender Todo</button>
             </div>
         </div>
+    </div>
 
-        <!-- CONTENT: LIBRARY TAB -->
-        <div id="tab-library" class="tab-content">
-            <h3>📚 Tienda de Libros (Colección 1)</h3>
-            <p style="font-size:0.8em; color:#aaa;">Compra libros para ganar XP y completar tu colección.</p>
-            <div class="shop-grid" id="book-shop">
-                <!-- Books generated by JS -->
-            </div>
-            <hr>
-            <h4>Mi Colección de Libros</h4>
-            <ul id="owned-books-list" class="item-list">
-                <li>No posees libros aún.</li>
-            </ul>
+    <!-- TIENDA -->
+    <div id="shop-screen" class="screen">
+        <button class="back-btn" data-back="menu-screen">← Menú</button>
+        <h2>🛒 Tienda Wolfy</h2>
+
+        <div class="tabs">
+            <button class="tab-btn active-tab" data-shop-tab="chromos">🃏 Cromos</button>
+            <button class="tab-btn" data-shop-tab="cards">🎴 Cartas</button>
         </div>
 
-        <!-- CONTENT: CHROMOS TAB -->
-        <div id="tab-chromos" class="tab-content">
-            <h3>🃏 Paquete de Cromos</h3>
-            <p style="font-size:0.8em; color:#aaa;">Abre paquetes para obtener páginas raras de las colecciones.</p>
-            
+        <div id="shop-chromos" class="tab-content active-tab-content">
             <div class="shop-grid">
                 <div class="shop-card">
                     <h4>Paquete Pequeño</h4>
-                    <p>5 Páginas | 1 Colección Al Azar</p>
+                    <p>5 páginas | 1 colección activa al azar</p>
                     <p>Precio: <strong>50 BT</strong></p>
-                    <button id="btn-pack-small" class="chromo-btn">Abrir</button>
+                    <button id="btn-chromo-small" class="chromo-btn">Abrir</button>
                 </div>
                 <div class="shop-card">
                     <h4>Paquete Básico</h4>
-                    <p>8 Páginas | 1 Colección Al Azar<br>(Al menos 1 Nueva)</p>
+                    <p>8 páginas | al menos 1 nueva</p>
                     <p>Precio: <strong>150 BT</strong></p>
-                    <button id="btn-pack-basic" class="chromo-btn">Abrir</button>
+                    <button id="btn-chromo-basic" class="chromo-btn">Abrir</button>
                 </div>
                 <div class="shop-card">
                     <h4>Paquete Grande</h4>
-                    <p>12 Páginas | 1 Colección Al Azar<br>(Al menos 3 Nuevas)</p>
+                    <p>12 páginas | al menos 3 nuevas</p>
                     <p>Precio: <strong>400 BT</strong></p>
-                    <button id="btn-pack-large" class="chromo-btn">Abrir</button>
+                    <button id="btn-chromo-large" class="chromo-btn">Abrir</button>
                 </div>
             </div>
-            <hr>
-            <h4>Resultados Recientes / Inventario Cromos</h4>
-            <ul id="chromo-inventory" class="item-list">
-                <li>Sin cromos recientes.</li>
+
+            <h4>Historial de cromos</h4>
+            <ul id="chromo-history" class="item-list">
+                <li>Sin paquetes abiertos.</li>
             </ul>
         </div>
 
-    </div>
-        <!-- ... resto del HTML ... -->
+        <div id="shop-cards" class="tab-content">
+            <div class="shop-grid">
+                <div class="shop-card">
+                    <h4>Sobre Pequeño</h4>
+                    <p>3 cartas</p>
+                    <p>Precio: <strong>40 BT</strong></p>
+                    <button id="btn-card-small" class="library-btn">Abrir</button>
+                </div>
+                <div class="shop-card">
+                    <h4>Sobre Básico</h4>
+                    <p>6 cartas</p>
+                    <p>Precio: <strong>100 BT</strong></p>
+                    <button id="btn-card-basic" class="library-btn">Abrir</button>
+                </div>
+                <div class="shop-card">
+                    <h4>Sobre Lunar</h4>
+                    <p>10 cartas | garantiza 1 no común</p>
+                    <p>Precio: <strong>250 BT</strong></p>
+                    <button id="btn-card-lunar" class="library-btn">Abrir</button>
+                </div>
+            </div>
 
-    <!-- Contenedor de Notificaciones Globales -->
+            <h4>Mis cartas</h4>
+            <ul id="card-inventory" class="item-list">
+                <li>No tienes cartas.</li>
+            </ul>
+
+            <h4>Cartas equipadas (máx. 3)</h4>
+            <ul id="equipped-cards" class="item-list">
+                <li>Ninguna equipada.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- BIBLIOTECA -->
+    <div id="library-screen" class="screen">
+        <button class="back-btn" data-back="menu-screen">← Menú</button>
+        <h2>📚 Biblioteca Wolfy World</h2>
+        <p>Elige hasta 3 colecciones activas. Los libros dan BiblioTokens y XP al completarse.</p>
+
+        <h3>Colecciones activas</h3>
+        <div id="collection-selector" class="chip-row"></div>
+
+        <h3>Libros disponibles</h3>
+        <div id="book-list" class="book-list"></div>
+    </div>
+
+    <!-- PROJECT MOONLIGHT -->
+    <div id="moonlight-screen" class="screen">
+        <button class="back-btn" data-back="menu-screen">← Menú</button>
+        <h2>🌙 Project Moonlight: Wolfy Stage</h2>
+
+        <div class="song-card">
+            <h3>Bed</h3>
+            <p>Artista: AND2BLE</p>
+            <p class="small-note">
+                Para usar el audio real, añade legalmente tu archivo en <code>assets/bed.mp3</code>
+                y descomenta el <code>&lt;source&gt;</code> en el HTML.
+            </p>
+        </div>
+
+        <audio id="moon-audio" preload="auto">
+            <!-- Si tienes permiso/legalidad:
+            <source src="assets/bed.mp3" type="audio/mpeg">
+            -->
+        </audio>
+
+        <canvas id="moon-canvas" class="rhythm-canvas"></canvas>
+
+        <div class="rhythm-controls">
+            <button id="btn-moon-start">▶️ Iniciar Stage</button>
+            <div class="key-hints">D / F / J / K o toca los carriles</div>
+        </div>
+
+        <div class="mini-stats">
+            <span>Mejor score: <b id="moon-best">0</b></span>
+            <span>Partidas: <b id="moon-plays">0</b></span>
+        </div>
+
+        <div id="moon-results" class="results-box hidden"></div>
+
+        <h4>Cartas equipadas</h4>
+        <ul id="moon-equipped" class="item-list"></ul>
+    </div>
+
     <div id="toast-container"></div>
 
-    <!-- SCRIPTS MODULARES -->
     <script src="game-state.js" defer></script>
+    <script src="save-manager.js" defer></script>
     <script src="network-manager.js" defer></script>
+    <script src="rhythm-game.js" defer></script>
     <script src="main.js" defer></script>
 </body>
 </html>
