@@ -734,6 +734,8 @@ const App = {
             return;
         }
 
+this.ui.moonAudio = document.getElementById("moon-audio");
+        
         // 1. Cargar el Chart JSON
         this.showToast("Cargando Chart...", "info");
         const loaded = await this.rhythm.loadChart('charts/bed_of_thorns.json');
