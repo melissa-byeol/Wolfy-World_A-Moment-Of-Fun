@@ -716,12 +716,41 @@ const App = {
     },
 
     // --- PROJECT MOONLIGHT ---
+        // --- PROJECT MOONLIGHT ---
     ensureRhythm() {
         if (!this.rhythm && this.ui.moonCanvas) {
             this.rhythm = new RhythmGame(this.ui.moonCanvas, {
                 onFinish: (results) => this.onRhythmFinish(results)
             });
         }
+    },
+
+    async toggleMoonlight() {
+        this.ensureRhythm();
+
+        if (this.rhythm.running) {
+            this.rhythm.stop();
+            this.ui.btnMoonStart.innerText = "▶️ Iniciar Stage";
+            return;
+        }
+
+        // 1. Cargar el Chart JSON
+        this.showToast("Cargando Chart...", "info");
+        const loaded = await this.rhythm.loadChart('charts/bed_of_thorns.json');
+        
+        if (!loaded) {
+            this.showToast("Error: No se encontró el archivo del chart.", "error");
+            return;
+        }
+
+        // 2. Obtener efectos de cartas equipadas
+        const effects = this.state.getCardEffects();
+
+        // 3. Iniciar Juego con Audio
+        this.rhythm.start(this.ui.moonAudio, effects);
+        this.ui.btnMoonStart.innerText = "⏹ Detener Stage";
+        this.ui.moonResults.classList.add("hidden");
+        this.showToast("¡Stage Iniciado!", "success");
     },
 
     renderMoonlight() {
@@ -752,21 +781,7 @@ const App = {
             this.ui.btnMoonStart.innerText = "▶️ Iniciar Stage";
         }
     },
-
-    toggleMoonlight() {
-        this.ensureRhythm();
-
-        if (this.rhythm.running) {
-            this.rhythm.stop();
-        } else {
-            const effects = this.state.getCardEffects();
-            this.rhythm.start(effects, this.ui.moonAudio);
-            this.ui.btnMoonStart.innerText = "⏹ Detener Stage";
-            this.ui.moonResults.classList.add("hidden");
-            this.showToast("¡Stage iniciado!", "info");
-        }
-    },
-
+    
     onRhythmFinish(results) {
         const rewards = this.state.recordRhythm(results);
 
