@@ -1,7 +1,5 @@
 /**
- * WOLFY WORLD - RHYTHM GAME
- * Project Moonlight: Wolfy Stage
- * Optimizado para "Bed of Thorns" - TXT
+ * WOLFY WORLD - RHYTHM GAME ENGINE (Programable Chart System)
  */
 
 class RhythmGame {
@@ -10,34 +8,24 @@ class RhythmGame {
         this.ctx = canvas.getContext("2d");
         this.callbacks = callbacks;
 
-        // Configuración visual
+        // Configuración Visual
         this.width = 800;
         this.height = 450;
         this.canvas.width = this.width;
         this.canvas.height = this.height;
 
         this.laneCount = 4;
-        // Colores inspirados en la paleta de Bed of Thorns (Negro, Rosa intenso, Blanco, Gris oscuro)
+        // Paleta Bed of Thorns: Negro, Rosa Sangre, Blanco Hueso, Gris Ceniza
         this.laneColors = ["#ff0055", "#ffffff", "#333333", "#aa0033"]; 
         this.keys = { d: 0, f: 1, j: 2, k: 3 };
 
-        // Datos de la canción
-        this.song = {
-            id: "bed_of_thorns",
-            title: "Bed of Thorns",
-            artist: "TXT",
-            duration: 168, // ~3 minutos (ajustar según tu MP3 real)
-            bpm: 88 // Tempo aproximado
-        };
-
-        this.running = false;
-        this.finished = false;
-        this.startTime = 0;
-        this.lastFrame = 0;
-        this.useAudio = false;
+        // Estado de la Canción
+        this.songData = null; // Se llenará al cargar el JSON
+        this.notes = [];      // Notas activas procesadas
         this.audio = null;
+        this.useAudio = false;
 
-        this.notes = [];
+        // Mecánicas
         this.score = 0;
         this.combo = 0;
         this.maxCombo = 0;
@@ -45,95 +33,79 @@ class RhythmGame {
         this.misses = 0;
         this.shields = 0;
         this.multiplier = 1;
-
+        
+        // Física de caída
         this.hitLineY = this.height - 70;
-        // Velocidad ajustada para BPM 96 (más lento que Bad Guy, más rápido que baladas)
-        this.noteSpeed = 280; 
-        this.hitWindow = 0.20; // Ventana de tolerancia generosa
-        this.perfectWindow = 0.08;
+        this.noteSpeed = 350; // Píxeles por segundo (ajustar según gusto)
+        this.spawnDistance = this.hitLineY + 50; // Donde aparecen arriba
+        
+        // Ventanas de juicio
+        this.judgeWindowPerfect = 0.05; // ±50ms
+        this.judgeWindowGood = 0.12;    // ±120ms
+        this.judgeWindowMiss = 0.18;    // Fuera de esto es Miss
 
-        this.effects = {};
+        this.running = false;
+        this.finished = false;
+        this.startTime = 0;
+        this.lastFrameTime = 0;
 
-        // Input táctil/mouse
+        // Input
         this.canvas.addEventListener("pointerdown", (e) => {
             if (!this.running) return;
             const rect = this.canvas.getBoundingClientRect();
             const scaleX = this.canvas.width / rect.width;
             const x = (e.clientX - rect.left) * scaleX;
             const lane = Math.floor(x / (this.canvas.width / this.laneCount));
-            this.hitLane(Math.max(0, Math.min(3, lane)));
+            this.inputHit(lane);
         });
 
         this.loop = this.loop.bind(this);
     }
 
     /**
-     * Generador de Chart Semi-Estructural
-     * Simula la estructura Intro -> Verso -> Coro -> Drop
+     * Carga el chart desde un objeto JSON o URL
      */
-    generateChart() {
-        const notes = [];
-        let currentTime = 2.0; // Empieza tras 2 seg de silencio/intro
-        
-        const totalDuration = this.song.duration || 180;
-        
-        // Definir secciones aproximadas (en segundos)
-        const sections = [
-            { start: 0, end: 15, density: 0.3, type: 'intro' },      // Muy pocas notas
-            { start: 15, end: 45, density: 0.6, type: 'verse' },     // Ritmo constante
-            { start: 45, end: 60, density: 0.8, type: 'pre_chorus' },// Sube tensión
-            { start: 60, end: 90, density: 1.2, type: 'chorus' },    // Muchas notas, patrones claros
-            { start: 90, end: 105, density: 0.5, type: 'break' },    // Pausa breve
-            { start: 105, end: 135, density: 1.5, type: 'drop' },    // Caída fuerte, notas rápidas
-            { start: 135, end: 160, density: 0.9, type: 'outro' }    // Baja energía
-        ];
-
-        while (currentTime < totalDuration - 2) {
-            // Determinar sección actual
-            const currentSection = sections.find(s => currentTime >= s.start && currentTime < s.end) || 
-                                   { density: 0.5, type: 'unknown' };
-
-            // Intervalo base inverso proporcional a la densidad
-            // Mayor densidad = menor intervalo entre notas
-            const baseInterval = 0.6 / currentSection.density; 
-            
-            // Añadir variación humana (no todas las notas están perfectamente cuadradas)
-            const jitter = (Math.random() - 0.5) * 0.1; 
-            const interval = Math.max(0.25, baseInterval + jitter);
-
-            // Decidir si poner nota simple o doble/triple
-            const roll = Math.random();
-            
-            if (roll < 0.7) {
-                // Nota única
-                const lane = Math.floor(Math.random() * this.laneCount);
-                notes.push({ time: currentTime, lane, hit: false, missed: false });
-            } else if (roll < 0.9) {
-                // Doble nota (dos carriles distintos)
-                const lanes = [0, 1, 2, 3].sort(() => Math.random() - 0.5).slice(0, 2);
-                lanes.forEach(l => notes.push({ time: currentTime, lane: l, hit: false, missed: false }));
+    async loadChart(chartSource) {
+        try {
+            let data;
+            if (typeof chartSource === 'string') {
+                // Si es URL o ruta local
+                const res = await fetch(chartSource);
+                data = await res.json();
             } else {
-                // Triple nota (desafío alto)
-                const lanes = [0, 1, 2, 3].sort(() => Math.random() - 0.5).slice(0, 3);
-                lanes.forEach(l => notes.push({ time: currentTime, lane: l, hit: false, missed: false }));
+                // Si ya es objeto
+                data = chartSource;
             }
 
-            currentTime += interval;
-        }
+            this.songData = data;
+            
+            // Clonar notas para no modificar el original durante el juego
+            this.notes = data.notes.map(n => ({
+                ...n,
+                hit: false,
+                missed: false,
+                judged: false,
+                y: -100 // Posición inicial fuera de pantalla
+            })).sort((a, b) => a.time - b.time); // Ordenar por tiempo
 
-        return notes.sort((a, b) => a.time - b.time);
+            console.log(`Chart cargado: ${data.title}. Total notas: ${this.notes.length}`);
+            return true;
+        } catch (e) {
+            console.error("Error cargando chart:", e);
+            return false;
+        }
     }
 
-    start(effects = {}, audio = null) {
-        this.effects = effects;
-        this.audio = audio;
-
-        // Intentar leer duración real del audio si existe
-        if (audio && audio.src && isFinite(audio.duration) && audio.duration > 10) {
-            this.song.duration = audio.duration;
+    start(audioElement, effects = {}) {
+        if (!this.songData || this.notes.length === 0) {
+            alert("No hay chart cargado.");
+            return;
         }
 
-        this.notes = this.generateChart();
+        this.audio = audioElement;
+        this.effects = effects;
+        
+        // Resetear estadísticas
         this.score = 0;
         this.combo = effects.startCombo || 0;
         this.maxCombo = this.combo;
@@ -144,29 +116,38 @@ class RhythmGame {
         this.running = true;
         this.finished = false;
 
-        if (audio && audio.src) {
-            try {
-                audio.currentTime = 0;
-                audio.play().catch(() => {});
+        // Reiniciar estado de notas
+        this.notes.forEach(n => { n.hit = false; n.missed = false; n.judged = false; });
+
+        // Preparar Audio
+        if (this.audio && this.audio.src) {
+            this.audio.currentTime = 0;
+            this.audio.volume = 1.0;
+            this.audio.play().then(() => {
                 this.useAudio = true;
-            } catch (e) {
+                this.startTime = performance.now() - (this.audio.currentTime * 1000);
+            }).catch(err => {
+                console.warn("Audio autoplay bloqueado, usando reloj interno.", err);
                 this.useAudio = false;
-            }
+                this.startTime = performance.now();
+            });
         } else {
             this.useAudio = false;
+            this.startTime = performance.now();
         }
 
-        this.startTime = performance.now();
-        this.lastFrame = performance.now();
+        this.lastFrameTime = performance.now();
         requestAnimationFrame(this.loop);
     }
 
     stop() {
-        if (this.running) this.finish();
+        this.running = false;
+        if (this.audio) this.audio.pause();
+        this.finish();
     }
 
-    getSongTime() {
-        if (this.useAudio && this.audio && !this.audio.paused && isFinite(this.audio.currentTime)) {
+    getCurrentSongTime() {
+        if (this.useAudio && this.audio) {
             return this.audio.currentTime;
         }
         return (performance.now() - this.startTime) / 1000;
@@ -175,196 +156,242 @@ class RhythmGame {
     loop(now) {
         if (!this.running) return;
 
-        const dt = Math.min(0.05, (now - this.lastFrame) / 1000);
-        this.lastFrame = now;
+        const dt = (now - this.lastFrameTime) / 1000;
+        this.lastFrameTime = now;
 
-        const songTime = this.getSongTime();
-        this.update(dt, songTime);
-        this.draw(songTime);
+        const songTime = this.getCurrentSongTime();
 
-        if (this.running) {
+        this.updateLogic(songTime);
+        this.render(songTime);
+
+        // Verificar fin de canción
+        if (songTime > (this.songData.duration || 180) + 2) {
+            this.finish();
+        } else {
             requestAnimationFrame(this.loop);
         }
     }
 
-    update(dt, songTime) {
+    updateLogic(songTime) {
         for (const note of this.notes) {
-            if (note.hit || note.missed) continue;
+            if (note.judged) continue;
 
-            // Si pasa demasiado tiempo sin golpear
-            if (songTime > note.time + this.hitWindow) {
+            // Calcular posición Y basada en el tiempo restante hasta el hit line
+            // Si time == songTime, entonces está en hitLineY
+            // Si time > songTime, está arriba (menos Y)
+            // Fórmula: Y = HitLine - (TiempoRestante * Velocidad)
+            const timeDiff = note.time - songTime;
+            note.y = this.hitLineY - (timeDiff * this.noteSpeed);
+
+            // Detectar MISS automático si pasó demasiado
+            if (timeDiff < -this.judgeWindowMiss) {
                 if (this.shields > 0) {
                     this.shields--;
-                    note.hit = true;
-                    note.shielded = true;
+                    note.judged = true;
+                    note.hit = true; // Considerado absorbido
+                    note.typeJudge = 'SHIELD';
                 } else {
+                    note.judged = true;
                     note.missed = true;
                     this.misses++;
                     this.combo = 0;
+                    note.typeJudge = 'MISS';
                 }
             }
         }
+    }
 
-        const allResolved = this.notes.every(n => n.hit || n.missed);
-        if (songTime > this.song.duration + 1 || allResolved) {
-            this.finish();
+    inputHit(lane) {
+        const songTime = this.getCurrentSongTime();
+        
+        // Buscar la nota más cercana en ese carril que aún no haya sido juzgada
+        let bestNote = null;
+        let minDelta = Infinity;
+
+        for (const note of this.notes) {
+            if (note.judged || note.lane !== lane) continue;
+            
+            const delta = Math.abs(note.time - songTime);
+            if (delta <= this.judgeWindowMiss && delta < minDelta) {
+                bestNote = note;
+                minDelta = delta;
+            }
+        }
+
+        if (bestNote) {
+            bestNote.judged = true;
+            bestNote.hit = true;
+            
+            let judgeText = "";
+            let points = 0;
+
+            if (minDelta <= this.judgeWindowPerfect) {
+                judgeText = "PERFECT";
+                points = 300;
+                this.hits++;
+            } else if (minDelta <= this.judgeWindowGood) {
+                judgeText = "GOOD";
+                points = 100;
+                this.hits++;
+            } else {
+                judgeText = "BAD";
+                points = 10;
+                this.hits++; // Cuenta como hit pero rompe combo? Opcional. Aquí lo dejamos como hit débil.
+                this.combo = 0; // Romper combo en BAD es común
+            }
+
+            // Aplicar multiplicadores
+            const finalPoints = Math.round(points * this.multiplier * (1 + this.combo/100));
+            this.score += finalPoints;
+            this.combo++;
+            if (this.combo > this.maxCombo) this.maxCombo = this.combo;
+
+            bestNote.typeJudge = judgeText;
+            
+            // Efecto visual inmediato (opcional, se maneja en render)
         }
     }
 
-    draw(songTime) {
+    render(songTime) {
         const ctx = this.ctx;
         ctx.clearRect(0, 0, this.width, this.height);
 
-        // Fondo dinámico sutil (efecto "latido" muy leve)
-        const pulse = Math.sin(songTime * 2) * 0.05 + 0.95;
-        const grad = ctx.createLinearGradient(0, 0, 0, this.height);
-        grad.addColorStop(0, `rgba(11, 15, 29, ${pulse})`);
-        grad.addColorStop(1, `rgba(22, 33, 62, ${pulse})`);
-        ctx.fillStyle = grad;
+        // 1. Fondo Dinámico (Latido suave)
+        const pulse = Math.sin(songTime * 4) * 0.02 + 0.98;
+        ctx.fillStyle = `rgba(10, 10, 15, ${pulse})`;
         ctx.fillRect(0, 0, this.width, this.height);
 
         const laneWidth = this.width / this.laneCount;
 
-        // Carriles
+        // 2. Dibujar Carriles Guías
         for (let i = 0; i < this.laneCount; i++) {
-            ctx.fillStyle = i % 2 === 0 ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.05)";
-            ctx.fillRect(i * laneWidth, 0, laneWidth, this.height);
-
-            ctx.strokeStyle = "rgba(255,255,255,0.12)";
+            ctx.strokeStyle = "rgba(255,255,255,0.05)";
+            ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo((i + 1) * laneWidth, 0);
-            ctx.lineTo((i + 1) * laneWidth, this.height);
+            ctx.moveTo(i * laneWidth, 0);
+            ctx.lineTo(i * laneWidth, this.height);
             ctx.stroke();
         }
 
-        // Línea de golpe
+        // 3. Línea de Juicio (Hit Line)
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "#f1c40f";
         ctx.strokeStyle = "#f1c40f";
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(0, this.hitLineY);
         ctx.lineTo(this.width, this.hitLineY);
         ctx.stroke();
+        ctx.shadowBlur = 0; // Reset shadow
 
-        // Receptores
-        for (let i = 0; i < this.laneCount; i++) {
-            ctx.fillStyle = this.laneColors[i] + "55";
-            ctx.beginPath();
-            ctx.arc(i * laneWidth + laneWidth / 2, this.hitLineY, 24, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        // Notas
+        // 4. Dibujar Notas
         for (const note of this.notes) {
-            if (note.hit) continue;
+            // Solo dibujar si está cerca de la pantalla (optimización)
+            if (note.y < -50 || note.y > this.height + 50) continue;
 
-            const y = this.hitLineY - (note.time - songTime) * this.noteSpeed;
-            if (y < -50 || y > this.height + 50) continue;
+            const xCenter = note.lane * laneWidth + laneWidth / 2;
+            const radius = 20;
 
-            const x = note.lane * laneWidth + laneWidth / 2;
+            // Estilo según estado
+            if (note.judged) {
+                if (note.hit) {
+                    // Explosión de partículas simple o fade out
+                    ctx.globalAlpha = Math.max(0, 1 - (songTime - note.time)); // Fade rápido
+                    ctx.fillStyle = note.typeJudge === 'PERFECT' ? '#f1c40f' : '#fff';
+                    ctx.beginPath();
+                    ctx.arc(xCenter, this.hitLineY, radius * 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Texto de juicio flotante
+                    ctx.fillStyle = note.typeJudge === 'PERFECT' ? '#f1c40f' : '#aaa';
+                    ctx.font = "bold 14px Arial";
+                    ctx.textAlign = "center";
+                    ctx.fillText(note.typeJudge, xCenter, this.hitLineY - 30);
+                    ctx.globalAlpha = 1.0;
+                } else if (note.missed) {
+                    // Nota gris cayendo
+                    ctx.fillStyle = "rgba(100, 100, 100, 0.3)";
+                    ctx.beginPath();
+                    ctx.arc(xCenter, note.y, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else {
+                // Nota activa (brillante)
+                const color = this.laneColors[note.lane];
+                
+                // Glow effect
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = color;
+                
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(xCenter, note.y, radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.shadowBlur = 0;
 
-            ctx.fillStyle = note.missed ? "rgba(255,255,255,0.15)" : this.laneColors[note.lane];
-            ctx.beginPath();
-            ctx.arc(x, y, 18, 0, Math.PI * 2);
-            ctx.fill();
+                // Borde blanco fino
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 2;
+                ctx.stroke();
 
-            ctx.strokeStyle = "white";
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // Icono de rosa/espinas en vez de lobo para variar
-            ctx.fillStyle = "white";
-            ctx.font = "16px Segoe UI";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText("🌹", x, y);
-        }
-
-        // HUD
-        ctx.fillStyle = "white";
-        ctx.font = "bold 18px Segoe UI";
-        ctx.textAlign = "left";
-        ctx.fillText(`Score: ${this.score}`, 15, 28);
-        ctx.fillText(`Combo: ${this.combo}`, 15, 52);
-        ctx.fillText(`Escudos: ${this.shields}`, 15, 76);
-
-        ctx.textAlign = "right";
-        ctx.fillText(`${this.song.title} - ${this.song.artist}`, this.width - 15, 28);
-        ctx.fillText(`Tiempo: ${Math.max(0, songTime).toFixed(1)}s`, this.width - 15, 52);
-
-        ctx.textAlign = "center";
-        ctx.font = "14px Segoe UI";
-        ctx.fillStyle = "#aaa";
-        ctx.fillText("Teclas: D  F  J  K  |  O toca los carriles", this.width / 2, this.height - 18);
-    }
-
-    handleKey(key) {
-        const lane = this.keys[String(key).toLowerCase()];
-        if (lane !== undefined) this.hitLane(lane);
-    }
-
-    hitLane(lane) {
-        if (!this.running) return;
-
-        const songTime = this.getSongTime();
-        let bestNote = null;
-        let bestDelta = Infinity;
-
-        for (const note of this.notes) {
-            if (note.lane !== lane || note.hit || note.missed) continue;
-            const delta = Math.abs(note.time - songTime);
-            if (delta <= this.hitWindow && delta < bestDelta) {
-                bestNote = note;
-                bestDelta = delta;
+                // Icono central (Rosa para Bed of Thorns)
+                ctx.fillStyle = "black";
+                ctx.font = "16px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("🌹", xCenter, note.y);
             }
         }
 
-        if (!bestNote) return;
+        // 5. HUD Superior
+        ctx.fillStyle = "white";
+        ctx.font = "bold 20px Segoe UI";
+        ctx.textAlign = "left";
+        ctx.fillText(`SCORE: ${this.score}`, 20, 30);
+        ctx.fillText(`COMBO: ${this.combo}`, 20, 55);
+        
+        ctx.textAlign = "right";
+        ctx.font = "16px Segoe UI";
+        ctx.fillStyle = "#aaa";
+        ctx.fillText(`${this.songData.title} - ${this.songData.artist}`, this.width - 20, 30);
+        ctx.fillText(`ACCURACY: ${this.getAccuracy()}%`, this.width - 20, 55);
+    }
 
-        const perfect = bestDelta <= this.perfectWindow;
-        const base = perfect ? 150 : 100;
-        const comboBonus = 1 + Math.min(this.combo, 100) / 200;
-        const gained = Math.round(base * this.multiplier * comboBonus);
-
-        bestNote.hit = true;
-        bestNote.perfect = perfect;
-
-        this.score += gained;
-        this.combo++;
-        this.hits++;
-        if (this.combo > this.maxCombo) this.maxCombo = this.combo;
+    getAccuracy() {
+        const totalJudged = this.hits + this.misses;
+        if (totalJudged === 0) return 100;
+        // Peso: Perfect=1, Good=0.5, Miss=0 (simplificado)
+        // Para esto necesitaríamos contar tipos de hits, por ahora usamos ratio básico
+        return Math.round((this.hits / totalJudged) * 100);
     }
 
     finish() {
         if (this.finished) return;
-
         this.running = false;
         this.finished = true;
-
-        if (this.audio) {
-            try { this.audio.pause(); } catch (e) {}
-        }
-
-        const total = this.hits + this.misses;
-        const accuracy = total > 0 ? this.hits / total : 1;
-
-        let rank = "F";
-        if (accuracy >= 0.95) rank = "S";
-        else if (accuracy >= 0.85) rank = "A";
-        else if (accuracy >= 0.70) rank = "B";
-        else if (accuracy >= 0.50) rank = "C";
+        if (this.audio) this.audio.pause();
 
         const results = {
-            songId: this.song.id,
+            songId: this.songData.id,
             score: this.score,
             maxCombo: this.maxCombo,
             hits: this.hits,
             misses: this.misses,
-            accuracy,
-            rank
+            accuracy: this.getAccuracy(),
+            rank: this.calculateRank()
         };
 
-        if (this.callbacks.onFinish) {
-            this.callbacks.onFinish(results);
-        }
+        if (this.callbacks.onFinish) this.callbacks.onFinish(results);
+    }
+
+    calculateRank() {
+        const acc = this.getAccuracy();
+        if (acc >= 98) return "S+";
+        if (acc >= 95) return "S";
+        if (acc >= 90) return "A";
+        if (acc >= 80) return "B";
+        if (acc >= 70) return "C";
+        return "D";
     }
 }
