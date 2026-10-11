@@ -1,0 +1,29 @@
+{
+  "songId": "bed_of_thorns",
+  "title": "Bed of Thorns",
+  "artist": "TXT",
+  "bpm": 96,
+  "offsetMs": 0, 
+  "notes": [
+    { "time": 2.5, "lane": 0, "type": "tap" },
+    { "time": 3.0, "lane": 1, "type": "tap" },
+    { "time": 3.5, "lane": 2, "type": "tap" },
+    { "time": 4.0, "lane": 3, "type": "tap" },
+    
+    { "time": 4.5, "lane": 0, "type": "tap" },
+    { "time": 4.75, "lane": 1, "type": "tap" },
+    { "time": 5.0, "lane": 2, "type": "tap" },
+    
+    { "time": 6.0, "lane": 1, "type": "tap" },
+    { "time": 6.25, "lane": 2, "type": "tap" },
+    { "time": 6.5, "lane": 1, "type": "tap" },
+    
+    { "time": 8.0, "lane": 0, "type": "tap" },
+    { "time": 8.0, "lane": 3, "type": "tap" },
+    
+    { "time": 9.0, "lane": 1, "type": "tap" },
+    { "time": 9.25, "lane": 2, "type": "tap" },
+    { "time": 9.5, "lane": 1, "type": "tap" },
+    { "time": 9.75, "lane": 2, "type": "tap" }
+  ]
+}
