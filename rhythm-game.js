@@ -1,7 +1,7 @@
 /**
  * WOLFY WORLD - RHYTHM GAME
  * Project Moonlight: Wolfy Stage
- * Prototipo de 4 carriles.
+ * Optimizado para "Bed of Thorns" - TXT
  */
 
 class RhythmGame {
@@ -10,20 +10,24 @@ class RhythmGame {
         this.ctx = canvas.getContext("2d");
         this.callbacks = callbacks;
 
+        // Configuración visual
         this.width = 800;
         this.height = 450;
         this.canvas.width = this.width;
         this.canvas.height = this.height;
 
         this.laneCount = 4;
-        this.laneColors = ["#e74c3c", "#f1c40f", "#2ecc71", "#3498db"];
+        // Colores inspirados en la paleta de Bed of Thorns (Negro, Rosa intenso, Blanco, Gris oscuro)
+        this.laneColors = ["#ff0055", "#ffffff", "#333333", "#aa0033"]; 
         this.keys = { d: 0, f: 1, j: 2, k: 3 };
 
+        // Datos de la canción
         this.song = {
-            id: "bed",
-            title: "Bed",
-            artist: "AND2BLE",
-            duration: 60 // segundos; si hay audio válido, puede ajustarse
+            id: "bed_of_thorns",
+            title: "Bed of Thorns",
+            artist: "TXT",
+            duration: 180, // ~3 minutos (ajustar según tu MP3 real)
+            bpm: 96 // Tempo aproximado
         };
 
         this.running = false;
@@ -43,12 +47,14 @@ class RhythmGame {
         this.multiplier = 1;
 
         this.hitLineY = this.height - 70;
-        this.noteSpeed = 320; // px por segundo
-        this.hitWindow = 0.18;
+        // Velocidad ajustada para BPM 96 (más lento que Bad Guy, más rápido que baladas)
+        this.noteSpeed = 280; 
+        this.hitWindow = 0.20; // Ventana de tolerancia generosa
         this.perfectWindow = 0.08;
 
         this.effects = {};
 
+        // Input táctil/mouse
         this.canvas.addEventListener("pointerdown", (e) => {
             if (!this.running) return;
             const rect = this.canvas.getBoundingClientRect();
@@ -61,21 +67,58 @@ class RhythmGame {
         this.loop = this.loop.bind(this);
     }
 
-    generateChart(duration) {
+    /**
+     * Generador de Chart Semi-Estructural
+     * Simula la estructura Intro -> Verso -> Coro -> Drop
+     */
+    generateChart() {
         const notes = [];
-        let t = 2;
+        let currentTime = 2.0; // Empieza tras 2 seg de silencio/intro
+        
+        const totalDuration = this.song.duration || 180;
+        
+        // Definir secciones aproximadas (en segundos)
+        const sections = [
+            { start: 0, end: 15, density: 0.3, type: 'intro' },      // Muy pocas notas
+            { start: 15, end: 45, density: 0.6, type: 'verse' },     // Ritmo constante
+            { start: 45, end: 60, density: 0.8, type: 'pre_chorus' },// Sube tensión
+            { start: 60, end: 90, density: 1.2, type: 'chorus' },    // Muchas notas, patrones claros
+            { start: 90, end: 105, density: 0.5, type: 'break' },    // Pausa breve
+            { start: 105, end: 135, density: 1.5, type: 'drop' },    // Caída fuerte, notas rápidas
+            { start: 135, end: 160, density: 0.9, type: 'outro' }    // Baja energía
+        ];
 
-        while (t < duration - 1) {
-            const lane = Math.floor(Math.random() * this.laneCount);
-            notes.push({ time: t, lane, hit: false, missed: false });
+        while (currentTime < totalDuration - 2) {
+            // Determinar sección actual
+            const currentSection = sections.find(s => currentTime >= s.start && currentTime < s.end) || 
+                                   { density: 0.5, type: 'unknown' };
 
-            // Algunas notas dobles
-            if (Math.random() < 0.18) {
-                const lane2 = (lane + 1 + Math.floor(Math.random() * 3)) % this.laneCount;
-                notes.push({ time: t + 0.12, lane: lane2, hit: false, missed: false });
+            // Intervalo base inverso proporcional a la densidad
+            // Mayor densidad = menor intervalo entre notas
+            const baseInterval = 0.6 / currentSection.density; 
+            
+            // Añadir variación humana (no todas las notas están perfectamente cuadradas)
+            const jitter = (Math.random() - 0.5) * 0.1; 
+            const interval = Math.max(0.25, baseInterval + jitter);
+
+            // Decidir si poner nota simple o doble/triple
+            const roll = Math.random();
+            
+            if (roll < 0.7) {
+                // Nota única
+                const lane = Math.floor(Math.random() * this.laneCount);
+                notes.push({ time: currentTime, lane, hit: false, missed: false });
+            } else if (roll < 0.9) {
+                // Doble nota (dos carriles distintos)
+                const lanes = [0, 1, 2, 3].sort(() => Math.random() - 0.5).slice(0, 2);
+                lanes.forEach(l => notes.push({ time: currentTime, lane: l, hit: false, missed: false }));
+            } else {
+                // Triple nota (desafío alto)
+                const lanes = [0, 1, 2, 3].sort(() => Math.random() - 0.5).slice(0, 3);
+                lanes.forEach(l => notes.push({ time: currentTime, lane: l, hit: false, missed: false }));
             }
 
-            t += 0.42 + Math.random() * 0.35;
+            currentTime += interval;
         }
 
         return notes.sort((a, b) => a.time - b.time);
@@ -85,11 +128,12 @@ class RhythmGame {
         this.effects = effects;
         this.audio = audio;
 
+        // Intentar leer duración real del audio si existe
         if (audio && audio.src && isFinite(audio.duration) && audio.duration > 10) {
-            this.song.duration = Math.max(30, audio.duration);
+            this.song.duration = audio.duration;
         }
 
-        this.notes = this.generateChart(this.song.duration);
+        this.notes = this.generateChart();
         this.score = 0;
         this.combo = effects.startCombo || 0;
         this.maxCombo = this.combo;
@@ -147,6 +191,7 @@ class RhythmGame {
         for (const note of this.notes) {
             if (note.hit || note.missed) continue;
 
+            // Si pasa demasiado tiempo sin golpear
             if (songTime > note.time + this.hitWindow) {
                 if (this.shields > 0) {
                     this.shields--;
@@ -170,10 +215,11 @@ class RhythmGame {
         const ctx = this.ctx;
         ctx.clearRect(0, 0, this.width, this.height);
 
-        // Fondo
+        // Fondo dinámico sutil (efecto "latido" muy leve)
+        const pulse = Math.sin(songTime * 2) * 0.05 + 0.95;
         const grad = ctx.createLinearGradient(0, 0, 0, this.height);
-        grad.addColorStop(0, "#0b0f1d");
-        grad.addColorStop(1, "#16213e");
+        grad.addColorStop(0, `rgba(11, 15, 29, ${pulse})`);
+        grad.addColorStop(1, `rgba(22, 33, 62, ${pulse})`);
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, this.width, this.height);
 
@@ -225,11 +271,12 @@ class RhythmGame {
             ctx.lineWidth = 2;
             ctx.stroke();
 
+            // Icono de rosa/espinas en vez de lobo para variar
             ctx.fillStyle = "white";
             ctx.font = "16px Segoe UI";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillText("🐺", x, y);
+            ctx.fillText("🌹", x, y);
         }
 
         // HUD
