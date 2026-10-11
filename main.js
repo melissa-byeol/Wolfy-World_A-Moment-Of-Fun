@@ -1,237 +1,407 @@
 /**
- * WOLFY WORLD - MAIN CONTROLLER (With Toast Notifications)
+ * WOLFY WORLD - MAIN CONTROLLER
+ * Hub Update con guardado, menú, tienda, biblioteca y Project Moonlight.
  */
 
 const App = {
     state: null,
     net: null,
+    rhythm: null,
     ui: {},
     mining: { active: false, interval: null, pos: 0, dir: 1 },
-    toastContainer: null, // Referencia al DOM
+    currentScreen: "boot-screen",
+    autoSaveTimer: null,
+    shopTab: "chromos",
 
     init() {
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.setup());
-        } else {
-            this.setup();
-        }
-    },
-
-    setup() {
-        console.log("Wolfy World Iniciando...");
-        
-        // Instanciar Módulos
         this.state = new GameState();
         this.net = new NetworkManager(this.state);
-        
-        // Cachear DOM
+
         this.cacheDOM();
-        
-        // Configurar Red
-        this.net.onUpdateCallback = () => this.renderGame();
-        
-        // Bind Eventos
         this.bindEvents();
-        
-        // Render inicial
-        this.renderBookShop();
-        console.log("Setup Completado.");
+        this.boot();
     },
 
     cacheDOM() {
-        this.ui.loginScreen = document.getElementById('login-screen');
-        this.ui.gameScreen = document.getElementById('game-screen');
-        this.ui.statusMsg = document.getElementById('status-msg');
-        this.ui.loader = document.getElementById('loader');
-        this.ui.gameContainer = document.getElementById('game-container');
-        this.ui.miningUi = document.getElementById('mining-ui');
-        this.ui.cursorLine = document.getElementById('cursor-line');
-        this.ui.btnMine = document.getElementById('btn-mine-action');
-        
-        // Botones Login
-        this.ui.btnCreateRoom = document.getElementById('btn-create-room');
-        this.ui.btnJoinRoom = document.getElementById('btn-join-room');
-        
-        // Botones Acción Directa
-        this.ui.btnSellAll = document.getElementById('btn-sell-all');
-        this.ui.btnBuyTraining = document.getElementById('btn-buy-training');
-        this.ui.btnBuyIron = document.getElementById('btn-buy-iron');
-        this.ui.btnBuySteel = document.getElementById('btn-buy-steel');
-        
-        // Botones Cromos
-        this.ui.btnPackSmall = document.getElementById('btn-pack-small');
-        this.ui.btnPackBasic = document.getElementById('btn-pack-basic');
-        this.ui.btnPackLarge = document.getElementById('btn-pack-large');
+        this.ui.bootScreen = document.getElementById("boot-screen");
+        this.ui.bootFill = document.getElementById("boot-fill");
+        this.ui.bootStatus = document.getElementById("boot-status");
+        this.ui.savePrompt = document.getElementById("save-prompt");
+        this.ui.bootName = document.getElementById("boot-name");
 
-        // Toast Container
-        this.toastContainer = document.getElementById('toast-container');
+        this.ui.menuScreen = document.getElementById("menu-screen");
+        this.ui.menuName = document.getElementById("menu-name");
+        this.ui.menuMoney = document.getElementById("menu-money");
+        this.ui.menuBt = document.getElementById("menu-bt");
+        this.ui.menuXp = document.getElementById("menu-xp");
+        this.ui.menuLevel = document.getElementById("menu-level");
+
+        this.ui.digScreen = document.getElementById("dig-screen");
+        this.ui.digLobby = document.getElementById("dig-lobby");
+        this.ui.digGame = document.getElementById("dig-game");
+        this.ui.digUsername = document.getElementById("dig-username");
+        this.ui.digRoom = document.getElementById("dig-room");
+        this.ui.digStatus = document.getElementById("dig-status");
+        this.ui.digLoader = document.getElementById("dig-loader");
+
+        this.ui.gameContainer = document.getElementById("game-container");
+        this.ui.miningUi = document.getElementById("mining-ui");
+        this.ui.miningBar = document.getElementById("mining-bar");
+        this.ui.cursorLine = document.getElementById("cursor-line");
+        this.ui.btnMine = document.getElementById("btn-mine-action");
+
+        this.ui.shopScreen = document.getElementById("shop-screen");
+        this.ui.shopChromos = document.getElementById("shop-chromos");
+        this.ui.shopCards = document.getElementById("shop-cards");
+
+        this.ui.libraryScreen = document.getElementById("library-screen");
+        this.ui.collectionSelector = document.getElementById("collection-selector");
+        this.ui.bookList = document.getElementById("book-list");
+
+        this.ui.moonScreen = document.getElementById("moonlight-screen");
+        this.ui.moonCanvas = document.getElementById("moon-canvas");
+        this.ui.moonAudio = document.getElementById("moon-audio");
+        this.ui.btnMoonStart = document.getElementById("btn-moon-start");
+        this.ui.moonBest = document.getElementById("moon-best");
+        this.ui.moonPlays = document.getElementById("moon-plays");
+        this.ui.moonResults = document.getElementById("moon-results");
+        this.ui.moonEquipped = document.getElementById("moon-equipped");
+
+        this.ui.toastContainer = document.getElementById("toast-container");
     },
 
     bindEvents() {
-        // --- LOGIN BUTTONS ---
-        if(this.ui.btnCreateRoom) {
-            this.ui.btnCreateRoom.addEventListener('click', () => this.createRoom());
-        }
-        if(this.ui.btnJoinRoom) {
-            this.ui.btnJoinRoom.addEventListener('click', () => this.joinRoom());
-        }
+        // Boot
+        document.getElementById("btn-save-yes").addEventListener("click", () => {
+            const name = this.ui.bootName.value.trim() || "Lobo Invitado";
+            this.createNewSave(name);
+        });
 
-        // --- TABS ---
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const target = e.target.dataset.target;
-                this.switchTab(target);
+        document.getElementById("btn-save-no").addEventListener("click", () => {
+            const name = this.ui.bootName.value.trim() || "Lobo Invitado";
+            this.playWithoutSave(name);
+        });
+
+        // Menú
+        document.querySelectorAll(".menu-card").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const module = btn.dataset.module;
+                if (module === "dig") this.showScreen("dig-screen");
+                if (module === "shop") this.showScreen("shop-screen");
+                if (module === "library") this.showScreen("library-screen");
+                if (module === "moonlight") this.showScreen("moonlight-screen");
             });
         });
 
-        // --- MOVIMIENTO JUEGO ---
-        if(this.ui.gameContainer) {
-            this.ui.gameContainer.addEventListener('click', (e) => {
-                this.handleMove(e);
+        document.getElementById("btn-save-now").addEventListener("click", () => this.saveNow());
+
+        // Back buttons
+        document.querySelectorAll(".back-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                this.showScreen(btn.dataset.back);
             });
-        }
+        });
 
-        // --- MINERÍA ---
-        if(this.ui.btnMine) {
-            this.ui.btnMine.addEventListener('click', () => this.toggleMining());
-        }
-        const miningBar = document.getElementById('mining-bar');
-        if(miningBar) {
-            miningBar.addEventListener('click', () => this.stopMining());
-        }
+        // Dig lobby
+        document.getElementById("btn-dig-host").addEventListener("click", () => this.createRoom());
+        document.getElementById("btn-dig-join").addEventListener("click", () => this.joinRoom());
 
-        // --- TIENDA PALAS ---
-        if(this.ui.btnBuyTraining) this.ui.btnBuyTraining.addEventListener('click', () => this.buyShovel('training'));
-        if(this.ui.btnBuyIron) this.ui.btnBuyIron.addEventListener('click', () => this.buyShovel('iron'));
-        if(this.ui.btnBuySteel) this.ui.btnBuySteel.addEventListener('click', () => this.buyShovel('steel'));
-        if(this.ui.btnSellAll) this.ui.btnSellAll.addEventListener('click', () => this.sellAllTreasures());
+        // Dig gameplay
+        this.ui.gameContainer.addEventListener("click", (e) => this.handleMove(e));
+        this.ui.btnMine.addEventListener("click", () => this.toggleMining());
+        this.ui.miningBar.addEventListener("click", () => this.stopMining());
 
-        // --- CROMOS ---
-        if(this.ui.btnPackSmall) this.ui.btnPackSmall.addEventListener('click', () => this.openChromoPack('small'));
-        if(this.ui.btnPackBasic) this.ui.btnPackBasic.addEventListener('click', () => this.openChromoPack('basic'));
-        if(this.ui.btnPackLarge) this.ui.btnPackLarge.addEventListener('click', () => this.openChromoPack('large'));
-    },
+        document.getElementById("btn-buy-training").addEventListener("click", () => this.buyShovel("training"));
+        document.getElementById("btn-buy-iron").addEventListener("click", () => this.buyShovel("iron"));
+        document.getElementById("btn-buy-steel").addEventListener("click", () => this.buyShovel("steel"));
+        document.getElementById("btn-sell-all").addEventListener("click", () => this.sellAllTreasures());
 
-    // --- NUEVO SISTEMA DE NOTIFICACIONES ---
-    showToast(message, type = 'info', duration = 3000) {
-        if (!this.toastContainer) return;
+        // Shop tabs
+        document.querySelectorAll("[data-shop-tab]").forEach(btn => {
+            btn.addEventListener("click", () => this.switchShopTab(btn.dataset.shopTab));
+        });
 
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        
-        // Icono simple basado en tipo
-        let icon = "ℹ️";
-        if(type === 'success') icon = "✅";
-        if(type === 'error') icon = "❌";
-        if(type === 'loot') icon = "💎";
+        document.getElementById("btn-chromo-small").addEventListener("click", () => this.openChromoPack("small"));
+        document.getElementById("btn-chromo-basic").addEventListener("click", () => this.openChromoPack("basic"));
+        document.getElementById("btn-chromo-large").addEventListener("click", () => this.openChromoPack("large"));
 
-        toast.innerHTML = `<span>${icon}</span> <span style="flex-grow:1; margin-left:8px;">${message}</span>`;
-        
-        this.toastContainer.appendChild(toast);
+        document.getElementById("btn-card-small").addEventListener("click", () => this.openCardPack("small"));
+        document.getElementById("btn-card-basic").addEventListener("click", () => this.openCardPack("basic"));
+        document.getElementById("btn-card-lunar").addEventListener("click", () => this.openCardPack("lunar"));
 
-        // Remover automáticamente tras la duración + animación de salida
-        setTimeout(() => {
-            if(toast.parentNode) {
-                toast.remove();
+        // Library delegation
+        this.ui.collectionSelector.addEventListener("click", (e) => {
+            const chip = e.target.closest(".chip");
+            if (!chip) return;
+            this.toggleCollection(chip.dataset.collection);
+        });
+
+        this.ui.bookList.addEventListener("click", (e) => {
+            const btn = e.target.closest("[data-read-book]");
+            if (!btn) return;
+            this.readBookPage(btn.dataset.readBook);
+        });
+
+        // Moonlight
+        this.ui.btnMoonStart.addEventListener("click", () => this.toggleMoonlight());
+
+        document.addEventListener("keydown", (e) => {
+            if (this.currentScreen === "moonlight-screen" && this.rhythm) {
+                this.rhythm.handleKey(e.key);
             }
-        }, duration + 500); // Sumamos tiempo extra para la animación fadeOut
+        });
+
+        window.addEventListener("beforeunload", () => {
+            if (SaveManager.exists()) {
+                SaveManager.save(this.state.toSave());
+            }
+        });
     },
 
-    // --- FLUJO DE INICIO ---
+    // --- BOOT / SAVE ---
+    boot() {
+        let progress = 0;
+
+        const interval = setInterval(() => {
+            progress += 7 + Math.random() * 10;
+
+            if (progress >= 80) {
+                progress = 80;
+                clearInterval(interval);
+                this.setBootProgress(progress);
+                this.afterBoot80();
+            } else {
+                this.setBootProgress(progress);
+            }
+        }, 120);
+    },
+
+    setBootProgress(value) {
+        const p = Math.floor(value);
+        this.ui.bootFill.style.width = `${p}%`;
+        this.ui.bootStatus.innerText = `Cargando datos... ${p}%`;
+    },
+
+    setBootStatus(msg) {
+        this.ui.bootStatus.innerText = msg;
+    },
+
+    afterBoot80() {
+        if (SaveManager.exists()) {
+            const save = SaveManager.load();
+            if (save) {
+                this.progressTo100(() => {
+                    this.state.loadFromSave(save);
+                    this.enterMenu();
+                    this.showToast("Progreso cargado", "success");
+                });
+                return;
+            }
+        }
+
+        this.ui.savePrompt.classList.remove("hidden");
+        this.setBootStatus("¿Quieres guardar tu progreso?");
+    },
+
+    progressTo100(callback) {
+        let p = parseFloat(this.ui.bootFill.style.width) || 80;
+
+        const interval = setInterval(() => {
+            p += 5;
+            if (p >= 100) {
+                p = 100;
+                clearInterval(interval);
+                this.setBootProgress(p);
+                setTimeout(callback, 150);
+            } else {
+                this.setBootProgress(p);
+            }
+        }, 70);
+    },
+
+    createNewSave(name) {
+        const save = SaveManager.createDefault(name);
+        this.state.loadFromSave(save);
+        this.progressTo100(() => this.enterMenu());
+        this.showToast("Perfil creado y guardado", "success");
+    },
+
+    playWithoutSave(name) {
+        this.state.profileName = name;
+        this.state.savedPlayer.name = name;
+        this.progressTo100(() => this.enterMenu());
+        this.showToast("Modo sin guardar activo", "info");
+    },
+
+    enterMenu() {
+        this.showScreen("menu-screen");
+        this.updateMenuUI();
+    },
+
+    saveNow() {
+        if (!SaveManager.exists()) {
+            this.showToast("No hay guardado activo. Crea un perfil primero.", "error");
+            return;
+        }
+
+        const ok = SaveManager.save(this.state.toSave());
+        this.showToast(ok ? "Progreso guardado" : "Error al guardar", ok ? "success" : "error");
+    },
+
+    scheduleSave() {
+        if (!SaveManager.exists()) return;
+
+        clearTimeout(this.autoSaveTimer);
+        this.autoSaveTimer = setTimeout(() => {
+            SaveManager.save(this.state.toSave());
+        }, 800);
+    },
+
+    // --- UI ROUTER ---
+    showScreen(id) {
+        document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+        const el = document.getElementById(id);
+        if (el) el.classList.add("active");
+
+        this.currentScreen = id;
+
+        if (id === "menu-screen") this.updateMenuUI();
+        if (id === "dig-screen") this.prepareDigScreen();
+        if (id === "shop-screen") this.renderShop();
+        if (id === "library-screen") this.renderLibrary();
+        if (id === "moonlight-screen") this.renderMoonlight();
+    },
+
+    updateMenuUI() {
+        const p = this.state.getActivePlayer();
+
+        this.ui.menuName.innerText = this.state.profileName;
+        this.ui.menuMoney.innerText = p.money;
+        this.ui.menuBt.innerText = this.state.biblioTokens;
+        this.ui.menuXp.innerText = this.state.xp;
+        this.ui.menuLevel.innerText = this.state.level;
+
+        if (this.ui.digUsername && !this.ui.digUsername.value) {
+            this.ui.digUsername.value = this.state.profileName;
+        }
+    },
+
+    showToast(message, type = "info", duration = 3000) {
+        if (!this.ui.toastContainer) return;
+
+        const toast = document.createElement("div");
+        toast.className = `toast ${type}`;
+
+        let icon = "ℹ️";
+        if (type === "success") icon = "✅";
+        if (type === "error") icon = "❌";
+        if (type === "loot") icon = "💎";
+
+        toast.innerHTML = `<span>${icon}</span><span style="margin-left:8px;">${message}</span>`;
+        this.ui.toastContainer.appendChild(toast);
+
+        setTimeout(() => {
+            if (toast.parentNode) toast.remove();
+        }, duration + 500);
+    },
+
+    // --- DIG FOR TREASURES ---
+    prepareDigScreen() {
+        if (this.state.myId) {
+            this.ui.digLobby.hidden = true;
+            this.ui.digGame.hidden = false;
+            this.ui.miningUi.style.display = "block";
+            document.getElementById("current-room-display").innerText = this.state.roomCode;
+        } else {
+            this.ui.digLobby.hidden = false;
+            this.ui.digGame.hidden = true;
+        }
+
+        this.renderDig();
+    },
+
+    setDigStatus(msg, isError = false) {
+        this.ui.digStatus.innerText = msg;
+        this.ui.digStatus.style.color = isError ? "#e74c3c" : "#2ecc71";
+    },
+
+    showDigLoader(show) {
+        this.ui.digLoader.style.display = show ? "block" : "none";
+    },
+
     createRoom() {
-        const name = document.getElementById('username').value.trim();
-        const code = document.getElementById('room-code').value.trim().toUpperCase();
-        if(!name || !code) return this.showToast("Faltan datos", "error");
-        
-        this.showLoader(true);
-        this.setStatus("Creando sala...", false);
-        
-        this.net.connectAsHost(code, name, 
-            () => { 
-                this.showLoader(false); 
-                this.startGameLoop(); 
-                this.showToast(`Sala ${code} creada correctamente`, "success");
-            }, 
-            (e) => { 
-                this.showLoader(false); 
-                this.showToast("Error al crear sala: " + e, "error"); 
+        const name = this.ui.digUsername.value.trim() || this.state.profileName;
+        const code = this.ui.digRoom.value.trim().toUpperCase();
+
+        if (!name || !code) return this.setDigStatus("Faltan datos", true);
+
+        this.showDigLoader(true);
+        this.setDigStatus("Creando sala...");
+
+        this.net.connectAsHost(code, name,
+            () => {
+                this.showDigLoader(false);
+                this.ui.digLobby.hidden = true;
+                this.ui.digGame.hidden = false;
+                this.ui.miningUi.style.display = "block";
+                document.getElementById("current-room-display").innerText = this.state.roomCode;
+                this.renderDig();
+                this.showToast(`Sala ${code} creada`, "success");
+            },
+            (err) => {
+                this.showDigLoader(false);
+                this.setDigStatus("Error: " + err, true);
             }
         );
     },
 
     joinRoom() {
-        const name = document.getElementById('username').value.trim();
-        const code = document.getElementById('room-code').value.trim().toUpperCase();
-        if(!name || !code) return this.showToast("Faltan datos", "error");
-        
-        this.showLoader(true);
-        this.setStatus("Buscando sala...", false);
-        
+        const name = this.ui.digUsername.value.trim() || this.state.profileName;
+        const code = this.ui.digRoom.value.trim().toUpperCase();
+
+        if (!name || !code) return this.setDigStatus("Faltan datos", true);
+
+        this.showDigLoader(true);
+        this.setDigStatus("Buscando sala...");
+
         this.net.connectAsClient(code, name,
-            () => { 
-                this.showLoader(false); 
-                this.startGameLoop(); 
-                this.showToast(`Te has unido a la sala ${code}`, "success");
-            }, 
-            (e) => { 
-                this.showLoader(false); 
-                this.showToast(e, "error"); 
+            () => {
+                this.showDigLoader(false);
+                this.ui.digLobby.hidden = true;
+                this.ui.digGame.hidden = false;
+                this.ui.miningUi.style.display = "block";
+                document.getElementById("current-room-display").innerText = this.state.roomCode;
+                this.renderDig();
+                this.showToast(`Conectado a ${code}`, "success");
+            },
+            (err) => {
+                this.showDigLoader(false);
+                this.setDigStatus(err, true);
             }
         );
     },
 
-    startGameLoop() {
-        this.ui.loginScreen.classList.remove('active');
-        this.ui.gameScreen.classList.add('active');
-        this.ui.miningUi.style.display = 'block';
-        document.getElementById('current-room-display').innerText = this.state.roomCode;
-        
-        this.renderGame();
-    },
-
-    // --- UTILIDADES UI ---
-    showLoader(show) { 
-        if(this.ui.loader) this.ui.loader.style.display = show ? 'block' : 'none'; 
-    },
-    
-    setStatus(msg, isError = false) {
-        if(this.ui.statusMsg) {
-            this.ui.statusMsg.innerText = msg;
-            this.ui.statusMsg.style.color = isError ? '#e74c3c' : '#2ecc71';
-        }
-    },
-
-    switchTab(tabName) {
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active-tab-content'));
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active-tab'));
-        
-        const content = document.getElementById(`tab-${tabName}`);
-        if(content) content.classList.add('active-tab-content');
-        
-        const btns = document.querySelectorAll('.tab-btn');
-        btns.forEach(b => {
-            if(b.dataset.target === tabName) b.classList.add('active-tab');
-        });
-    },
-
-    // --- LÓGICA DE JUEGO (Sin Alerts) ---
     handleMove(e) {
-        if(this.mining.active) return; 
-        
+        if (this.mining.active) return;
+
         const rect = this.ui.gameContainer.getBoundingClientRect();
         let x = e.clientX - rect.left - 20;
         let y = e.clientY - rect.top - 20;
-        
+
         x = Math.max(0, Math.min(x, rect.width - 40));
         y = Math.max(0, Math.min(y, rect.height - 40));
 
         this.state.updateMyPosition(x, y);
-        this.net.sendToHostOrBroadcast({ type: 'MOVE', player: this.state.getLocalPlayer() });
-        this.renderGame(); 
+        this.net.sendToHostOrBroadcast({
+            type: "MOVE",
+            player: this.state.getActivePlayer()
+        });
+
+        this.renderDig();
     },
 
     toggleMining() {
-        if(this.mining.active) this.stopMining();
+        if (this.mining.active) this.stopMining();
         else this.startMining();
     },
 
@@ -240,11 +410,11 @@ const App = {
         this.mining.pos = 0;
         this.mining.dir = 1;
         this.ui.btnMine.innerText = "❌ Detener";
-        
+
         this.mining.interval = setInterval(() => {
             this.mining.pos += 4 * this.mining.dir;
-            if(this.mining.pos > 296 || this.mining.pos < 0) this.mining.dir *= -1;
-            this.ui.cursorLine.style.left = this.mining.pos + 'px';
+            if (this.mining.pos > 296 || this.mining.pos < 0) this.mining.dir *= -1;
+            this.ui.cursorLine.style.left = this.mining.pos + "px";
         }, 16);
     },
 
@@ -252,184 +422,372 @@ const App = {
         clearInterval(this.mining.interval);
         this.mining.active = false;
         this.ui.btnMine.innerText = "⛏️ Empezar a Excavar";
-        
-        // Zona verde: 120 a 180
-        if(this.mining.pos >= 120 && this.mining.pos <= 180) {
+
+        if (this.mining.pos >= 120 && this.mining.pos <= 180) {
             const loot = this.state.mineTreasure();
-            // ¡Notificación elegante!
             this.showToast(`¡Encontraste ${loot.name}! (+${loot.val} PE)`, "loot");
         } else {
             this.showToast("Fallaste... Tierra dura.", "error");
         }
-        this.renderGame();
+
+        this.scheduleSave();
+        this.renderDig();
     },
 
     sellAllTreasures() {
         const res = this.state.sellInventory();
-        if(res.money > 0) {
-            this.showToast(`Vendiste todo por ${res.money} PE.`, "success");
-            this.net.sendToHostOrBroadcast({ type: 'STATS_UPDATE', player: this.state.getLocalPlayer() });
-            this.renderGame();
+
+        if (res.money > 0) {
+            this.showToast(`Vendiste todo por ${res.money} PE`, "success");
+            this.net.sendToHostOrBroadcast({
+                type: "STATS_UPDATE",
+                player: this.state.getActivePlayer()
+            });
+            this.scheduleSave();
+            this.renderDig();
         } else {
             this.showToast("No tienes nada que vender.", "info");
         }
     },
 
     buyShovel(type) {
-        if(this.state.buyShovel(type)) {
+        if (this.state.buyShovel(type)) {
             this.showToast(`Compraste pala: ${SHOVEL_DATA[type].name}`, "success");
-            this.renderGame();
+            this.net.sendToHostOrBroadcast({
+                type: "STATS_UPDATE",
+                player: this.state.getActivePlayer()
+            });
+            this.scheduleSave();
+            this.renderDig();
         } else {
             this.showToast("Dinero insuficiente.", "error");
         }
     },
 
-    purchaseBook(id) {
-        if(this.state.buyBook(id)) {
-            this.showToast("¡Libro comprado! XP añadida.", "success");
-            this.renderBookShop(); 
-            this.renderOwnedBooks();
-            this.renderGame(); 
+    renderDig() {
+        if (!this.ui.gameContainer) return;
+
+        this.ui.gameContainer.innerHTML = "";
+
+        const players = this.state.getAllPlayers();
+        const playerCountEl = document.getElementById("player-count");
+        if (playerCountEl) playerCountEl.innerText = players.length;
+
+        players.forEach(p => {
+            const dot = document.createElement("div");
+            dot.className = "player-dot";
+            dot.style.left = p.x + "px";
+            dot.style.top = p.y + "px";
+            dot.style.background = p.color;
+            dot.innerText = "🐺";
+
+            const label = document.createElement("div");
+            label.className = "player-name";
+            label.innerText = p.name + (p.id === this.state.myId ? " (Tú)" : "");
+            dot.appendChild(label);
+
+            this.ui.gameContainer.appendChild(dot);
+        });
+
+        const me = this.state.getActivePlayer();
+        document.getElementById("dig-money").innerText = me.money;
+        document.getElementById("dig-bt").innerText = this.state.biblioTokens;
+        document.getElementById("dig-shovel").innerText = SHOVEL_DATA[me.shovel].name;
+
+        const xpInLevel = this.state.xp % 1000;
+        document.getElementById("dig-xp-text").innerText = `${xpInLevel}/1000`;
+        document.getElementById("dig-xp-bar").style.width = `${(xpInLevel / 1000) * 100}%`;
+
+        const inv = document.getElementById("dig-inventory");
+        inv.innerHTML = "";
+
+        if (me.inventory.length === 0) {
+            inv.innerHTML = "<li>Inventario vacío</li>";
         } else {
-            this.showToast("No tienes suficientes BiblioTokens o ya lo tienes.", "error");
+            me.inventory.forEach(item => {
+                const li = document.createElement("li");
+                li.innerText = `${item.name}: ${item.val} PE`;
+                inv.appendChild(li);
+            });
+        }
+    },
+
+    // --- SHOP ---
+    switchShopTab(tab) {
+        this.shopTab = tab;
+
+        document.querySelectorAll("[data-shop-tab]").forEach(b => b.classList.remove("active-tab"));
+        document.querySelector(`[data-shop-tab="${tab}"]`).classList.add("active-tab");
+
+        this.ui.shopChromos.classList.toggle("active-tab-content", tab === "chromos");
+        this.ui.shopCards.classList.toggle("active-tab-content", tab === "cards");
+
+        this.renderShop();
+    },
+
+    renderShop() {
+        // Chromo history
+        const history = document.getElementById("chromo-history");
+        history.innerHTML = "";
+
+        if (this.state.chromoInventory.length === 0) {
+            history.innerHTML = "<li>Sin paquetes abiertos.</li>";
+        } else {
+            this.state.chromoInventory.slice(0, 10).forEach(entry => {
+                const li = document.createElement("li");
+                li.innerHTML = `<span>🃏 ${entry.packName}</span><span>${entry.pages} págs · ${entry.completions} completados</span>`;
+                history.appendChild(li);
+            });
+        }
+
+        // Cards inventory grouped
+        const cardInv = document.getElementById("card-inventory");
+        cardInv.innerHTML = "";
+
+        const counts = {};
+        this.state.cards.forEach(id => counts[id] = (counts[id] || 0) + 1);
+
+        const cardIds = Object.keys(counts);
+        if (cardIds.length === 0) {
+            cardInv.innerHTML = "<li>No tienes cartas.</li>";
+        } else {
+            cardIds.forEach(id => {
+                const card = CARD_TYPES.find(c => c.id === id);
+                if (!card) return;
+
+                const li = document.createElement("li");
+                const equipped = this.state.equippedCards.includes(id);
+
+                li.innerHTML = `
+                    <span>🎴 ${card.name} x${counts[id]}</span>
+                    <button class="library-btn" data-equip-card="${id}">
+                        ${equipped ? "Quitar" : "Equipar"}
+                    </button>
+                `;
+
+                li.querySelector("button").addEventListener("click", () => this.toggleEquipCard(id));
+                cardInv.appendChild(li);
+            });
+        }
+
+        // Equipped
+        const equippedList = document.getElementById("equipped-cards");
+        equippedList.innerHTML = "";
+
+        if (this.state.equippedCards.length === 0) {
+            equippedList.innerHTML = "<li>Ninguna equipada.</li>";
+        } else {
+            this.state.equippedCards.forEach(id => {
+                const card = CARD_TYPES.find(c => c.id === id);
+                if (!card) return;
+
+                const li = document.createElement("li");
+                li.innerHTML = `<span>⭐ ${card.name}</span><span>${card.effect}</span>`;
+                equippedList.appendChild(li);
+            });
         }
     },
 
     openChromoPack(type) {
-        const results = this.state.openChromoPack(type);
-        if(results) {
-            this.showToast(`¡Paquete abierto! Obtuviste ${results.length} páginas.`, "loot");
-            this.renderChromoInventory();
-            this.renderGame(); 
+        const res = this.state.openChromoPack(type);
+
+        if (!res) {
+            this.showToast("No tienes suficientes BT o no hay libros disponibles.", "error");
+            return;
+        }
+
+        let msg = `Abriste ${res.packName}: ${res.results.length} páginas.`;
+        if (res.completions.length > 0) {
+            msg += ` Completaste ${res.completions.length} libro(s).`;
+        }
+
+        this.showToast(msg, "loot");
+        this.scheduleSave();
+        this.renderShop();
+        this.renderLibrary();
+        this.updateMenuUI();
+    },
+
+    openCardPack(type) {
+        const res = this.state.openCardPack(type);
+
+        if (!res) {
+            this.showToast("No tienes suficientes BT.", "error");
+            return;
+        }
+
+        this.showToast(`Abriste ${res.packName}: ${res.cards.length} cartas.`, "loot");
+        this.scheduleSave();
+        this.renderShop();
+        this.updateMenuUI();
+    },
+
+    toggleEquipCard(cardId) {
+        if (this.state.toggleEquipCard(cardId)) {
+            this.showToast("Carta actualizada", "success");
+            this.scheduleSave();
+            this.renderShop();
+            this.renderMoonlight();
         } else {
-            this.showToast("No tienes suficientes BiblioTokens.", "error");
+            this.showToast("No puedes equipar más de 3 cartas.", "error");
         }
     },
 
-    // --- RENDERIZADO ESPECÍFICO ---
-    renderBookShop() {
-        const container = document.getElementById('book-shop');
-        if(!container) return;
-        container.innerHTML = '';
-        
-        BOOK_CATALOG.forEach(book => {
-            const card = document.createElement('div');
-            card.className = 'shop-card';
-            const owned = this.state.ownedBooks.includes(book.id);
-            const rarityClass = `rarity-${book.rarity}`;
-            
-            card.innerHTML = `
+    // --- LIBRARY ---
+    renderLibrary() {
+        // Colecciones
+        this.ui.collectionSelector.innerHTML = "";
+
+        COLLECTIONS.forEach(col => {
+            const active = this.state.selectedCollections.includes(col.id);
+            const chip = document.createElement("button");
+            chip.className = `chip ${active ? "active" : ""}`;
+            chip.dataset.collection = col.id;
+            chip.innerText = col.name;
+            this.ui.collectionSelector.appendChild(chip);
+        });
+
+        // Libros
+        this.ui.bookList.innerHTML = "";
+
+        const books = this.state.getAvailableBooks();
+
+        if (books.length === 0) {
+            this.ui.bookList.innerHTML = "<p>No hay libros en las colecciones activas.</p>";
+            return;
+        }
+
+        books.forEach(book => {
+            const progress = this.state.bookProgress[book.id] || 0;
+            const completed = this.state.completedBooks.includes(book.id);
+            const percent = Math.floor((progress / book.pages) * 100);
+
+            const row = document.createElement("div");
+            row.className = "book-row";
+
+            row.innerHTML = `
                 <h4>${book.title}</h4>
-                <p class="${rarityClass}">${book.rarity.toUpperCase()}</p>
-                <p>${book.pages} Págs | +${book.xpReward} XP</p>
-                <p>Precio: ${book.costBT} BT</p>
-                <button class="library-btn" ${owned ? 'disabled style="opacity:0.5"' : ''}>
-                    ${owned ? '✔ Comprado' : 'Comprar'}
-                </button>
+                <div class="book-meta">
+                    <span class="rarity-${book.rarity}">${book.rarity.toUpperCase()}</span>
+                    <span>${progress}/${book.pages} páginas</span>
+                </div>
+                <div class="book-progress">
+                    <div class="book-progress-fill" style="width:${percent}%"></div>
+                </div>
+                <div class="book-meta">
+                    <span>Recompensa: ${book.rewardBT} BT + ${book.rewardXP} XP</span>
+                    ${completed
+                        ? "<span>✔ Completado</span>"
+                        : `<button data-read-book="${book.id}" class="library-btn">Leer página</button>`
+                    }
+                </div>
             `;
-            
-            const btn = card.querySelector('button');
-            if(!owned) {
-                btn.onclick = () => this.purchaseBook(book.id);
-            }
-            
-            container.appendChild(card);
+
+            this.ui.bookList.appendChild(row);
         });
     },
 
-    renderOwnedBooks() {
-        const list = document.getElementById('owned-books-list');
-        if(!list) return;
-        list.innerHTML = '';
-        if(this.state.ownedBooks.length === 0) {
-            list.innerHTML = '<li>No posees libros aún.</li>';
+    toggleCollection(id) {
+        if (this.state.toggleCollection(id)) {
+            this.scheduleSave();
+            this.renderLibrary();
+        } else {
+            this.showToast("Debes tener entre 1 y 3 colecciones activas.", "error");
+        }
+    },
+
+    readBookPage(bookId) {
+        const res = this.state.readPage(bookId);
+
+        if (!res) {
+            this.showToast("Este libro ya está completado.", "info");
             return;
         }
-        this.state.ownedBooks.forEach(bid => {
-            const book = BOOK_CATALOG.find(b => b.id === bid);
-            if(book) {
-                const li = document.createElement('li');
-                li.innerHTML = `<span>📖 ${book.title}</span> <span class="stat-val">+${book.xpReward} XP</span>`;
+
+        if (res.completed) {
+            this.showToast(`¡Completaste "${res.book.title}"! +${res.rewardBT} BT, +${res.rewardXP} XP`, "loot");
+        } else {
+            this.showToast(`Leíste una página de "${res.book.title}"`, "info");
+        }
+
+        this.scheduleSave();
+        this.renderLibrary();
+        this.updateMenuUI();
+    },
+
+    // --- PROJECT MOONLIGHT ---
+    ensureRhythm() {
+        if (!this.rhythm && this.ui.moonCanvas) {
+            this.rhythm = new RhythmGame(this.ui.moonCanvas, {
+                onFinish: (results) => this.onRhythmFinish(results)
+            });
+        }
+    },
+
+    renderMoonlight() {
+        this.ensureRhythm();
+
+        this.ui.moonBest.innerText = this.state.rhythm.bestScores.bed || 0;
+        this.ui.moonPlays.innerText = this.state.rhythm.plays || 0;
+
+        const list = this.ui.moonEquipped;
+        list.innerHTML = "";
+
+        if (this.state.equippedCards.length === 0) {
+            list.innerHTML = "<li>Sin cartas equipadas.</li>";
+        } else {
+            this.state.equippedCards.forEach(id => {
+                const card = CARD_TYPES.find(c => c.id === id);
+                if (!card) return;
+
+                const li = document.createElement("li");
+                li.innerHTML = `<span>🎴 ${card.name}</span><span>${card.effect}</span>`;
                 list.appendChild(li);
-            }
-        });
-    },
-
-    renderChromoInventory() {
-        const list = document.getElementById('chromo-inventory');
-        if(!list) return;
-        list.innerHTML = '';
-        if(this.state.chromoInventory.length === 0) {
-            list.innerHTML = '<li>Sin cromos recientes.</li>';
-            return;
-        }
-        this.state.chromoInventory.slice(0, 10).forEach(item => {
-            const li = document.createElement('li');
-            li.innerHTML = `<span>🃏 Página de: ${item.title}</span> <span style="font-size:0.8em; color:#aaa;">(${item.rarity})</span>`;
-            list.appendChild(li);
-        });
-    },
-
-    // --- RENDER GLOBAL ---
-    renderGame() {
-        // 1. Dibujar Jugadores
-        if(this.ui.gameContainer) {
-            this.ui.gameContainer.innerHTML = '';
-            const players = this.state.getAllPlayers();
-            document.getElementById('player-count').innerText = players.length;
-
-            players.forEach(p => {
-                const dot = document.createElement('div');
-                dot.className = 'player-dot';
-                dot.style.left = p.x + 'px';
-                dot.style.top = p.y + 'px';
-                dot.style.background = p.color;
-                dot.innerText = "🐺";
-                
-                const label = document.createElement('div');
-                label.className = 'player-name';
-                label.innerText = p.name + (p.id === this.state.myId ? " (Tú)" : "");
-                dot.appendChild(label);
-                this.ui.gameContainer.appendChild(dot);
             });
         }
 
-        // 2. Actualizar Stats Header
-        const me = this.state.getLocalPlayer();
-        if(me) {
-            document.getElementById('ui-money').innerText = me.money;
-            document.getElementById('ui-bt').innerText = this.state.biblioTokens;
-            document.getElementById('ui-shovel').innerText = SHOVEL_DATA[me.shovel].name;
-            
-            const currentLevelProgress = this.state.xp % 1000;
-            document.getElementById('ui-xp-text').innerText = `${currentLevelProgress}/1000`;
-            document.getElementById('ui-xp-bar').style.width = `${(currentLevelProgress / 1000) * 100}%`;
+        if (this.rhythm && this.rhythm.running) {
+            this.ui.btnMoonStart.innerText = "⏹ Detener Stage";
+        } else {
+            this.ui.btnMoonStart.innerText = "▶️ Iniciar Stage";
         }
+    },
 
-        // 3. Actualizar Inventarios Locales
-        const invList = document.getElementById('inventory-treasures');
-        if(invList) {
-            invList.innerHTML = '';
-            if(me && me.inventory.length > 0) {
-                me.inventory.forEach(item => {
-                    const li = document.createElement('li');
-                    li.innerText = `${item.name}: ${item.val} PE`;
-                    invList.appendChild(li);
-                });
-            } else {
-                invList.innerHTML = '<li>Inventario vacío</li>';
-            }
+    toggleMoonlight() {
+        this.ensureRhythm();
+
+        if (this.rhythm.running) {
+            this.rhythm.stop();
+        } else {
+            const effects = this.state.getCardEffects();
+            this.rhythm.start(effects, this.ui.moonAudio);
+            this.ui.btnMoonStart.innerText = "⏹ Detener Stage";
+            this.ui.moonResults.classList.add("hidden");
+            this.showToast("¡Stage iniciado!", "info");
         }
-        
-        // Refrescar listas secundarias
-        if(document.getElementById('tab-library').classList.contains('active-tab-content')) {
-             this.renderOwnedBooks();
-        }
-        if(document.getElementById('tab-chromos').classList.contains('active-tab-content')) {
-             this.renderChromoInventory();
-        }
+    },
+
+    onRhythmFinish(results) {
+        const rewards = this.state.recordRhythm(results);
+
+        this.ui.moonResults.classList.remove("hidden");
+        this.ui.moonResults.innerHTML = `
+            <h3>Resultado: ${results.rank}</h3>
+            <p>Score: <b>${results.score}</b></p>
+            <p>Combo máximo: <b>${results.maxCombo}</b></p>
+            <p>Aciertos: <b>${results.hits}</b> | Fallos: <b>${results.misses}</b></p>
+            <p>Precisión: <b>${Math.round(results.accuracy * 100)}%</b></p>
+            <p>Recompensa: <b>+${rewards.bt} BT</b> | <b>+${rewards.xp} XP</b></p>
+        `;
+
+        this.ui.btnMoonStart.innerText = "▶️ Iniciar Stage";
+        this.scheduleSave();
+        this.renderMoonlight();
+        this.updateMenuUI();
+        this.showToast(`Stage terminado. Rango ${results.rank}`, results.rank === "F" ? "error" : "success");
     }
 };
 
-// Lanzar la aplicación
-App.init();
+window.addEventListener("DOMContentLoaded", () => {
+    App.init();
+});
