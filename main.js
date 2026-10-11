@@ -768,7 +768,7 @@ const App = {
     
     this.ui.moonResults.classList.add("hidden");
     this.showToast("¡Stage Iniciado!", "success");
-}
+},
 
     renderMoonlight() {
         this.ensureRhythm();
