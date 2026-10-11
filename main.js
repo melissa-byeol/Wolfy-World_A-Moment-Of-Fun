@@ -725,35 +725,50 @@ const App = {
         }
     },
 
-    async toggleMoonlight() {
-        this.ensureRhythm();
+   async toggleMoonlight() {
+    // Inicializar el motor rítmico si no existe
+    this.ensureRhythm();
 
-        if (this.rhythm.running) {
-            this.rhythm.stop();
-            this.ui.btnMoonStart.innerText = "▶️ Iniciar Stage";
-            return;
-        }
+    // Si ya está corriendo, detenerlo
+    if (this.rhythm.running) {
+        this.rhythm.stop();
+        const btn = document.getElementById("btn-moon-start");
+        if(btn) btn.innerText = "▶️ Iniciar Stage";
+        return;
+    }
 
-this.ui.moonAudio = document.getElementById("moon-audio");
-        
-        // 1. Cargar el Chart JSON
-        this.showToast("Cargando Chart...", "info");
-        const loaded = await this.rhythm.loadChart('charts/bed_of_thorns.json');
-        
-        if (!loaded) {
-            this.showToast("Error: No se encontró el archivo del chart.", "error");
-            return;
-        }
+    // --- OBTENER EL AUDIO DIRECTAMENTE DEL DOM ---
+    const audioElement = document.getElementById("moon-audio");
+    
+    // Validación básica
+    if (!audioElement) {
+        this.showToast("Error: No se encontró el elemento de audio (#moon-audio)", "error");
+        console.error("No existe #moon-audio en el HTML");
+        return;
+    }
 
-        // 2. Obtener efectos de cartas equipadas
-        const effects = this.state.getCardEffects();
+    // Cargar Chart JSON
+    this.showToast("Cargando Chart...", "info");
+    const loaded = await this.rhythm.loadChart('charts/bed_of_thorns.json');
+    
+    if (!loaded) {
+        this.showToast("Error: No se encontró el archivo del chart.", "error");
+        return;
+    }
 
-        // 3. Iniciar Juego con Audio
-        this.rhythm.start(this.ui.moonAudio, effects);
-        this.ui.btnMoonStart.innerText = "⏹ Detener Stage";
-        this.ui.moonResults.classList.add("hidden");
-        this.showToast("¡Stage Iniciado!", "success");
-    },
+    // Obtener efectos de cartas
+    const effects = this.state.getCardEffects();
+
+    // Iniciar Juego pasando el elemento de audio real
+    this.rhythm.start(audioElement, effects); 
+    
+    // Actualizar botón visualmente
+    const btn = document.getElementById("btn-moon-start");
+    if(btn) btn.innerText = "⏹ Detener Stage";
+    
+    this.ui.moonResults.classList.add("hidden");
+    this.showToast("¡Stage Iniciado!", "success");
+}
 
     renderMoonlight() {
         this.ensureRhythm();
