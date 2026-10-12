@@ -1,6 +1,6 @@
 /**
  * WOLFY WORLD - RHYTHM GAME ENGINE (Programable Chart System)
- * Versión Final con Lead-in Visual Sincronizado
+ * Versión Final con Lead-in Visual Sincronizado + Gráficos Restaurados
  */
 
 class RhythmGame {
@@ -16,7 +16,7 @@ class RhythmGame {
         this.canvas.height = this.height;
 
         this.laneCount = 4;
-        // Paleta Bed of Thorns
+        // Paleta Bed of Thorns: Rosa Sangre, Blanco Hueso, Gris Oscuro, Rosa Profundo
         this.laneColors = ["#ff0055", "#ffffff", "#333333", "#aa0033"]; 
         
         // MAPA DE TECLAS
@@ -46,7 +46,6 @@ class RhythmGame {
         
         // ⭐ NUEVO: Tiempo de anticipación visual (segundos)
         // Las notas aparecerán esta cantidad de segundos ANTES de su tiempo real.
-        // Esto da tiempo al ojo para verlas venir.
         this.visualLeadTime = 1.5; 
 
         // Ventanas de juicio (en segundos)
@@ -233,19 +232,12 @@ class RhythmGame {
             if (note.judged) continue;
 
             // ⭐ CÁLCULO CON LEAD-IN VISUAL
-            // Restamos el tiempo de anticipación al tiempo actual.
-            // Esto hace que la nota parezca que lleva más tiempo cayendo.
-            // Ejemplo: Si note.time=2.0 y songTime=0.5, diff normal=1.5.
-            // Con lead=1.5, effectiveDiff = 2.0 - (0.5 - 1.5) = 3.0.
-            // La nota estará MÁS ARRIBA (fuera de pantalla o entrando).
-            
             const effectiveSongTime = songTime - this.visualLeadTime;
             const timeDiff = note.time - effectiveSongTime;
             
             note.y = this.hitLineY - (timeDiff * this.noteSpeed);
 
             // Detectar MISS automático
-            // Usamos el tiempo REAL de la canción para juzgar fallos lógicos
             if (songTime > note.time + this.judgeWindowMiss) {
                 if (this.shields > 0) {
                     this.shields--;
@@ -264,9 +256,6 @@ class RhythmGame {
     }
 
     inputHit(lane) {
-        // ⭐ IMPORTANTE: Para golpear, usamos el tiempo REAL del audio.
-        // No restamos el lead-in aquí, porque el jugador debe pulsar 
-        // exactamente cuando la nota cruza la línea amarilla (que coincide con el audio).
         const songTime = this.getCurrentSongTime(); 
         
         let bestNote = null;
@@ -318,14 +307,14 @@ class RhythmGame {
         const ctx = this.ctx;
         ctx.clearRect(0, 0, this.width, this.height);
 
-        // Fondo Dinámico
+        // 1. Fondo Dinámico (Latido suave)
         const pulse = Math.sin(songTime * 4) * 0.02 + 0.98;
         ctx.fillStyle = `rgba(10, 10, 15, ${pulse})`;
         ctx.fillRect(0, 0, this.width, this.height);
 
         const laneWidth = this.width / this.laneCount;
 
-        // Carriles Guías
+        // 2. Dibujar Carriles Guías
         for (let i = 0; i < this.laneCount; i++) {
             ctx.strokeStyle = "rgba(255,255,255,0.05)";
             ctx.lineWidth = 1;
@@ -335,7 +324,7 @@ class RhythmGame {
             ctx.stroke();
         }
 
-        // Indicadores de Teclas
+        // 3. Indicadores de Teclas
         const keys = ['D', 'F', 'J', 'K'];
         ctx.font = "bold 16px monospace";
         ctx.textAlign = "center";
@@ -347,7 +336,7 @@ class RhythmGame {
             ctx.fillText(keys[i], xCenter, this.hitLineY + 28);
         }
 
-        // Línea de Juicio
+        // 4. Línea de Juicio (Hit Line)
         ctx.shadowBlur = 15;
         ctx.shadowColor = "#f1c40f";
         ctx.strokeStyle = "#f1c40f";
@@ -358,7 +347,7 @@ class RhythmGame {
         ctx.stroke();
         ctx.shadowBlur = 0;
 
-        // Dibujar Notas
+        // 5. Dibujar Notas
         for (const note of this.notes) {
             // Optimización: Solo dibujar si está cerca de la vista
             if (note.y < -50 || note.y > this.height + 50) continue;
@@ -368,15 +357,18 @@ class RhythmGame {
 
             if (note.judged) {
                 if (note.hit) {
+                    // Explosión/Fade out
                     const alpha = Math.max(0, 1 - (songTime - note.time) * 2);
                     ctx.globalAlpha = alpha;
                     ctx.fillStyle = note.typeJudge === 'PERFECT' ? '#f1c40f' : '#fff';
                     
+                    // Círculo expansivo
                     const expandRadius = radius * (1 + (songTime - note.time) * 2);
                     ctx.beginPath();
                     ctx.arc(xCenter, this.hitLineY, expandRadius, 0, Math.PI * 2);
                     ctx.fill();
                     
+                    // Texto de juicio flotante
                     ctx.fillStyle = note.typeJudge === 'PERFECT' ? '#f1c40f' : '#aaa';
                     ctx.font = "bold 14px Arial";
                     ctx.textAlign = "center";
@@ -384,26 +376,33 @@ class RhythmGame {
                     
                     ctx.globalAlpha = 1.0;
                 } else if (note.missed) {
+                    // Nota gris cayendo
                     ctx.fillStyle = "rgba(100, 100, 100, 0.3)";
                     ctx.beginPath();
                     ctx.arc(xCenter, note.y, radius, 0, Math.PI * 2);
                     ctx.fill();
                 }
             } else {
+                // Nota activa (brillante)
                 const color = this.laneColors[note.lane];
                 
+                // Glow effect
                 ctx.shadowBlur = 10;
                 ctx.shadowColor = color;
+                
                 ctx.fillStyle = color;
                 ctx.beginPath();
                 ctx.arc(xCenter, note.y, radius, 0, Math.PI * 2);
                 ctx.fill();
+                
                 ctx.shadowBlur = 0;
 
+                // Borde blanco fino
                 ctx.strokeStyle = "white";
                 ctx.lineWidth = 2;
                 ctx.stroke();
 
+                // Icono central (Rosa para Bed of Thorns)
                 ctx.fillStyle = "black";
                 ctx.font = "16px Arial";
                 ctx.textAlign = "center";
@@ -412,7 +411,7 @@ class RhythmGame {
             }
         }
 
-        // HUD Superior
+        // 6. HUD Superior
         ctx.fillStyle = "white";
         ctx.font = "bold 20px Segoe UI";
         ctx.textAlign = "left";
