@@ -159,18 +159,11 @@ const App = {
             if (btn) this.readBookPage(btn.dataset.readBook);
         });
 
-        // Cards Management Delegation
-        this.ui.myCardsGrid.addEventListener("click", (e) => {
-            const btn = e.target.closest("[data-card-action]");
-            if (!btn) return;
-            
-            const action = btn.dataset.action;
-            const cardId = btn.dataset.cardId;
+               // ... otros eventos ...
 
-            if (action === "equip") this.toggleEquipCard(cardId);
-            if (action === "upgrade") this.upgradeCardRank(cardId);
-            if (action === "feed") this.openFeedModal(cardId);
-        });
+        // Cards Management Delegation (CRÍTICO)
+        // Escucha clicks en cualquier hijo de my-cards-grid
+        this.ui.myCardsGrid.addEventListener("click", (e) => this.handleCardAction(e));
 
         // Feed Modal Events
         this.ui.btnFeedCancel.addEventListener("click", () => this.closeFeedModal());
@@ -514,7 +507,8 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
         this.updateMenuUI();
     },
 
-    // --- CARDS MANAGEMENT (FEED SYSTEM) ---
+       // --- CARDS MANAGEMENT (FEED SYSTEM) ---
+    
     renderCardsManagement() {
         this.ui.myCardsGrid.innerHTML = "";
         const ownedIds = Object.keys(this.state.cardInventory);
@@ -540,6 +534,32 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
 
             const cardDiv = document.createElement("div");
             cardDiv.className = `card-item ${isEquipped ? "equipped" : ""}`;
+            
+            // Botón Equipar/Quitar
+            const equipBtnHtml = `
+                <button data-action="equip" data-card-id="${id}" class="${isEquipped ? 'secondary' : ''}">
+                    ${isEquipped ? "❌ Quitar" : "✅ Equipar"}
+                </button>
+            `;
+
+            // Botón Alimentar (solo si hay duplicados u otras cartas para comer)
+            // Simplificación: Siempre mostramos el botón, la validación interna dirá error si no hay comida
+            const feedBtnHtml = `
+                <button data-action="feed" data-card-id="${id}" class="library-btn">
+                    🍽️ Alimentar
+                </button>
+            `;
+
+            // Botón Subir Rango (condicional)
+            let upgradeBtnHtml = "";
+            if (canUpgrade) {
+                upgradeBtnHtml = `
+                    <button data-action="upgrade" data-card-id="${id}" class="${hasEnoughShards ? 'chromo-btn' : 'secondary'}" ${!hasEnoughShards ? 'disabled' : ''}>
+                        ⬆️ Subir Rango (${config.nextRankCost} 💎)
+                    </button>
+                `;
+            }
+
             cardDiv.innerHTML = `
                 <div class="card-rank-badge rank-${record.rank}">${record.rank}</div>
                 <h4>${catalogEntry.displayName}</h4>
@@ -547,19 +567,9 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
                 ${record.count > 1 ? `<p style="color:#aaa; font-size:0.8em;">Dupes: ${record.count - 1}</p>` : ''}
                 
                 <div class="card-actions">
-                    <button data-action="equip" data-card-id="${id}" class="${isEquipped ? 'secondary' : ''}">
-                        ${isEquipped ? "Quitar" : "Equipar"}
-                    </button>
-                    
-                    <button data-action="feed" data-card-id="${id}" class="library-btn">
-                        🍽️ Alimentar
-                    </button>
-
-                    ${canUpgrade ? `
-                        <button data-action="upgrade" data-card-id="${id}" class="${hasEnoughShards ? 'chromo-btn' : 'secondary'}" ${!hasEnoughShards ? 'disabled' : ''}>
-                            ⬆️ Subir Rango (${config.nextRankCost} 💎)
-                        </button>
-                    ` : ''}
+                    ${equipBtnHtml}
+                    ${feedBtnHtml}
+                    ${upgradeBtnHtml}
                 </div>
             `;
             this.ui.myCardsGrid.appendChild(cardDiv);
@@ -568,28 +578,48 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
         this.ui.totalPowerDisplay.innerText = totalPower;
         this.ui.cardShardsDisplay.innerText = this.state.rhythmShards;
     },
+
+    // Delegación de eventos para los botones dentro de la grilla
+    handleCardAction(e) {
+        const btn = e.target.closest("[data-card-action]");
+        if (!btn) return;
+        
+        const action = btn.dataset.action;
+        const cardId = btn.dataset.cardId;
+
+        if (action === "equip") this.toggleEquipCard(cardId);
+        if (action === "upgrade") this.upgradeCardRank(cardId);
+        if (action === "feed") this.openFeedModal(cardId);
+    },
+
     toggleEquipCard(cardId) {
-        if (this.state.toggleEquipCard(cardId)) {
+        const success = this.state.toggleEquipCard(cardId);
+        
+        if (success) {
             this.showToast("Carta actualizada", "success");
             this.scheduleSave();
-            this.renderCardsManagement();
-            this.renderMoonlight();
+            this.renderCardsManagement(); // Refrescar vista
+            this.renderMoonlight();       // Refrescar Moonlight también
         } else {
-            this.showToast("No puedes equipar más de 5 cartas (Límite TXT).", "error");
+            this.showToast("No puedes equipar más de 5 cartas.", "error");
         }
     },
+
     upgradeCardRank(cardId) {
-        if (this.state.upgradeCardRank(cardId)) {
+        const success = this.state.upgradeCardRank(cardId);
+        
+        if (success) {
             this.showToast("¡Rango subido exitosamente!", "success");
             this.scheduleSave();
             this.renderCardsManagement();
             this.updateMenuUI();
         } else {
-            this.showToast("No cumples requisitos o faltan Shards.", "error");
+            this.showToast("Faltan requisitos o Shards.", "error");
         }
     },
+
+    // --- LÓGICA DEL MODAL DE ALIMENTACIÓN ---
     
-    // --- FEED MODAL LOGIC ---
     openFeedModal(targetId) {
         this.feedTargetId = targetId;
         this.selectedFoodIds.clear();
@@ -597,24 +627,30 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
         const targetRecord = this.state.getCardRecord(targetId);
         const targetCatalog = CARD_MAP[targetId];
         
+        // Mostrar nombre de la carta objetivo
         this.ui.feedTargetName.innerText = targetCatalog?.displayName || targetId;
+        
+        // Limpiar lista anterior
         this.ui.foodSelectionList.innerHTML = "";
 
-        // Listar todas las cartas que tienen count > 1 (duplicados disponibles)
+        // Generar checkboxes para TODAS las demás cartas que tengas
         Object.keys(this.state.cardInventory).forEach(id => {
+            if (id === targetId) return; // Excluir la propia
+            
             const rec = this.state.cardInventory[id];
-            // Solo mostrar si tiene al menos 2 copias (1 principal + 1 dup) O si es una carta distinta
-            // Para simplificar: Mostramos cualquier carta que NO sea la target, siempre que tenga count >= 1
+            // Solo mostrar si tiene al menos 1 copia disponible para comer
+            // (Nota: En un sistema real, quizás quieras excluir la única copia de una carta importante, 
+            // pero por simplicidad aquí dejamos todas seleccionables excepto la target)
             
-            if (id === targetId) return; // No comerse a sí misma
-            
+            if (rec.count <= 0) return; 
+
             const catalog = CARD_MAP[id];
             if(!catalog) return;
 
             const li = document.createElement("label");
             li.style.display = "flex";
             li.style.alignItems = "center";
-            li.style.padding = "5px";
+            li.style.padding = "8px";
             li.style.borderBottom = "1px solid #333";
             li.innerHTML = `
                 <input type="checkbox" data-food-id="${id}" style="margin-right:10px;">
@@ -623,31 +659,38 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
             this.ui.foodSelectionList.appendChild(li);
         });
 
+        // Si no hay nada para comer, avisar
+        if (this.ui.foodSelectionList.children.length === 0) {
+            this.ui.foodSelectionList.innerHTML = "<p>No tienes otras cartas para alimentar.</p>";
+        }
+
         this.ui.feedModal.classList.remove("hidden");
     },
+
     closeFeedModal() {
         this.ui.feedModal.classList.add("hidden");
         this.feedTargetId = null;
         this.selectedFoodIds.clear();
     },
+
     confirmFeed() {
         if (!this.feedTargetId || this.selectedFoodIds.size === 0) {
             this.showToast("Selecciona al menos una carta para alimentar.", "error");
             return;
         }
 
-        const success = this.state.feedCard(this.feedTargetId, Array.from(this.selectedFoodIds));
+        const result = this.state.feedCard(this.feedTargetId, Array.from(this.selectedFoodIds));
         
-        if (success) {
-            this.showToast("¡Carta alimentada correctamente!", "success");
+        if (result && result.success) {
+            this.showToast(`¡Alimentada! +${result.levelsUp} Niveles`, "success");
             this.scheduleSave();
             this.renderCardsManagement();
             this.closeFeedModal();
         } else {
-            this.showToast("Error al alimentar (¿Nivel máximo?).", "error");
+            const msg = result?.reason === "max_level" ? "La carta ya está al máximo de nivel." : "Error al alimentar.";
+            this.showToast(msg, "error");
         }
     },
-
     // --- LIBRARY ---
     renderLibrary() {
         this.ui.collectionSelector.innerHTML = "";
