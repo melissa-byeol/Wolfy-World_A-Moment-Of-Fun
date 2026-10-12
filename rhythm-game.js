@@ -1,6 +1,6 @@
 /**
- * WOLFY WORLD - RHYTHM GAME ENGINE (Programable Chart System)
- * Versión Final con Lead-in Visual Sincronizado + Gráficos Restaurados
+ * WOLFY WORLD - RHYTHM GAME ENGINE
+ * Versión Estable con Auto-Scaling de Canvas
  */
 
 class RhythmGame {
@@ -9,29 +9,26 @@ class RhythmGame {
         this.ctx = canvas.getContext("2d");
         this.callbacks = callbacks;
 
-        // --- CONFIGURACIÓN VISUAL ---
-        this.width = 800;
-        this.height = 450;
-        this.canvas.width = this.width;
-        this.canvas.height = this.height;
-
+        // Dimensiones Lógicas (Internas del juego)
+        this.logicalWidth = 800;
+        this.logicalHeight = 450;
+        
+        // Configuración Visual
         this.laneCount = 4;
-        // Paleta Bed of Thorns: Rosa Sangre, Blanco Hueso, Gris Oscuro, Rosa Profundo
         this.laneColors = ["#ff0055", "#ffffff", "#333333", "#aa0033"]; 
         
-        // MAPA DE TECLAS
         this.keyMap = { 
             'd': 0, 'f': 1, 'j': 2, 'k': 3,
             'arrowleft': 0, 'arrowup': 1, 'arrowdown': 2, 'arrowright': 3 
         };
 
-        // --- ESTADO DE LA CANCIÓN ---
+        // Estado
         this.songData = null; 
         this.notes = [];      
         this.audio = null;
         this.useAudio = false;
 
-        // --- MECÁNICAS ---
+        // Mecánicas
         this.score = 0;
         this.combo = 0;
         this.maxCombo = 0;
@@ -40,15 +37,12 @@ class RhythmGame {
         this.shields = 0;
         this.multiplier = 1;
         
-        // --- FÍSICA Y JUICIO ---
-        this.hitLineY = this.height - 70;
-        this.noteSpeed = 450; // Píxeles por segundo
-        
-        // ⭐ NUEVO: Tiempo de anticipación visual (segundos)
-        // Las notas aparecerán esta cantidad de segundos ANTES de su tiempo real.
+        // Física
+        this.hitLineY = this.logicalHeight - 70;
+        this.noteSpeed = 450; 
         this.visualLeadTime = 0.8; 
 
-        // Ventanas de juicio (en segundos)
+        // Juicio
         this.judgeWindowPerfect = 0.05; 
         this.judgeWindowGood = 0.12;    
         this.judgeWindowMiss = 0.18;    
@@ -58,24 +52,30 @@ class RhythmGame {
         this.startTime = 0;
         this.lastFrameTime = 0;
 
-        // --- INPUT HANDLING ---
-
-        // 1. Click/Touch en Canvas
+        // Inicializar tamaño real del canvas basado en su contenedor CSS
+        this.resizeCanvas();
+        
+        // Listeners
+        window.addEventListener('resize', () => this.resizeCanvas());
+        
         this.canvas.addEventListener("pointerdown", (e) => {
             if (!this.running) return;
             
             const rect = this.canvas.getBoundingClientRect();
-            const scaleX = this.canvas.width / rect.width;
-            const x = (e.clientX - rect.left) * scaleX;
+            // Calcular posición relativa al canvas físico
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
             
-            const laneWidth = this.canvas.width / this.laneCount;
-            let lane = Math.floor(x / laneWidth);
+            // Convertir coordenadas físicas a lógicas
+            const logicalX = (x / rect.width) * this.logicalWidth;
+            
+            const laneWidth = this.logicalWidth / this.laneCount;
+            let lane = Math.floor(logicalX / laneWidth);
             lane = Math.max(0, Math.min(this.laneCount - 1, lane));
             
             this.inputHit(lane);
         });
 
-        // 2. Teclado Global
         this.handleKeyDown = (e) => {
             if (!this.running) return;
             
@@ -83,7 +83,6 @@ class RhythmGame {
             if (["d", "f", "j", "k", " ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
                 e.preventDefault();
             }
-
             if (e.repeat) return;
 
             const lane = this.keyMap[key];
@@ -97,8 +96,27 @@ class RhythmGame {
     }
 
     /**
-     * Carga el chart desde un objeto JSON o URL
+     * Ajusta el tamaño interno del canvas para que coincida con su tamaño CSS visible
+     * Esto elimina el efecto de "estiramiento" borroso o desalineado
      */
+    resizeCanvas() {
+        const rect = this.canvas.getBoundingClientRect();
+        
+        // Si el canvas tiene un ancho definido por CSS (ej: 100%), usamos ese valor
+        // Pero mantenemos la relación de aspecto lógica (800x450)
+        const dpr = window.devicePixelRatio || 1;
+        
+        // Establecer dimensiones físicas del buffer del canvas
+        this.canvas.width = rect.width * dpr;
+        this.canvas.height = rect.height * dpr;
+        
+        // Escalar el contexto para trabajar en unidades lógicas (800x450)
+        this.ctx.scale(dpr, dpr);
+        
+        // Guardar el factor de escala inverso para cálculos futuros si fuera necesario
+        this.scaleFactor = rect.width / this.logicalWidth;
+    }
+
     async loadChart(chartSource) {
         try {
             let data;
@@ -112,19 +130,18 @@ class RhythmGame {
 
             this.songData = data;
             
-            // Clonar notas aplicando el offset global si existe en el JSON
             const offsetSeconds = (data.offsetMs || 0) / 1000;
 
             this.notes = data.notes.map(n => ({
                 ...n,
-                time: n.time + offsetSeconds, // Aplicar calibración fina
+                time: n.time + offsetSeconds,
                 hit: false,
                 missed: false,
                 judged: false,
                 y: -100 
             })).sort((a, b) => a.time - b.time); 
 
-            console.log(`Chart cargado: ${data.title}. Total notas: ${this.notes.length}. Offset: ${offsetSeconds}s`);
+            console.log(`Chart cargado: ${data.title}. Notas: ${this.notes.length}`);
             return true;
         } catch (e) {
             console.error("Error cargando chart:", e);
@@ -141,7 +158,6 @@ class RhythmGame {
         this.audio = audioElement;
         this.effects = effects;
         
-        // Reset estadísticas
         this.score = 0;
         this.combo = effects.startCombo || 0;
         this.maxCombo = this.combo;
@@ -157,9 +173,9 @@ class RhythmGame {
             n.missed = false; 
             n.judged = false; 
             n.typeJudge = '';
+            n.y = -100;
         });
 
-        // Lógica de Audio Crítica
         this.audio.currentTime = 0;
         this.audio.volume = 1.0;
         this.audio.muted = false;
@@ -227,22 +243,16 @@ class RhythmGame {
         }
     }
 
-       updateLogic(songTime) {
+    updateLogic(songTime) {
         for (const note of this.notes) {
             if (note.judged) continue;
 
-            // LÓGICA DE LEAD-IN:
-            // Restamos el lead-time al tiempo actual.
-            // Ejemplo: Si songTime=0 y lead=0.8 -> effective=-0.8
-            // Nota en time=1.0 -> diff = 1.0 - (-0.8) = 1.8
-            // Posición Y = HitLine - (1.8 * 450) = Muy arriba (fuera de pantalla inicialmente, entra rápido)
-            
             const effectiveSongTime = songTime - this.visualLeadTime;
             const timeDiff = note.time - effectiveSongTime;
             
+            // Calculamos Y en coordenadas LÓGICAS (0 a 450)
             note.y = this.hitLineY - (timeDiff * this.noteSpeed);
 
-            // Detectar MISS automático (usando tiempo REAL del audio/juego)
             if (songTime > note.time + this.judgeWindowMiss) {
                 if (this.shields > 0) {
                     this.shields--;
@@ -259,6 +269,7 @@ class RhythmGame {
             }
         }
     }
+
     inputHit(lane) {
         const songTime = this.getCurrentSongTime(); 
         
@@ -309,26 +320,28 @@ class RhythmGame {
 
     render(songTime) {
         const ctx = this.ctx;
-        ctx.clearRect(0, 0, this.width, this.height);
+        
+        // Limpiar usando dimensiones LÓGICAS gracias al scale() previo
+        ctx.clearRect(0, 0, this.logicalWidth, this.logicalHeight);
 
-        // 1. Fondo Dinámico (Latido suave)
+        // 1. Fondo
         const pulse = Math.sin(songTime * 4) * 0.02 + 0.98;
         ctx.fillStyle = `rgba(10, 10, 15, ${pulse})`;
-        ctx.fillRect(0, 0, this.width, this.height);
+        ctx.fillRect(0, 0, this.logicalWidth, this.logicalHeight);
 
-        const laneWidth = this.width / this.laneCount;
+        const laneWidth = this.logicalWidth / this.laneCount;
 
-        // 2. Dibujar Carriles Guías
+        // 2. Carriles
         for (let i = 0; i < this.laneCount; i++) {
             ctx.strokeStyle = "rgba(255,255,255,0.05)";
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(i * laneWidth, 0);
-            ctx.lineTo(i * laneWidth, this.height);
+            ctx.lineTo(i * laneWidth, this.logicalHeight);
             ctx.stroke();
         }
 
-        // 3. Indicadores de Teclas
+        // 3. Teclas
         const keys = ['D', 'F', 'J', 'K'];
         ctx.font = "bold 16px monospace";
         ctx.textAlign = "center";
@@ -340,39 +353,35 @@ class RhythmGame {
             ctx.fillText(keys[i], xCenter, this.hitLineY + 28);
         }
 
-        // 4. Línea de Juicio (Hit Line)
+        // 4. Hit Line
         ctx.shadowBlur = 15;
         ctx.shadowColor = "#f1c40f";
         ctx.strokeStyle = "#f1c40f";
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(0, this.hitLineY);
-        ctx.lineTo(this.width, this.hitLineY);
+        ctx.lineTo(this.logicalWidth, this.hitLineY);
         ctx.stroke();
         ctx.shadowBlur = 0;
 
-        // 5. Dibujar Notas
+        // 5. Notas
         for (const note of this.notes) {
-            // Optimización: Solo dibujar si está cerca de la vista
-            if (note.y < -50 || note.y > this.height + 50) continue;
+            if (note.y < -50 || note.y > this.logicalHeight + 50) continue;
 
             const xCenter = note.lane * laneWidth + laneWidth / 2;
             const radius = 20;
 
             if (note.judged) {
                 if (note.hit) {
-                    // Explosión/Fade out
                     const alpha = Math.max(0, 1 - (songTime - note.time) * 2);
                     ctx.globalAlpha = alpha;
                     ctx.fillStyle = note.typeJudge === 'PERFECT' ? '#f1c40f' : '#fff';
                     
-                    // Círculo expansivo
                     const expandRadius = radius * (1 + (songTime - note.time) * 2);
                     ctx.beginPath();
                     ctx.arc(xCenter, this.hitLineY, expandRadius, 0, Math.PI * 2);
                     ctx.fill();
                     
-                    // Texto de juicio flotante
                     ctx.fillStyle = note.typeJudge === 'PERFECT' ? '#f1c40f' : '#aaa';
                     ctx.font = "bold 14px Arial";
                     ctx.textAlign = "center";
@@ -380,17 +389,14 @@ class RhythmGame {
                     
                     ctx.globalAlpha = 1.0;
                 } else if (note.missed) {
-                    // Nota gris cayendo
                     ctx.fillStyle = "rgba(100, 100, 100, 0.3)";
                     ctx.beginPath();
                     ctx.arc(xCenter, note.y, radius, 0, Math.PI * 2);
                     ctx.fill();
                 }
             } else {
-                // Nota activa (brillante)
                 const color = this.laneColors[note.lane];
                 
-                // Glow effect
                 ctx.shadowBlur = 10;
                 ctx.shadowColor = color;
                 
@@ -401,12 +407,10 @@ class RhythmGame {
                 
                 ctx.shadowBlur = 0;
 
-                // Borde blanco fino
                 ctx.strokeStyle = "white";
                 ctx.lineWidth = 2;
                 ctx.stroke();
 
-                // Icono central (Rosa para Bed of Thorns)
                 ctx.fillStyle = "black";
                 ctx.font = "16px Arial";
                 ctx.textAlign = "center";
@@ -415,7 +419,7 @@ class RhythmGame {
             }
         }
 
-        // 6. HUD Superior
+        // 6. HUD
         ctx.fillStyle = "white";
         ctx.font = "bold 20px Segoe UI";
         ctx.textAlign = "left";
@@ -425,8 +429,8 @@ class RhythmGame {
         ctx.textAlign = "right";
         ctx.font = "16px Segoe UI";
         ctx.fillStyle = "#aaa";
-        ctx.fillText(`${this.songData.title} - ${this.songData.artist}`, this.width - 20, 30);
-        ctx.fillText(`ACCURACY: ${this.getAccuracy()}%`, this.width - 20, 55);
+        ctx.fillText(`${this.songData.title} - ${this.songData.artist}`, this.logicalWidth - 20, 30);
+        ctx.fillText(`ACCURACY: ${this.getAccuracy()}%`, this.logicalWidth - 20, 55);
     }
 
     getAccuracy() {
@@ -473,6 +477,7 @@ class RhythmGame {
 
     destroy() {
         window.removeEventListener('keydown', this.handleKeyDown);
+        window.removeEventListener('resize', this.resizeCanvas);
         this.running = false;
         this.finished = true;
     }
