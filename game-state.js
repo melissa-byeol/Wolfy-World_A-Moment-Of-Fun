@@ -301,7 +301,7 @@ class GameState {
 
         this.equippedCards.push(cardId);
         return true;
-    },
+    }
 
     /**
      * ALIMENTAR CARTA (CONSUMIR DUPLICADOS/OTRAS)
