@@ -26,7 +26,7 @@ const App = {
         this.boot();
             
         }
-    },
+    }
     
        cacheDOM() {
         // --- BOOT ---
