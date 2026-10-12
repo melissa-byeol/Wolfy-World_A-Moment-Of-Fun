@@ -442,10 +442,47 @@ class RhythmGame {
         return Math.round((this.hits / totalJudged) * 100);
     }
 
-    finish() {
+       finish() {
         if (this.finished) return;
         this.running = false;
         this.finished = true;
-        if (this.audio) this.audio.pause();
+        
+        if (this.audio) {
+            try { this.audio.pause(); } catch(e) {}
+        }
 
-        const
+        const totalJudged = this.hits + this.misses;
+        const accuracy = totalJudged > 0 ? Math.round((this.hits / totalJudged) * 100) : 100;
+
+        const results = {
+            songId: this.songData.id || "unknown",
+            score: this.score,
+            maxCombo: this.maxCombo,
+            hits: this.hits,
+            misses: this.misses,
+            accuracy: accuracy,
+            rank: this.calculateRank(accuracy)
+        };
+
+        // Notificar a main.js que terminó
+        if (this.callbacks.onFinish) {
+            this.callbacks.onFinish(results);
+        }
+    }
+
+    calculateRank(acc) {
+        if (acc >= 98) return "S+";
+        if (acc >= 95) return "S";
+        if (acc >= 90) return "A";
+        if (acc >= 80) return "B";
+        if (acc >= 70) return "C";
+        return "D";
+    }
+
+    // Método para limpiar eventos cuando salgas del minijuego
+    destroy() {
+        window.removeEventListener('keydown', this.handleKeyDown);
+        this.running = false;
+        this.finished = true;
+    }
+} // <--- ¡ESTA LLAVE CIERRA LA CLASE RHYTHMGAME!
