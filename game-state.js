@@ -208,6 +208,42 @@ class GameState {
         this.level = Math.floor(this.xp / 1000) + 1;
     }
 
+        /**
+     * Aplica XP ganada en una partida rítmica a las cartas equipadas.
+     * Sube niveles automáticamente si hay suficiente XP.
+     */
+    applyXpToCards(xpGained) {
+        if (xpGained <= 0) return;
+        
+        const equippedIds = [...this.equippedCards];
+        if (equippedIds.length === 0) return;
+
+        // Repartir XP equitativamente entre las cartas equipadas
+        const xpPerCard = Math.floor(xpGained / equippedIds.length);
+        const LEVEL_THRESHOLD = 100; // 100 XP = 1 Nivel
+
+        equippedIds.forEach(id => {
+            const record = this.getCardRecord(id);
+            
+            // Añadir XP al registro de la carta
+            record.xp += xpPerCard;
+            
+            // Bucle para subir múltiples niveles si la XP lo permite
+            while (record.xp >= LEVEL_THRESHOLD) {
+                const config = RANK_CONFIG[record.rank];
+                
+                // Verificar si aún puede subir de nivel en este rango
+                if (record.level < config.maxLvl) {
+                    record.level++;
+                    record.xp -= LEVEL_THRESHOLD;
+                } else {
+                    // Ha alcanzado el nivel máximo de su rango actual.
+                    // La XP sobrante se pierde hasta que suba de rango manualmente.
+                    break; 
+                }
+            }
+        });
+    },
     // --- LÓGICA DE CARTAS v4 (FEED SYSTEM) ---
 
     getCardRecord(cardId) {
