@@ -17,15 +17,32 @@ const App = {
     feedTargetId: null, 
     selectedFoodIds: new Set(), 
 
-    init() {
+        init() {
         this.state = new GameState();
         this.net = new NetworkManager(this.state);
 
         this.cacheDOM();
         this.bindEvents();
         this.boot();
-    },
 
+        // ⭐ DEBUG TEMPORAL: Escucha TODOS los clicks de la página
+        document.addEventListener('click', (e) => {
+            console.log("CLICK DETECTADO EN:", e.target.tagName, e.target.className || "(sin clase)", e.target.dataset);
+            
+            // Si hiciste click en un botón de carta, fuerza la acción
+            const btn = e.target.closest('[data-action]');
+            if (btn) {
+                console.log("BOTÓN DE ACCIÓN ENCONTRADO:", btn.dataset.action, btn.dataset.cardId);
+                
+                // Ejecutar lógica manualmente para probar
+                const action = btn.dataset.action;
+                const cardId = btn.dataset.cardId;
+                
+                if(action === 'equip') this.toggleEquipCard(cardId);
+                if(action === 'feed') this.openFeedModal(cardId);
+            }
+        });
+    },
        cacheDOM() {
         // --- BOOT ---
         this.ui.bootScreen = document.getElementById("boot-screen");
