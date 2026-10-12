@@ -252,12 +252,12 @@ ul.item-list li {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    pointer-events: none; /* Para que los clicks pasen a través si están encima de botones */
+    pointer-events: none;
 }
 
 .toast {
-    background: rgba(22, 33, 62, 0.95); /* Fondo oscuro semi-transparente */
-    border-left: 4px solid #f1c40f; /* Borde amarillo por defecto */
+    background: rgba(22, 33, 62, 0.95);
+    border-left: 4px solid #f1c40f;
     color: white;
     padding: 12px 20px;
     border-radius: 8px;
@@ -273,14 +273,13 @@ ul.item-list li {
     align-items: center;
 }
 
-/* Tipos de toasts */
-.toast.success { border-color: #2ecc71; } /* Verde */
-.toast.error { border-color: #e74c3c; }   /* Rojo */
-.toast.info { border-color: #3498db; }    /* Azul */
+.toast.success { border-color: #2ecc71; }
+.toast.error { border-color: #e74c3c; }
+.toast.info { border-color: #3498db; }
 .toast.loot { 
     border-color: #f1c40f; 
     background: linear-gradient(135deg, #16213e 0%, #2c3e50 100%);
-} /* Especial para tesoros */
+}
 
 @keyframes slideInRight {
     from { transform: translateX(100%); opacity: 0; }
@@ -462,17 +461,26 @@ ul.item-list li {
     flex-wrap: wrap;
 }
 
-.rhythm-canvas {
+/* ⭐ ARREGLO CRÍTICO PARA EL CANVAS RÍTMICO ⭐ */
+.canvas-wrapper {
     width: 100%;
-    max-width: 800px;
-    height: auto;
-    aspect-ratio: 16 / 9;
+    max-width: 800px; /* Ancho lógico máximo */
+    margin: 15px auto;
+    position: relative;
+    /* Aspect ratio fijo para evitar deformación vertical/horizontal */
+    aspect-ratio: 16 / 9; 
     background: #000;
     border: 3px solid #f1c40f;
     border-radius: 12px;
+    overflow: hidden;
+}
+
+#moon-canvas {
     display: block;
-    margin: 15px auto;
-    touch-action: none;
+    width: 100%;
+    height: 100%;
+    /* Esto asegura que los píxeles internos coincidan con el tamaño visual */
+    image-rendering: pixelated; 
 }
 
 .rhythm-controls {
