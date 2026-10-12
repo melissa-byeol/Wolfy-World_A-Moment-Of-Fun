@@ -42,11 +42,11 @@ class RhythmGame {
         
         // --- FÍSICA Y JUICIO ---
         this.hitLineY = this.height - 70;
-        this.noteSpeed = 350; // Píxeles por segundo
+        this.noteSpeed = 450; // Píxeles por segundo
         
         // ⭐ NUEVO: Tiempo de anticipación visual (segundos)
         // Las notas aparecerán esta cantidad de segundos ANTES de su tiempo real.
-        this.visualLeadTime = 1.5; 
+        this.visualLeadTime = 0.8; 
 
         // Ventanas de juicio (en segundos)
         this.judgeWindowPerfect = 0.05; 
@@ -227,17 +227,22 @@ class RhythmGame {
         }
     }
 
-    updateLogic(songTime) {
+       updateLogic(songTime) {
         for (const note of this.notes) {
             if (note.judged) continue;
 
-            // ⭐ CÁLCULO CON LEAD-IN VISUAL
+            // LÓGICA DE LEAD-IN:
+            // Restamos el lead-time al tiempo actual.
+            // Ejemplo: Si songTime=0 y lead=0.8 -> effective=-0.8
+            // Nota en time=1.0 -> diff = 1.0 - (-0.8) = 1.8
+            // Posición Y = HitLine - (1.8 * 450) = Muy arriba (fuera de pantalla inicialmente, entra rápido)
+            
             const effectiveSongTime = songTime - this.visualLeadTime;
             const timeDiff = note.time - effectiveSongTime;
             
             note.y = this.hitLineY - (timeDiff * this.noteSpeed);
 
-            // Detectar MISS automático
+            // Detectar MISS automático (usando tiempo REAL del audio/juego)
             if (songTime > note.time + this.judgeWindowMiss) {
                 if (this.shields > 0) {
                     this.shields--;
@@ -254,7 +259,6 @@ class RhythmGame {
             }
         }
     }
-
     inputHit(lane) {
         const songTime = this.getCurrentSongTime(); 
         
