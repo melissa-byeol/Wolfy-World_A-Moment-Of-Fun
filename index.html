@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wolfy World: Hub Update</title>
+    <title>Wolfy World: Moonlight Update</title>
 
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="style.css">
 
+    <!-- PeerJS para Multijugador P2P -->
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js" defer></script>
 </head>
 <body>
@@ -15,7 +16,7 @@
     <!-- BOOT / CARGA -->
     <div id="boot-screen" class="screen active">
         <h1>🐺 Wolfy World</h1>
-        <p class="subtitle">Hub Update: Biblioteca, Cromos, Cartas y Project Moonlight</p>
+        <p class="subtitle">Moonlight Update: Cartas RPG & Sync Engine</p>
 
         <div class="boot-bar">
             <div id="boot-fill"></div>
@@ -24,10 +25,10 @@
 
         <div id="save-prompt" class="modal hidden">
             <h3>No se encontró perfil guardado</h3>
-            <p>¿Quieres guardar tu progreso para no perderlo al recargar?</p>
-            <input type="text" id="boot-name" placeholder="Nombre de tu lobo" value="Lobo Invitado">
+            <p>¿Quieres guardar tu progreso?</p>
+            <input type="text" id="boot-name" placeholder="Nombre de tu lobo" value="Yeongjun">
             <div class="modal-actions">
-                <button id="btn-save-yes">💾 Sí, guardar progreso</button>
+                <button id="btn-save-yes">💾 Sí, guardar</button>
                 <button id="btn-save-no" class="secondary">👻 Jugar sin guardar</button>
             </div>
         </div>
@@ -44,6 +45,7 @@
                 <span>💰 <b id="menu-money">0</b> PE</span>
                 <span>🎟️ <b id="menu-bt">0</b> BT</span>
                 <span>⭐ <b id="menu-xp">0</b> XP</span>
+                <span>💎 <b id="menu-shards">0</b> Shards</span>
             </div>
         </header>
 
@@ -51,31 +53,37 @@
             <button class="menu-card" data-module="dig">
                 <span class="menu-icon">⛏️</span>
                 <strong>Dig For Treasures</strong>
-                <small>Minería multijugador por salas</small>
+                <small>Minería Online</small>
             </button>
 
             <button class="menu-card" data-module="shop">
                 <span class="menu-icon">🛒</span>
                 <strong>Tienda</strong>
-                <small>Cromos y cartas</small>
+                <small>Cromos y Sobres</small>
             </button>
 
             <button class="menu-card" data-module="library">
                 <span class="menu-icon">📚</span>
                 <strong>Biblioteca</strong>
-                <small>Colecciones activas</small>
+                <small>Colecciones Libros</small>
             </button>
 
             <button class="menu-card" data-module="moonlight">
                 <span class="menu-icon">🌙</span>
                 <strong>Project Moonlight</strong>
-                <small>Wolfy Stage</small>
+                <small>Rhythm Stage</small>
+            </button>
+            
+            <button class="menu-card" data-module="cards">
+                <span class="menu-icon">🎴</span>
+                <strong>Gestión de Cartas</strong>
+                <small>Subir Nivel/Rango</small>
             </button>
         </div>
 
         <div class="menu-footer">
             <button id="btn-save-now" class="secondary">Guardar ahora</button>
-            <button id="btn-reset-account" style="background:#e74c3c; font-size:0.8em; padding:5px 10px;">🗑️ Borrar Cuenta</button>
+            <button id="btn-reset-account" style="background:#e74c3c; font-size:0.8em;">🗑️ Resetear Cuenta</button>
         </div>
     </div>
 
@@ -108,29 +116,19 @@
                     <div id="green-zone"></div>
                     <div id="cursor-line"></div>
                 </div>
-                <button id="btn-mine-action">⛏️ Empezar a Excavar</button>
+                <button id="btn-mine-action">⛏️ Excavar</button>
             </div>
 
             <div class="stats-panel">
                 <div class="stat-item">💰 PE: <span id="dig-money" class="stat-val">0</span></div>
-                <div class="stat-item">🎟️ BT: <span id="dig-bt" class="stat-val">0</span></div>
-                <div class="stat-item">⭐ XP: <span id="dig-xp-text" class="stat-val">0/1000</span></div>
-                <div class="stat-item">
-                    <div class="xp-bar-container">
-                        <div id="dig-xp-bar" class="xp-fill"></div>
-                    </div>
-                </div>
                 <div class="stat-item">🔨 Pala: <span id="dig-shovel" class="stat-val">Juguete</span></div>
             </div>
 
-            <ul id="dig-inventory" class="item-list">
-                <li>Inventario vacío</li>
-            </ul>
-
+            <ul id="dig-inventory" class="item-list"><li>Vacío</li></ul>
+            
             <div class="shop-inline">
                 <button id="btn-buy-training" class="shop-btn-small">Entrenamiento (100PE)</button>
                 <button id="btn-buy-iron" class="shop-btn-small">Hierro (500PE)</button>
-                <button id="btn-buy-steel" class="shop-btn-small">Acero (1500PE)</button>
                 <button id="btn-sell-all" class="sell-btn">Vender Todo</button>
             </div>
         </div>
@@ -142,69 +140,40 @@
         <h2>🛒 Tienda Wolfy</h2>
 
         <div class="tabs">
-            <button class="tab-btn active-tab" data-shop-tab="chromos">🃏 Cromos</button>
-            <button class="tab-btn" data-shop-tab="cards">🎴 Cartas</button>
+            <button class="tab-btn active-tab" data-shop-tab="chromos">🃏 Cromos (Libros)</button>
+            <button class="tab-btn" data-shop-tab="cards">🎴 Sobres (Cartas)</button>
         </div>
 
         <div id="shop-chromos" class="tab-content active-tab-content">
             <div class="shop-grid">
                 <div class="shop-card">
-                    <h4>Paquete Pequeño</h4>
-                    <p>5 páginas | 1 colección activa al azar</p>
-                    <p>Precio: <strong>50 BT</strong></p>
+                    <h4>Paquete Pequeño</h4><p>5 páginas</p><p>Precio: <strong>50 BT</strong></p>
                     <button id="btn-chromo-small" class="chromo-btn">Abrir</button>
                 </div>
                 <div class="shop-card">
-                    <h4>Paquete Básico</h4>
-                    <p>8 páginas | al menos 1 nueva</p>
-                    <p>Precio: <strong>150 BT</strong></p>
+                    <h4>Paquete Básico</h4><p>8 páginas + 1 nueva</p><p>Precio: <strong>150 BT</strong></p>
                     <button id="btn-chromo-basic" class="chromo-btn">Abrir</button>
                 </div>
-                <div class="shop-card">
-                    <h4>Paquete Grande</h4>
-                    <p>12 páginas | al menos 3 nuevas</p>
-                    <p>Precio: <strong>400 BT</strong></p>
-                    <button id="btn-chromo-large" class="chromo-btn">Abrir</button>
-                </div>
             </div>
-
-            <h4>Historial de cromos</h4>
-            <ul id="chromo-history" class="item-list">
-                <li>Sin paquetes abiertos.</li>
-            </ul>
+            <h4>Historial</h4>
+            <ul id="chromo-history" class="item-list"><li>Sin historial.</li></ul>
         </div>
 
         <div id="shop-cards" class="tab-content">
             <div class="shop-grid">
                 <div class="shop-card">
-                    <h4>Sobre Pequeño</h4>
-                    <p>3 cartas</p>
-                    <p>Precio: <strong>40 BT</strong></p>
-                    <button id="btn-card-small" class="library-btn">Abrir</button>
+                    <h4>Sobre Común</h4><p>3 cartas (B/A/S)</p><p>Precio: <strong>40 BT</strong></p>
+                    <button id="btn-card-common" class="library-btn">Comprar</button>
                 </div>
                 <div class="shop-card">
-                    <h4>Sobre Básico</h4>
-                    <p>6 cartas</p>
-                    <p>Precio: <strong>100 BT</strong></p>
-                    <button id="btn-card-basic" class="library-btn">Abrir</button>
+                    <h4>Sobre Épico</h4><p>6 cartas (R/XR/UR)</p><p>Precio: <strong>100 BT</strong></p>
+                    <button id="btn-card-epic" class="library-btn">Comprar</button>
                 </div>
                 <div class="shop-card">
-                    <h4>Sobre Lunar</h4>
-                    <p>10 cartas | garantiza 1 no común</p>
-                    <p>Precio: <strong>250 BT</strong></p>
-                    <button id="btn-card-lunar" class="library-btn">Abrir</button>
+                    <h4>Sobre Lunar</h4><p>10 cartas | Garantiza 1 UR/MR</p><p>Precio: <strong>250 BT</strong></p>
+                    <button id="btn-card-lunar" class="library-btn">Comprar</button>
                 </div>
             </div>
-
-            <h4>Mis cartas</h4>
-            <ul id="card-inventory" class="item-list">
-                <li>No tienes cartas.</li>
-            </ul>
-
-            <h4>Cartas equipadas (máx. 3)</h4>
-            <ul id="equipped-cards" class="item-list">
-                <li>Ninguna equipada.</li>
-            </ul>
         </div>
     </div>
 
@@ -212,13 +181,23 @@
     <div id="library-screen" class="screen">
         <button class="back-btn" data-back="menu-screen">← Menú</button>
         <h2>📚 Biblioteca Wolfy World</h2>
-        <p>Elige hasta 3 colecciones activas. Los libros dan BiblioTokens y XP al completarse.</p>
-
-        <h3>Colecciones activas</h3>
+        <p>Elige hasta 3 colecciones activas.</p>
+        <h3>Colecciones</h3>
         <div id="collection-selector" class="chip-row"></div>
-
-        <h3>Libros disponibles</h3>
+        <h3>Libros Disponibles</h3>
         <div id="book-list" class="book-list"></div>
+    </div>
+
+    <!-- GESTIÓN DE CARTAS (NUEVO) -->
+    <div id="cards-screen" class="screen">
+        <button class="back-btn" data-back="menu-screen">← Menú</button>
+        <h2>🎴 Gestión de Cartas</h2>
+        <p>Potencia Total Actual: <b id="total-power-display">1</b></p>
+        
+        <h3>Mi Colección</h3>
+        <div id="my-cards-grid" class="card-collection-grid">
+            <!-- Generado por JS -->
+        </div>
     </div>
 
     <!-- PROJECT MOONLIGHT -->
@@ -229,16 +208,13 @@
         <div class="song-card">
             <h3>Bed of Thorns</h3>
             <p>Artista: TXT</p>
-            <small class="small-note">Audio cargado desde /assets/bed-of-thorns.mp3</small>
+            <small class="warning-note">⚠️ Límite: Máximo 5 cartas equipadas (Miembros del grupo).</small>
         </div>
 
-        <!-- AUDIO ELEMENTO -->
         <audio id="moon-audio" preload="auto">
             <source src="assets/bed-of-thorns.mp3" type="audio/mpeg">
-            Tu navegador no soporta audio HTML5.
         </audio>
 
-        <!-- CANVAS WRAPPER PARA EVITAR DEFORMACIÓN -->
         <div class="canvas-wrapper">
             <canvas id="moon-canvas"></canvas>
         </div>
@@ -255,7 +231,7 @@
 
         <div id="moon-results" class="results-box hidden"></div>
 
-        <h4>Cartas equipadas</h4>
+        <h4>Cartas Equipadas (<span id="equip-count">0</span>/5)</h4>
         <ul id="moon-equipped" class="item-list"></ul>
     </div>
 
