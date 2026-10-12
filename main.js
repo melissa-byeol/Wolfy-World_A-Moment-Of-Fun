@@ -145,12 +145,6 @@ const App = {
         // Moonlight
         this.ui.btnMoonStart.addEventListener("click", () => this.toggleMoonlight());
 
-        document.addEventListener("keydown", (e) => {
-            if (this.currentScreen === "moonlight-screen" && this.rhythm) {
-                this.rhythm.handleKey(e.key);
-            }
-        });
-
         window.addEventListener("beforeunload", () => {
             if (SaveManager.exists()) {
                 SaveManager.save(this.state.toSave());
