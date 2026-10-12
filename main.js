@@ -710,7 +710,6 @@ const App = {
     },
 
     // --- PROJECT MOONLIGHT ---
-        // --- PROJECT MOONLIGHT ---
     ensureRhythm() {
         if (!this.rhythm && this.ui.moonCanvas) {
             this.rhythm = new RhythmGame(this.ui.moonCanvas, {
@@ -724,7 +723,7 @@ const App = {
 
         // CASO A: El juego YA está corriendo -> DETENERLO
         if (this.rhythm.running) {
-            this.rhythm.stop(); // <--- Esto pausa audio y detiene loop
+            this.rhythm.stop(); 
             
             const btn = document.getElementById("btn-moon-start");
             if(btn) btn.innerText = "▶️ Reintentar Stage";
@@ -741,7 +740,6 @@ const App = {
         }
 
         // 2. Cargar Chart (si no está cargado aún)
-        // Nota: loadChart es asíncrono, así que usamos await
         if (!this.rhythm.songData) {
             this.showToast("Cargando Chart...", "info");
             const loaded = await this.rhythm.loadChart('charts/bed_of_thorns.json');
@@ -755,8 +753,6 @@ const App = {
         const effects = this.state.getCardEffects();
 
         // 4. INICIAR TODO JUNTO
-        // Pasamos el elemento de audio directo. 
-        // La magia ocurre dentro de rhythm.start() donde sincronizamos play() y RAF().
         this.rhythm.start(audioElement, effects); 
         
         // Actualizar UI
@@ -770,23 +766,30 @@ const App = {
     renderMoonlight() {
         this.ensureRhythm();
 
-        this.ui.moonBest.innerText = this.state.rhythm.bestScores.bed || 0;
-        this.ui.moonPlays.innerText = this.state.rhythm.plays || 0;
+        // CORRECCIÓN: Acceder correctamente a bestScores
+        // Asumimos que songId es "bed_of_thorns" según tu JSON
+        const bestScore = this.state.rhythm.bestScores["bed_of_thorns"] || 0;
+        const plays = this.state.rhythm.plays || 0;
+
+        if(this.ui.moonBest) this.ui.moonBest.innerText = bestScore;
+        if(this.ui.moonPlays) this.ui.moonPlays.innerText = plays;
 
         const list = this.ui.moonEquipped;
-        list.innerHTML = "";
+        if(list) {
+            list.innerHTML = "";
 
-        if (this.state.equippedCards.length === 0) {
-            list.innerHTML = "<li>Sin cartas equipadas.</li>";
-        } else {
-            this.state.equippedCards.forEach(id => {
-                const card = CARD_TYPES.find(c => c.id === id);
-                if (!card) return;
+            if (this.state.equippedCards.length === 0) {
+                list.innerHTML = "<li>Sin cartas equipadas.</li>";
+            } else {
+                this.state.equippedCards.forEach(id => {
+                    const card = CARD_TYPES.find(c => c.id === id);
+                    if (!card) return;
 
-                const li = document.createElement("li");
-                li.innerHTML = `<span>🎴 ${card.name}</span><span>${card.effect}</span>`;
-                list.appendChild(li);
-            });
+                    const li = document.createElement("li");
+                    li.innerHTML = `<span>🎴 ${card.name}</span><span>${card.effect}</span>`;
+                    list.appendChild(li);
+                });
+            }
         }
 
         if (this.rhythm && this.rhythm.running) {
@@ -799,21 +802,31 @@ const App = {
     onRhythmFinish(results) {
         const rewards = this.state.recordRhythm(results);
 
-        this.ui.moonResults.classList.remove("hidden");
-        this.ui.moonResults.innerHTML = `
-            <h3>Resultado: ${results.rank}</h3>
-            <p>Score: <b>${results.score}</b></p>
-            <p>Combo máximo: <b>${results.maxCombo}</b></p>
-            <p>Aciertos: <b>${results.hits}</b> | Fallos: <b>${results.misses}</b></p>
-            <p>Precisión: <b>${Math.round(results.accuracy * 100)}%</b></p>
-            <p>Recompensa: <b>+${rewards.bt} BT</b> | <b>+${rewards.xp} XP</b></p>
-        `;
+        if(this.ui.moonResults) {
+            this.ui.moonResults.classList.remove("hidden");
+            
+            // CORRECCIÓN: results.accuracy ya es un número entero (ej: 95), no decimal (0.95)
+            // Según getAccuracy() en rhythm-game.js devuelve Math.round(...)
+            const accDisplay = Math.round(results.accuracy); 
+            
+            this.ui.moonResults.innerHTML = `
+                <h3>Resultado: ${results.rank}</h3>
+                <p>Score: <b>${results.score}</b></p>
+                <p>Combo máximo: <b>${results.maxCombo}</b></p>
+                <p>Aciertos: <b>${results.hits}</b> | Fallos: <b>${results.misses}</b></p>
+                <p>Precisión: <b>${accDisplay}%</b></p>
+                <p>Recompensa: <b>+${rewards.bt} BT</b> | <b>+${rewards.xp} XP</b></p>
+            `;
+        }
 
         this.ui.btnMoonStart.innerText = "▶️ Iniciar Stage";
         this.scheduleSave();
         this.renderMoonlight();
         this.updateMenuUI();
-        this.showToast(`Stage terminado. Rango ${results.rank}`, results.rank === "F" ? "error" : "success");
+        
+        // Usar rank "D" como fallo grave en lugar de "F" si usamos escala S-A-B-C-D
+        const isFail = results.rank === "D"; 
+        this.showToast(`Stage terminado. Rango ${results.rank}`, isFail ? "error" : "success");
     }
 };
 
