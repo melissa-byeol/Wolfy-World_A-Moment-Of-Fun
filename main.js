@@ -719,50 +719,53 @@ const App = {
         }
     },
 
-   async toggleMoonlight() {
-    // Inicializar el motor rítmico si no existe
-    this.ensureRhythm();
+    async toggleMoonlight() {
+        this.ensureRhythm();
 
-    // Si ya está corriendo, detenerlo
-    if (this.rhythm.running) {
-        this.rhythm.stop();
+        // CASO A: El juego YA está corriendo -> DETENERLO
+        if (this.rhythm.running) {
+            this.rhythm.stop(); // <--- Esto pausa audio y detiene loop
+            
+            const btn = document.getElementById("btn-moon-start");
+            if(btn) btn.innerText = "▶️ Reintentar Stage";
+            return;
+        }
+
+        // CASO B: El juego NO está corriendo -> EMPEZARLO
+        
+        // 1. Obtener elemento de audio
+        const audioElement = document.getElementById("moon-audio");
+        if (!audioElement) {
+            this.showToast("Error: No se encontró #moon-audio", "error");
+            return;
+        }
+
+        // 2. Cargar Chart (si no está cargado aún)
+        // Nota: loadChart es asíncrono, así que usamos await
+        if (!this.rhythm.songData) {
+            this.showToast("Cargando Chart...", "info");
+            const loaded = await this.rhythm.loadChart('charts/bed_of_thorns.json');
+            if (!loaded) {
+                this.showToast("Error cargando chart.", "error");
+                return;
+            }
+        }
+
+        // 3. Obtener efectos de cartas equipadas
+        const effects = this.state.getCardEffects();
+
+        // 4. INICIAR TODO JUNTO
+        // Pasamos el elemento de audio directo. 
+        // La magia ocurre dentro de rhythm.start() donde sincronizamos play() y RAF().
+        this.rhythm.start(audioElement, effects); 
+        
+        // Actualizar UI
         const btn = document.getElementById("btn-moon-start");
-        if(btn) btn.innerText = "▶️ Iniciar Stage";
-        return;
-    }
-
-    // --- OBTENER EL AUDIO DIRECTAMENTE DEL DOM ---
-    const audioElement = document.getElementById("moon-audio");
-    
-    // Validación básica
-    if (!audioElement) {
-        this.showToast("Error: No se encontró el elemento de audio (#moon-audio)", "error");
-        console.error("No existe #moon-audio en el HTML");
-        return;
-    }
-
-    // Cargar Chart JSON
-    this.showToast("Cargando Chart...", "info");
-    const loaded = await this.rhythm.loadChart('charts/bed_of_thorns.json');
-    
-    if (!loaded) {
-        this.showToast("Error: No se encontró el archivo del chart.", "error");
-        return;
-    }
-
-    // Obtener efectos de cartas
-    const effects = this.state.getCardEffects();
-
-    // Iniciar Juego pasando el elemento de audio real
-    this.rhythm.start(audioElement, effects); 
-    
-    // Actualizar botón visualmente
-    const btn = document.getElementById("btn-moon-start");
-    if(btn) btn.innerText = "⏹ Detener Stage";
-    
-    this.ui.moonResults.classList.add("hidden");
-    this.showToast("¡Stage Iniciado!", "success");
-},
+        if(btn) btn.innerText = "⏹ Detener Stage";
+        
+        this.ui.moonResults.classList.add("hidden");
+        this.showToast("¡Stage Iniciado!", "success");
+    },
 
     renderMoonlight() {
         this.ensureRhythm();
