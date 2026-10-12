@@ -16,7 +16,7 @@
     <!-- BOOT / CARGA -->
     <div id="boot-screen" class="screen active">
         <h1>🐺 Wolfy World</h1>
-        <p class="subtitle">Moonlight Update: Cartas RPG & Sync Engine</p>
+        <p class="subtitle">Moonlight Update: Cartas RPG & Feed System</p>
 
         <div class="boot-bar">
             <div id="boot-fill"></div>
@@ -77,7 +77,7 @@
             <button class="menu-card" data-module="cards">
                 <span class="menu-icon">🎴</span>
                 <strong>Gestión de Cartas</strong>
-                <small>Subir Nivel/Rango</small>
+                <small>Equipar & Alimentar</small>
             </button>
         </div>
 
@@ -161,19 +161,24 @@
 
         <div id="shop-cards" class="tab-content">
             <div class="shop-grid">
+                <!-- Sobre Normal (BT) -->
                 <div class="shop-card">
-                    <h4>Sobre Común</h4><p>3 cartas (B/A/S)</p><p>Precio: <strong>40 BT</strong></p>
-                    <button id="btn-card-common" class="library-btn">Comprar</button>
+                    <h4>Sobre Normal</h4>
+                    <p>3 cartas | Rangos B a XR</p>
+                    <p>Precio: <strong>40 BT</strong></p>
+                    <button id="btn-card-normal" class="library-btn">Comprar</button>
                 </div>
-                <div class="shop-card">
-                    <h4>Sobre Épico</h4><p>6 cartas (R/XR/UR)</p><p>Precio: <strong>100 BT</strong></p>
-                    <button id="btn-card-epic" class="library-btn">Comprar</button>
-                </div>
-                <div class="shop-card">
-                    <h4>Sobre Lunar</h4><p>10 cartas | Garantiza 1 UR/MR</p><p>Precio: <strong>250 BT</strong></p>
-                    <button id="btn-card-lunar" class="library-btn">Comprar</button>
+                
+                <!-- Sobre Premium (Shards) -->
+                <div class="shop-card" style="border-color: #f1c40f;">
+                    <h4 style="color: #f1c40f;">Sobre Premium ✨</h4>
+                    <p>5 cartas | Rangos A a UR</p>
+                    <p>Precio: <strong>50 💎 Shards</strong></p>
+                    <button id="btn-card-premium" class="chromo-btn">Comprar</button>
                 </div>
             </div>
+            
+            <div id="last-pack-result" class="results-box hidden" style="margin-top:15px;"></div>
         </div>
     </div>
 
@@ -188,15 +193,36 @@
         <div id="book-list" class="book-list"></div>
     </div>
 
-    <!-- GESTIÓN DE CARTAS (NUEVO) -->
+    <!-- GESTIÓN DE CARTAS (ACTUALIZADA CON FEED) -->
     <div id="cards-screen" class="screen">
         <button class="back-btn" data-back="menu-screen">← Menú</button>
         <h2>🎴 Gestión de Cartas</h2>
-        <p>Potencia Total Actual: <b id="total-power-display">1</b></p>
         
-        <h3>Mi Colección</h3>
+        <div class="module-header">
+            <p>Potencia Total Equipada: <b id="total-power-display" style="color:#f1c40f; font-size:1.2em;">1</b></p>
+            <p>Shards Disponibles: <b id="card-shards-display" style="color:#3498db;">0</b> 💎</p>
+        </div>
+
+        <!-- Panel Principal: Lista de Cartas Poseídas -->
         <div id="my-cards-grid" class="card-collection-grid">
             <!-- Generado por JS -->
+        </div>
+
+        <!-- Modal de Alimentación (Oculto por defecto) -->
+        <div id="feed-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <h3>🍽️ Alimentar Carta</h3>
+                <p>Selecciona cartas duplicadas o débiles para darles XP a <b id="feed-target-name">...</b>.</p>
+                
+                <div id="food-selection-list" class="item-list" style="max-height: 300px; overflow-y:auto;">
+                    <!-- Checkboxes de comida generados por JS -->
+                </div>
+
+                <div class="modal-actions" style="margin-top:15px;">
+                    <button id="btn-feed-confirm" class="success-btn">Confirmar Alimentación</button>
+                    <button id="btn-feed-cancel" class="secondary">Cancelar</button>
+                </div>
+            </div>
         </div>
     </div>
 
