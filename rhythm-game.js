@@ -142,7 +142,7 @@ class RhythmGame {
         }
     }
 
-    start(audioElement, effects = {}) {
+        start(audioElement, effects = {}) {
         if (!this.songData || this.notes.length === 0) {
             console.warn("No hay chart cargado.");
             return;
@@ -151,7 +151,7 @@ class RhythmGame {
         this.audio = audioElement;
         this.effects = effects;
         
-        // Resetear estadísticas
+        // --- RESET DE ESTADÍSTICAS ---
         this.score = 0;
         this.combo = effects.startCombo || 0;
         this.maxCombo = this.combo;
@@ -170,37 +170,70 @@ class RhythmGame {
             n.typeJudge = '';
         });
 
-        // Preparar Audio
-        if (this.audio && this.audio.src) {
-            this.audio.currentTime = 0;
-            this.audio.volume = 1.0;
-            
-            // Intentar reproducir
-            this.audio.play().then(() => {
+        // --- LÓGICA CRÍTICA DE AUDIO Y LOOP SINCRONIZADO ---
+        
+        // 1. Preparar Audio
+        this.audio.currentTime = 0;
+        this.audio.volume = 1.0;
+        this.audio.muted = false;
+
+        // 2. Intentar reproducir INMEDIATAMENTE
+        const playPromise = this.audio.play();
+
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                console.log("✅ Audio iniciado. Sincronizando Loop...");
                 this.useAudio = true;
-                // Sincronizar startTime con el tiempo actual del audio
+                
+                // IMPORTANTE: Calculamos startTime basándonos en el tiempo REAL del audio
+                // Esto asegura que las notas caigan exactas aunque haya lag inicial
                 this.startTime = performance.now() - (this.audio.currentTime * 1000);
+                
+                // Iniciar el bucle visual
                 requestAnimationFrame(this.loop);
-            }).catch(err => {
-                console.warn("Audio autoplay bloqueado, usando reloj interno.", err);
+            }).catch(error => {
+                console.error("❌ Error al reproducir audio:", error);
+                
+                // FALLBACK: Si el navegador bloquea el autoplay estricto,
+                // iniciamos sin audio pero avisamos al usuario.
+                alert("El navegador bloqueó el audio automático.\nPor favor, recarga la página y vuelve a intentar.\n(Nota: Asegúrate de tener el volumen subido).");
+                
                 this.useAudio = false;
                 this.startTime = performance.now();
                 requestAnimationFrame(this.loop);
             });
         } else {
-            this.useAudio = false;
-            this.startTime = performance.now();
-            requestAnimationFrame(this.loop);
+            // Soporte para navegadores muy antiguos
+            try {
+                this.audio.play();
+                this.useAudio = true;
+                this.startTime = performance.now() - (this.audio.currentTime * 1000);
+                requestAnimationFrame(this.loop);
+            } catch(e) {
+                console.error("Error fatal de audio", e);
+                this.useAudio = false;
+                this.startTime = performance.now();
+                requestAnimationFrame(this.loop);
+            }
         }
     }
 
     stop() {
+        if (!this.running) return;
+
+        console.log("Deteniendo juego y audio...");
+        
+        // 1. Detener Bucle Gráfico
         this.running = false;
+        
+        // 2. Pausar Audio
         if (this.audio) {
             this.audio.pause();
+            // Opcional: Resetear posición si quieres reiniciar desde cero después
+            // this.audio.currentTime = 0; 
         }
-        // No llamamos a finish aquí inmediatamente para permitir animación de cierre si queremos,
-        // pero para este caso simple, forzamos el fin lógico.
+
+        // 3. Llamar a finish para calcular resultados
         this.finish();
     }
 
