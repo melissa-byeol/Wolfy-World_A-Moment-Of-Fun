@@ -96,8 +96,8 @@ const App = {
         this.ui.toastContainer = document.getElementById("toast-container");
     },
 
-    bindEvents() {
-        // Boot
+        bindEvents() {
+        // --- BOOT ---
         document.getElementById("btn-save-yes").addEventListener("click", () => {
             const name = this.ui.bootName.value.trim() || "Lobo Invitado";
             this.createNewSave(name);
@@ -107,7 +107,7 @@ const App = {
             this.playWithoutSave(name);
         });
 
-        // Menú
+        // --- MENÚ NAVEGACIÓN ---
         document.querySelectorAll(".menu-card").forEach(btn => {
             btn.addEventListener("click", () => {
                 const module = btn.dataset.module;
@@ -121,12 +121,11 @@ const App = {
 
         document.getElementById("btn-save-now").addEventListener("click", () => this.saveNow());
         document.getElementById("btn-reset-account").addEventListener("click", () => this.resetAccount());
-
         document.querySelectorAll(".back-btn").forEach(btn => {
             btn.addEventListener("click", () => this.showScreen(btn.dataset.back));
         });
 
-        // Dig Lobby & Gameplay
+        // --- DIG FOR TREASURES ---
         document.getElementById("btn-dig-host").addEventListener("click", () => this.createRoom());
         document.getElementById("btn-dig-join").addEventListener("click", () => this.joinRoom());
         this.ui.gameContainer.addEventListener("click", (e) => this.handleMove(e));
@@ -136,20 +135,16 @@ const App = {
         document.getElementById("btn-buy-iron").addEventListener("click", () => this.buyShovel("iron"));
         document.getElementById("btn-sell-all").addEventListener("click", () => this.sellAllTreasures());
 
-        // Shop Tabs
+        // --- SHOP ---
         document.querySelectorAll("[data-shop-tab]").forEach(btn => {
             btn.addEventListener("click", () => this.switchShopTab(btn.dataset.shopTab));
         });
-
-        // Chromo Packs
         document.getElementById("btn-chromo-small").addEventListener("click", () => this.openChromoPack("small"));
         document.getElementById("btn-chromo-basic").addEventListener("click", () => this.openChromoPack("basic"));
-
-        // Card Packs (Nuevos IDs)
         document.getElementById("btn-card-normal").addEventListener("click", () => this.openCardPack('normal'));
         document.getElementById("btn-card-premium").addEventListener("click", () => this.openCardPack('premium'));
 
-        // Library
+        // --- LIBRARY ---
         this.ui.collectionSelector.addEventListener("click", (e) => {
             const chip = e.target.closest(".chip");
             if (chip) this.toggleCollection(chip.dataset.collection);
@@ -159,33 +154,51 @@ const App = {
             if (btn) this.readBookPage(btn.dataset.readBook);
         });
 
-               // ... otros eventos ...
+        // ⭐⭐⭐ SECCIÓN CRÍTICA: GESTIÓN DE CARTAS Y FEED ⭐⭐⭐
+        
+        // 1. Delegación de Clicks en la Grilla de Cartas
+        // Escuchamos en 'my-cards-grid'. Cualquier click dentro que sea un botón con data-action funcionará.
+        this.ui.myCardsGrid.addEventListener("click", (e) => {
+            const btn = e.target.closest("[data-card-action]");
+            if (!btn) return; // Si no hicimos click en un botón de acción, ignorar
+            
+            const action = btn.dataset.action;
+            const cardId = btn.dataset.cardId;
 
-        // Cards Management Delegation (CRÍTICO)
-        // Escucha clicks en cualquier hijo de my-cards-grid
-        this.ui.myCardsGrid.addEventListener("click", (e) => this.handleCardAction(e));
+            console.log(`Acción recibida: ${action} en carta ${cardId}`); // DEBUG VISUAL
 
-        // Feed Modal Events
+            if (action === "equip") this.toggleEquipCard(cardId);
+            if (action === "upgrade") this.upgradeCardRank(cardId);
+            if (action === "feed") this.openFeedModal(cardId);
+        });
+
+        // 2. Eventos del Modal de Alimentación
+        // Estos elementos SÍ existen siempre (están ocultos), así que podemos vincularlos directamente.
         this.ui.btnFeedCancel.addEventListener("click", () => this.closeFeedModal());
         this.ui.btnFeedConfirm.addEventListener("click", () => this.confirmFeed());
         
-        // Delegación para checkboxes dentro del modal de comida
+        // 3. Selección de Comida (Checkboxes)
+        // Usamos 'change' porque es más fiable que 'click' para checkboxes.
         this.ui.foodSelectionList.addEventListener("change", (e) => {
             if (e.target.type === 'checkbox') {
                 const id = e.target.dataset.foodId;
-                if (e.target.checked) this.selectedFoodIds.add(id);
-                else this.selectedFoodIds.delete(id);
+                if (e.target.checked) {
+                    this.selectedFoodIds.add(id);
+                } else {
+                    this.selectedFoodIds.delete(id);
+                }
+                console.log("Comidas seleccionadas:", Array.from(this.selectedFoodIds)); // DEBUG
             }
         });
 
-        // Moonlight
+        // --- MOONLIGHT ---
         this.ui.btnMoonStart.addEventListener("click", () => this.toggleMoonlight());
 
         window.addEventListener("beforeunload", () => {
             if (SaveManager.exists()) SaveManager.save(this.state.toSave());
         });
     },
-
+    
     // --- BOOT / SAVE ---
     boot() {
         let progress = 0;
@@ -507,9 +520,7 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
         this.updateMenuUI();
     },
 
-       // --- CARDS MANAGEMENT (FEED SYSTEM) ---
-    
-    renderCardsManagement() {
+      renderCardsManagement() {
         this.ui.myCardsGrid.innerHTML = "";
         const ownedIds = Object.keys(this.state.cardInventory);
         
@@ -535,31 +546,7 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
             const cardDiv = document.createElement("div");
             cardDiv.className = `card-item ${isEquipped ? "equipped" : ""}`;
             
-            // Botón Equipar/Quitar
-            const equipBtnHtml = `
-                <button data-action="equip" data-card-id="${id}" class="${isEquipped ? 'secondary' : ''}">
-                    ${isEquipped ? "❌ Quitar" : "✅ Equipar"}
-                </button>
-            `;
-
-            // Botón Alimentar (solo si hay duplicados u otras cartas para comer)
-            // Simplificación: Siempre mostramos el botón, la validación interna dirá error si no hay comida
-            const feedBtnHtml = `
-                <button data-action="feed" data-card-id="${id}" class="library-btn">
-                    🍽️ Alimentar
-                </button>
-            `;
-
-            // Botón Subir Rango (condicional)
-            let upgradeBtnHtml = "";
-            if (canUpgrade) {
-                upgradeBtnHtml = `
-                    <button data-action="upgrade" data-card-id="${id}" class="${hasEnoughShards ? 'chromo-btn' : 'secondary'}" ${!hasEnoughShards ? 'disabled' : ''}>
-                        ⬆️ Subir Rango (${config.nextRankCost} 💎)
-                    </button>
-                `;
-            }
-
+            // HTML INTERNO CON DATA ATTRIBUTES CORRECTOS
             cardDiv.innerHTML = `
                 <div class="card-rank-badge rank-${record.rank}">${record.rank}</div>
                 <h4>${catalogEntry.displayName}</h4>
@@ -567,9 +554,19 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
                 ${record.count > 1 ? `<p style="color:#aaa; font-size:0.8em;">Dupes: ${record.count - 1}</p>` : ''}
                 
                 <div class="card-actions">
-                    ${equipBtnHtml}
-                    ${feedBtnHtml}
-                    ${upgradeBtnHtml}
+                    <button data-action="equip" data-card-id="${id}" class="${isEquipped ? 'secondary' : ''}">
+                        ${isEquipped ? "❌ Quitar" : "✅ Equipar"}
+                    </button>
+                    
+                    <button data-action="feed" data-card-id="${id}" class="library-btn">
+                        🍽️ Alimentar
+                    </button>
+
+                    ${canUpgrade ? `
+                        <button data-action="upgrade" data-card-id="${id}" class="${hasEnoughShards ? 'chromo-btn' : 'secondary'}" ${!hasEnoughShards ? 'disabled' : ''}>
+                            ⬆️ Subir Rango (${config.nextRankCost} 💎)
+                        </button>
+                    ` : ''}
                 </div>
             `;
             this.ui.myCardsGrid.appendChild(cardDiv);
