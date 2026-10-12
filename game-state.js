@@ -280,48 +280,90 @@ class GameState {
      * @param {string} targetId - ID de la carta que quieres mejorar.
      * @param {Array<string>} foodIds - Lista de IDs de cartas a consumir.
      */
+       /**
+     * EQUIPAR O QUITAR CARTA
+     * @param {string} cardId - ID de la carta a equipar/quitar
+     * @returns {boolean} true si tuvo éxito, false si falló (límite alcanzado)
+     */
+    toggleEquipCard(cardId) {
+        const index = this.equippedCards.indexOf(cardId);
+
+        // CASO A: Ya está equipada -> Quitarla
+        if (index >= 0) {
+            this.equippedCards.splice(index, 1);
+            return true;
+        }
+
+        // CASO B: No está equipada -> Intentar ponerla
+        if (this.equippedCards.length >= 5) {
+            return false; // Límite de 5 miembros TXT
+        }
+
+        this.equippedCards.push(cardId);
+        return true;
+    },
+
+    /**
+     * ALIMENTAR CARTA (CONSUMIR DUPLICADOS/OTRAS)
+     * @param {string} targetId - La carta que recibirá la XP
+     * @param {Array<string>} foodIds - Lista de IDs de cartas a consumir
+     * @returns {Object|null} Resultado con niveles subidos o null si falla
+     */
     feedCard(targetId, foodIds) {
-        if (!foodIds || foodIds.length === 0) return false;
+        if (!foodIds || foodIds.length === 0) return null;
         
         const targetRecord = this.getCardRecord(targetId);
         const targetConfig = RANK_CONFIG[targetRecord.rank];
         
-        // Si ya está al máximo de nivel, no se puede alimentar más hasta subir rango
-        if (targetRecord.level >= targetConfig.maxLvl) return false;
+        // Validación: ¿Está al máximo de nivel?
+        if (targetRecord.level >= targetConfig.maxLvl) {
+            return { success: false, reason: "max_level" };
+        }
 
         let totalXpGained = 0;
+        let consumedCount = 0;
 
         foodIds.forEach(foodId => {
             if (foodId === targetId) return; // No comerse a sí misma
             
             const foodRecord = this.cardInventory[foodId];
+            
+            // Verificar que exista y tenga copias disponibles
             if (!foodRecord || foodRecord.count <= 0) return;
 
-            // Consumir 1 unidad de comida
+            // Consumir 1 copia
             foodRecord.count--;
+            consumedCount++;
             
             // Calcular XP basada en rareza/nivel de la comida
-            // Regla simple: Cada rango vale 100 XP base, cada nivel añade 10 XP extra.
+            // Regla: Base 100 + (ÍndiceRango * 50) + (Nivel * 10)
             const rankIdx = RANK_ORDER.indexOf(foodRecord.rank);
             const xpValue = 100 + (rankIdx * 50) + (foodRecord.level * 10);
             
             totalXpGained += xpValue;
         });
 
-        if (totalXpGained > 0) {
-            targetRecord.xp += totalXpGained;
-            
-            // Subir niveles automáticamente si hay suficiente XP
-            const LEVEL_THRESHOLD = 100; // 100 XP = 1 Nivel
-            while (targetRecord.xp >= LEVEL_THRESHOLD && targetRecord.level < targetConfig.maxLvl) {
-                targetRecord.level++;
-                targetRecord.xp -= LEVEL_THRESHOLD;
-            }
-            
-            return true;
-        }
+        if (consumedCount === 0) return { success: false, reason: "no_food" };
+
+        // Aplicar XP a la carta objetivo
+        targetRecord.xp += totalXpGained;
         
-        return false;
+        // Subir niveles automáticamente
+        let levelsUp = 0;
+        const LEVEL_THRESHOLD = 100;
+        
+        while (targetRecord.xp >= LEVEL_THRESHOLD && targetRecord.level < targetConfig.maxLvl) {
+            targetRecord.level++;
+            targetRecord.xp -= LEVEL_THRESHOLD;
+            levelsUp++;
+        }
+
+        return { 
+            success: true, 
+            xpGained: totalXpGained, 
+            levelsUp: levelsUp,
+            newLevel: targetRecord.level 
+        };
     }
 
     upgradeCardRank(cardId) {
@@ -337,17 +379,6 @@ class GameState {
         record.level = 1; // REINICIO DE NIVEL
         record.xp = 0;
         
-        return true;
-    }
-
-    toggleEquipCard(cardId) {
-        const index = this.equippedCards.indexOf(cardId);
-        if (index >= 0) {
-            this.equippedCards.splice(index, 1);
-            return true;
-        }
-        if (this.equippedCards.length >= 5) return false; // Límite TXT
-        this.equippedCards.push(cardId);
         return true;
     }
 
