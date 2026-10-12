@@ -26,7 +26,7 @@ const App = {
         this.boot();
     },
 
-    cacheDOM() {
+       cacheDOM() {
         // --- BOOT ---
         this.ui.bootScreen = document.getElementById("boot-screen");
         this.ui.bootFill = document.getElementById("boot-fill");
@@ -41,7 +41,7 @@ const App = {
         this.ui.menuBt = document.getElementById("menu-bt");
         this.ui.menuXp = document.getElementById("menu-xp");
         this.ui.menuLevel = document.getElementById("menu-level");
-        this.ui.menuShards = document.getElementById("menu-shards");
+        this.ui.menuShards = document.getElementById("menu-shards"); // NUEVO
 
         // --- DIG ---
         this.ui.digScreen = document.getElementById("dig-screen");
@@ -61,20 +61,20 @@ const App = {
         this.ui.shopScreen = document.getElementById("shop-screen");
         this.ui.shopChromos = document.getElementById("shop-chromos");
         this.ui.shopCards = document.getElementById("shop-cards");
-        this.ui.lastPackResult = document.getElementById("last-pack-result");
+        this.ui.lastPackResult = document.getElementById("last-pack-result"); // NUEVO
 
         // --- LIBRARY ---
         this.ui.libraryScreen = document.getElementById("library-screen");
         this.ui.collectionSelector = document.getElementById("collection-selector");
         this.ui.bookList = document.getElementById("book-list");
 
-        // --- CARDS MANAGEMENT ---
+        // ⭐⭐⭐ CARDS MANAGEMENT (LO QUE FALTABA) ⭐⭐⭐
         this.ui.cardsScreen = document.getElementById("cards-screen");
-        this.ui.myCardsGrid = document.getElementById("my-cards-grid");
+        this.ui.myCardsGrid = document.getElementById("my-cards-grid"); // CRÍTICO PARA EL CLICK
         this.ui.totalPowerDisplay = document.getElementById("total-power-display");
         this.ui.cardShardsDisplay = document.getElementById("card-shards-display");
-        
-        // Feed Modal Elements
+
+        // FEED MODAL ELEMENTS
         this.ui.feedModal = document.getElementById("feed-modal");
         this.ui.feedTargetName = document.getElementById("feed-target-name");
         this.ui.foodSelectionList = document.getElementById("food-selection-list");
@@ -90,7 +90,7 @@ const App = {
         this.ui.moonPlays = document.getElementById("moon-plays");
         this.ui.moonResults = document.getElementById("moon-results");
         this.ui.moonEquipped = document.getElementById("moon-equipped");
-        this.ui.equipCount = document.getElementById("equip-count");
+        this.ui.equipCount = document.getElementById("equip-count"); // NUEVO
 
         // --- TOAST ---
         this.ui.toastContainer = document.getElementById("toast-container");
