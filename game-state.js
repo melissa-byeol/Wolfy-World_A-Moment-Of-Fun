@@ -243,7 +243,7 @@ class GameState {
                 }
             }
         });
-    },
+    }
     // --- LÓGICA DE CARTAS v4 (FEED SYSTEM) ---
 
     getCardRecord(cardId) {
