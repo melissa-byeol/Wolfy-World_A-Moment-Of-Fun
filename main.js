@@ -27,6 +27,7 @@ const App = {
             
         }
     },
+    
        cacheDOM() {
         // --- BOOT ---
         this.ui.bootScreen = document.getElementById("boot-screen");
