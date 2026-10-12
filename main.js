@@ -171,23 +171,37 @@ const App = {
             if (btn) this.readBookPage(btn.dataset.readBook);
         });
 
-        // ⭐⭐⭐ SECCIÓN CRÍTICA: GESTIÓN DE CARTAS Y FEED ⭐⭐⭐
+                // --- CARDS MANAGEMENT DELEGATION (ROBUSTA) ---
         
-        // 1. Delegación de Clicks en la Grilla de Cartas
-        // Escuchamos en 'my-cards-grid'. Cualquier click dentro que sea un botón con data-action funcionará.
-        this.ui.myCardsGrid.addEventListener("click", (e) => {
-            const btn = e.target.closest("[data-card-action]");
-            if (!btn) return; // Si no hicimos click en un botón de acción, ignorar
-            
-            const action = btn.dataset.action;
-            const cardId = btn.dataset.cardId;
+        // Escuchamos clicks en el contenedor padre (#my-cards-grid)
+        if (this.ui.myCardsGrid) {
+            this.ui.myCardsGrid.addEventListener("click", (e) => {
+                // Buscamos hacia arriba desde el elemento clickeado hasta encontrar un botón con data-action
+                const btn = e.target.closest("button[data-action]");
+                
+                // Si no encontramos un botón válido, salimos silenciosamente
+                if (!btn) return; 
 
-            console.log(`Acción recibida: ${action} en carta ${cardId}`); // DEBUG VISUAL
+                const action = btn.dataset.action;
+                const cardId = btn.dataset.cardId;
 
-            if (action === "equip") this.toggleEquipCard(cardId);
-            if (action === "upgrade") this.upgradeCardRank(cardId);
-            if (action === "feed") this.openFeedModal(cardId);
-        });
+                console.log(`[DEBUG] Acción: ${action} | Carta: ${cardId}`);
+
+                switch(action) {
+                    case "equip":
+                        this.toggleEquipCard(cardId);
+                        break;
+                    case "feed":
+                        this.openFeedModal(cardId);
+                        break;
+                    case "upgrade":
+                        this.upgradeCardRank(cardId);
+                        break;
+                }
+            });
+        } else {
+            console.error("ERROR: #my-cards-grid no encontrado en cacheDOM!");
+        }
 
         // 2. Eventos del Modal de Alimentación
         // Estos elementos SÍ existen siempre (están ocultos), así que podemos vincularlos directamente.
@@ -571,19 +585,24 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
                 ${record.count > 1 ? `<p style="color:#aaa; font-size:0.8em;">Dupes: ${record.count - 1}</p>` : ''}
                 
                 <div class="card-actions">
-                    <button data-action="equip" data-card-id="${id}" class="${isEquipped ? 'secondary' : ''}">
-                        ${isEquipped ? "❌ Quitar" : "✅ Equipar"}
-                    </button>
-                    
-                    <button data-action="feed" data-card-id="${id}" class="library-btn">
-                        🍽️ Alimentar
-                    </button>
+                                // ... dentro del forEach de renderCardsManagement ...
+            
+            // BOTÓN EQUIPAR
+            <button data-action="equip" data-card-id="${id}" class="${isEquipped ? 'secondary' : ''}">
+                ${isEquipped ? "❌ Quitar" : "✅ Equipar"}
+            </button>
+            
+            // BOTÓN ALIMENTAR
+            <button data-action="feed" data-card-id="${id}" class="library-btn">
+                🍽️ Alimentar
+            </button>
 
-                    ${canUpgrade ? `
-                        <button data-action="upgrade" data-card-id="${id}" class="${hasEnoughShards ? 'chromo-btn' : 'secondary'}" ${!hasEnoughShards ? 'disabled' : ''}>
-                            ⬆️ Subir Rango (${config.nextRankCost} 💎)
-                        </button>
-                    ` : ''}
+            // BOTÓN SUBIR RANGO (si aplica)
+            ${canUpgrade ? `
+                <button data-action="upgrade" data-card-id="${id}" class="${hasEnoughShards ? 'chromo-btn' : 'secondary'}" ${!hasEnoughShards ? 'disabled' : ''}>
+                    ⬆️ Subir Rango (${config.nextRankCost} 💎)
+                </button>
+            ` : ''}
                 </div>
             `;
             this.ui.myCardsGrid.appendChild(cardDiv);
