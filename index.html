@@ -193,7 +193,7 @@
         <div id="book-list" class="book-list"></div>
     </div>
 
-    <!-- GESTIÓN DE CARTAS (ACTUALIZADA CON FEED) -->
+        <!-- GESTIÓN DE CARTAS -->
     <div id="cards-screen" class="screen">
         <button class="back-btn" data-back="menu-screen">← Menú</button>
         <h2>🎴 Gestión de Cartas</h2>
@@ -203,23 +203,19 @@
             <p>Shards Disponibles: <b id="card-shards-display" style="color:#3498db;">0</b> 💎</p>
         </div>
 
-        <!-- Panel Principal: Lista de Cartas Poseídas -->
-        <div id="my-cards-grid" class="card-collection-grid">
-            <!-- Generado por JS -->
-        </div>
+        <!-- Contenedor de la Grilla -->
+        <div id="my-cards-grid" class="card-collection-grid"></div>
 
-        <!-- Modal de Alimentación (Oculto por defecto) -->
+        <!-- Modal Oculto -->
         <div id="feed-modal" class="modal-overlay hidden">
             <div class="modal-content">
                 <h3>🍽️ Alimentar Carta</h3>
-                <p>Selecciona cartas duplicadas o débiles para darles XP a <b id="feed-target-name">...</b>.</p>
+                <p>Selecciona cartas para darles XP a <b id="feed-target-name">...</b>.</p>
                 
-                <div id="food-selection-list" class="item-list" style="max-height: 300px; overflow-y:auto;">
-                    <!-- Checkboxes de comida generados por JS -->
-                </div>
+                <div id="food-selection-list" class="item-list" style="max-height: 300px; overflow-y:auto;"></div>
 
                 <div class="modal-actions" style="margin-top:15px;">
-                    <button id="btn-feed-confirm" class="success-btn">Confirmar Alimentación</button>
+                    <button id="btn-feed-confirm" class="success-btn">Confirmar</button>
                     <button id="btn-feed-cancel" class="secondary">Cancelar</button>
                 </div>
             </div>
