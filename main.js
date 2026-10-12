@@ -1,5 +1,5 @@
 /**
- * WOLFY WORLD - MAIN CONTROLLER v5
+ * WOLFY WORLD - MAIN CONTROLLER v5 (CORREGIDO)
  * Integración Total: Feed System, Sobres Premium & Gestión Dinámica
  */
 
@@ -17,18 +17,16 @@ const App = {
     feedTargetId: null, 
     selectedFoodIds: new Set(), 
 
-        init() {
+    init() {
         this.state = new GameState();
         this.net = new NetworkManager(this.state);
 
         this.cacheDOM();
         this.bindEvents();
         this.boot();
-            
-        }
-    }
-    
-       cacheDOM() {
+    },
+
+    cacheDOM() {
         // --- BOOT ---
         this.ui.bootScreen = document.getElementById("boot-screen");
         this.ui.bootFill = document.getElementById("boot-fill");
@@ -43,7 +41,7 @@ const App = {
         this.ui.menuBt = document.getElementById("menu-bt");
         this.ui.menuXp = document.getElementById("menu-xp");
         this.ui.menuLevel = document.getElementById("menu-level");
-        this.ui.menuShards = document.getElementById("menu-shards"); // NUEVO
+        this.ui.menuShards = document.getElementById("menu-shards");
 
         // --- DIG ---
         this.ui.digScreen = document.getElementById("dig-screen");
@@ -63,16 +61,16 @@ const App = {
         this.ui.shopScreen = document.getElementById("shop-screen");
         this.ui.shopChromos = document.getElementById("shop-chromos");
         this.ui.shopCards = document.getElementById("shop-cards");
-        this.ui.lastPackResult = document.getElementById("last-pack-result"); // NUEVO
+        this.ui.lastPackResult = document.getElementById("last-pack-result");
 
         // --- LIBRARY ---
         this.ui.libraryScreen = document.getElementById("library-screen");
         this.ui.collectionSelector = document.getElementById("collection-selector");
         this.ui.bookList = document.getElementById("book-list");
 
-        // ⭐⭐⭐ CARDS MANAGEMENT (LO QUE FALTABA) ⭐⭐⭐
+        // --- CARDS MANAGEMENT ---
         this.ui.cardsScreen = document.getElementById("cards-screen");
-        this.ui.myCardsGrid = document.getElementById("my-cards-grid"); // CRÍTICO PARA EL CLICK
+        this.ui.myCardsGrid = document.getElementById("my-cards-grid");
         this.ui.totalPowerDisplay = document.getElementById("total-power-display");
         this.ui.cardShardsDisplay = document.getElementById("card-shards-display");
 
@@ -92,13 +90,13 @@ const App = {
         this.ui.moonPlays = document.getElementById("moon-plays");
         this.ui.moonResults = document.getElementById("moon-results");
         this.ui.moonEquipped = document.getElementById("moon-equipped");
-        this.ui.equipCount = document.getElementById("equip-count"); // NUEVO
+        this.ui.equipCount = document.getElementById("equip-count");
 
         // --- TOAST ---
         this.ui.toastContainer = document.getElementById("toast-container");
     },
 
-        bindEvents() {
+    bindEvents() {
         // --- BOOT ---
         document.getElementById("btn-save-yes").addEventListener("click", () => {
             const name = this.ui.bootName.value.trim() || "Lobo Invitado";
@@ -156,15 +154,10 @@ const App = {
             if (btn) this.readBookPage(btn.dataset.readBook);
         });
 
-                // --- CARDS MANAGEMENT DELEGATION (ROBUSTA) ---
-        
-        // Escuchamos clicks en el contenedor padre (#my-cards-grid)
+        // --- CARDS MANAGEMENT DELEGATION (ROBUSTA) ---
         if (this.ui.myCardsGrid) {
             this.ui.myCardsGrid.addEventListener("click", (e) => {
-                // Buscamos hacia arriba desde el elemento clickeado hasta encontrar un botón con data-action
                 const btn = e.target.closest("button[data-action]");
-                
-                // Si no encontramos un botón válido, salimos silenciosamente
                 if (!btn) return; 
 
                 const action = btn.dataset.action;
@@ -188,13 +181,11 @@ const App = {
             console.error("ERROR: #my-cards-grid no encontrado en cacheDOM!");
         }
 
-        // 2. Eventos del Modal de Alimentación
-        // Estos elementos SÍ existen siempre (están ocultos), así que podemos vincularlos directamente.
+        // Eventos del Modal de Alimentación
         this.ui.btnFeedCancel.addEventListener("click", () => this.closeFeedModal());
         this.ui.btnFeedConfirm.addEventListener("click", () => this.confirmFeed());
         
-        // 3. Selección de Comida (Checkboxes)
-        // Usamos 'change' porque es más fiable que 'click' para checkboxes.
+        // Selección de Comida (Checkboxes)
         this.ui.foodSelectionList.addEventListener("change", (e) => {
             if (e.target.type === 'checkbox') {
                 const id = e.target.dataset.foodId;
@@ -203,7 +194,6 @@ const App = {
                 } else {
                     this.selectedFoodIds.delete(id);
                 }
-                console.log("Comidas seleccionadas:", Array.from(this.selectedFoodIds)); // DEBUG
             }
         });
 
@@ -248,8 +238,7 @@ const App = {
             }
         }
         this.ui.savePrompt.classList.remove("hidden");
-        // Usamos la variable cacheada 'ui' que sí existe
-this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
+        this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
     },
     progressTo100(callback) {
         let p = parseFloat(this.ui.bootFill.style.width) || 80;
@@ -515,7 +504,6 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
             return this.showToast(`No tienes suficientes ${currency}.`, "error");
         }
 
-        // Mostrar resultados en la tienda
         if(this.ui.lastPackResult) {
             this.ui.lastPackResult.classList.remove("hidden");
             this.ui.lastPackResult.innerHTML = `
@@ -536,7 +524,8 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
         this.updateMenuUI();
     },
 
-      renderCardsManagement() {
+    // --- CARDS MANAGEMENT (FIXED RENDER) ---
+    renderCardsManagement() {
         this.ui.myCardsGrid.innerHTML = "";
         const ownedIds = Object.keys(this.state.cardInventory);
         
@@ -562,7 +551,8 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
             const cardDiv = document.createElement("div");
             cardDiv.className = `card-item ${isEquipped ? "equipped" : ""}`;
             
-            // HTML INTERNO CON DATA ATTRIBUTES CORRECTOS
+            // ⭐ AQUÍ ESTABA EL ERROR: Los comentarios estaban dentro del template string ⭐
+            // Ahora está limpio y correcto:
             cardDiv.innerHTML = `
                 <div class="card-rank-badge rank-${record.rank}">${record.rank}</div>
                 <h4>${catalogEntry.displayName}</h4>
@@ -570,24 +560,19 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
                 ${record.count > 1 ? `<p style="color:#aaa; font-size:0.8em;">Dupes: ${record.count - 1}</p>` : ''}
                 
                 <div class="card-actions">
-                                // ... dentro del forEach de renderCardsManagement ...
-            
-            // BOTÓN EQUIPAR
-            <button data-action="equip" data-card-id="${id}" class="${isEquipped ? 'secondary' : ''}">
-                ${isEquipped ? "❌ Quitar" : "✅ Equipar"}
-            </button>
-            
-            // BOTÓN ALIMENTAR
-            <button data-action="feed" data-card-id="${id}" class="library-btn">
-                🍽️ Alimentar
-            </button>
+                    <button data-action="equip" data-card-id="${id}" class="${isEquipped ? 'secondary' : ''}">
+                        ${isEquipped ? "❌ Quitar" : "✅ Equipar"}
+                    </button>
+                    
+                    <button data-action="feed" data-card-id="${id}" class="library-btn">
+                        🍽️ Alimentar
+                    </button>
 
-            // BOTÓN SUBIR RANGO (si aplica)
-            ${canUpgrade ? `
-                <button data-action="upgrade" data-card-id="${id}" class="${hasEnoughShards ? 'chromo-btn' : 'secondary'}" ${!hasEnoughShards ? 'disabled' : ''}>
-                    ⬆️ Subir Rango (${config.nextRankCost} 💎)
-                </button>
-            ` : ''}
+                    ${canUpgrade ? `
+                        <button data-action="upgrade" data-card-id="${id}" class="${hasEnoughShards ? 'chromo-btn' : 'secondary'}" ${!hasEnoughShards ? 'disabled' : ''}>
+                            ⬆️ Subir Rango (${config.nextRankCost} 💎)
+                        </button>
+                    ` : ''}
                 </div>
             `;
             this.ui.myCardsGrid.appendChild(cardDiv);
@@ -597,27 +582,14 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
         this.ui.cardShardsDisplay.innerText = this.state.rhythmShards;
     },
 
-    // Delegación de eventos para los botones dentro de la grilla
-    handleCardAction(e) {
-        const btn = e.target.closest("[data-card-action]");
-        if (!btn) return;
-        
-        const action = btn.dataset.action;
-        const cardId = btn.dataset.cardId;
-
-        if (action === "equip") this.toggleEquipCard(cardId);
-        if (action === "upgrade") this.upgradeCardRank(cardId);
-        if (action === "feed") this.openFeedModal(cardId);
-    },
-
     toggleEquipCard(cardId) {
         const success = this.state.toggleEquipCard(cardId);
         
         if (success) {
             this.showToast("Carta actualizada", "success");
             this.scheduleSave();
-            this.renderCardsManagement(); // Refrescar vista
-            this.renderMoonlight();       // Refrescar Moonlight también
+            this.renderCardsManagement();
+            this.renderMoonlight();
         } else {
             this.showToast("No puedes equipar más de 5 cartas.", "error");
         }
@@ -637,7 +609,6 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
     },
 
     // --- LÓGICA DEL MODAL DE ALIMENTACIÓN ---
-    
     openFeedModal(targetId) {
         this.feedTargetId = targetId;
         this.selectedFoodIds.clear();
@@ -645,21 +616,13 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
         const targetRecord = this.state.getCardRecord(targetId);
         const targetCatalog = CARD_MAP[targetId];
         
-        // Mostrar nombre de la carta objetivo
         this.ui.feedTargetName.innerText = targetCatalog?.displayName || targetId;
-        
-        // Limpiar lista anterior
         this.ui.foodSelectionList.innerHTML = "";
 
-        // Generar checkboxes para TODAS las demás cartas que tengas
         Object.keys(this.state.cardInventory).forEach(id => {
-            if (id === targetId) return; // Excluir la propia
+            if (id === targetId) return; 
             
             const rec = this.state.cardInventory[id];
-            // Solo mostrar si tiene al menos 1 copia disponible para comer
-            // (Nota: En un sistema real, quizás quieras excluir la única copia de una carta importante, 
-            // pero por simplicidad aquí dejamos todas seleccionables excepto la target)
-            
             if (rec.count <= 0) return; 
 
             const catalog = CARD_MAP[id];
@@ -677,7 +640,6 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
             this.ui.foodSelectionList.appendChild(li);
         });
 
-        // Si no hay nada para comer, avisar
         if (this.ui.foodSelectionList.children.length === 0) {
             this.ui.foodSelectionList.innerHTML = "<p>No tienes otras cartas para alimentar.</p>";
         }
@@ -709,6 +671,7 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
             this.showToast(msg, "error");
         }
     },
+
     // --- LIBRARY ---
     renderLibrary() {
         this.ui.collectionSelector.innerHTML = "";
@@ -813,7 +776,6 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
     onRhythmFinish(results) {
         const rewards = this.state.recordRhythm(results);
         
-        // Calcular Shards ganados
         let shardsEarned = 0;
         if (results.rank === "S+" || results.rank === "S") shardsEarned = 10;
         else if (results.rank === "A") shardsEarned = 5;
@@ -821,7 +783,6 @@ this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
         else shardsEarned = 1;
         this.state.rhythmShards += shardsEarned;
         
-        // Aplicar XP a cartas
         this.state.applyXpToCards(rewards.xp);
 
         const resBox = document.getElementById("moon-results");
