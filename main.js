@@ -226,7 +226,8 @@ const App = {
             }
         }
         this.ui.savePrompt.classList.remove("hidden");
-        this.setBootStatus("¿Quieres guardar tu progreso?");
+        // Usamos la variable cacheada 'ui' que sí existe
+this.ui.bootStatus.innerText = "¿Quieres guardar tu progreso?";
     },
     progressTo100(callback) {
         let p = parseFloat(this.ui.bootFill.style.width) || 80;
