@@ -454,4 +454,69 @@ class GameState {
             settings: { autoSave: true }
         };
     }
+
+    // --- FUNCIONES FALTANTES PARA COMPATIBILIDAD CON MAIN.JS ---
+
+    /**
+     * Devuelve los libros filtrados por colecciones activas
+     */
+    getAvailableBooks() {
+        return BOOK_CATALOG.filter(b => this.selectedCollections.includes(b.collection));
+    }
+
+    /**
+     * Alterna una colección activa/inactiva (Máx 3, Mín 1)
+     */
+    toggleCollection(id) {
+        const index = this.selectedCollections.indexOf(id);
+
+        if (index >= 0) {
+            // Intentar quitar
+            if (this.selectedCollections.length <= 1) return false; // No permitir cero colecciones
+            this.selectedCollections.splice(index, 1);
+            return true;
+        } else {
+            // Intentar agregar
+            if (this.selectedCollections.length >= 3) return false; // Máximo 3
+            this.selectedCollections.push(id);
+            return true;
+        }
+    }
+
+    /**
+     * Registra el resultado de una partida rítmica y otorga recompensas
+     */
+    recordRhythm(results) {
+        this.rhythm.plays++;
+
+        // Guardar mejor score si supera el anterior
+        const songId = results.songId || "bed_of_thorns";
+        const prevBest = this.rhythm.bestScores[songId] || 0;
+        
+        if (results.score > prevBest) {
+            this.rhythm.bestScores[songId] = results.score;
+        }
+
+        // Calcular Recompensas BT y XP
+        // Fórmula sugerida: Base + Bonus por Rango
+        let btReward = Math.floor(results.score / 500); 
+        let xpReward = Math.floor(results.score / 20);
+
+        // Bonificación extra por rango alto
+        if (results.rank === "S+" || results.rank === "S") {
+            btReward += 100;
+            xpReward += 200;
+        } else if (results.rank === "A") {
+            btReward += 50;
+            xpReward += 100;
+        }
+
+        this.biblioTokens += btReward;
+        this.addXP(xpReward); // Asumiendo que addXP existe en GameState
+
+        return {
+            bt: btReward,
+            xp: xpReward
+        };
+    }
 }
