@@ -1,8 +1,7 @@
 /**
- * WOLFY WORLD - GAME STATE MANAGER v4
- * Sistema de Cartas RPG Dinámico con Feed Mechanic
- */
-
+WOLFY WORLD - GAME STATE MANAGER v4
+Sistema de Cartas RPG Dinámico con Feed Mechanic
+*/
 // --- CONFIGURACIÓN DE DATOS ESTÁTICOS (PALAS, TESOROS, LIBROS) ---
 const SHOVEL_DATA = {
     toy: { name: "Juguete", price: 0, luck: 1 },
@@ -12,9 +11,9 @@ const SHOVEL_DATA = {
 };
 
 const TREASURE_TYPES = [
-    { name: "Botella de Plástico", val: 5, btChance: 0 },       
-    { name: "Carbón", val: 10, btChance: 0.1 },                 
-    { name: "Linterna Desgastada", val: 25, btChance: 0.3 },    
+    { name: "Botella de Plástico", val: 5, btChance: 0 },
+    { name: "Carbón", val: 10, btChance: 0.1 },
+    { name: "Linterna Desgastada", val: 25, btChance: 0.3 },
     { name: "Wolficha de Bronce Vieja", val: 50, btChance: 0.6 }
 ];
 
@@ -36,11 +35,6 @@ const CHROMO_PACKS = {
 };
 
 // --- SISTEMA DE CARTAS RPG v4 ---
-
-// Definición estricta de rangos según tu mecánica acumulativa
-// powerInc: Cuánto sube la potencia POR CADA NIVEL en ese rango.
-// maxLvl: Nivel máximo antes de poder subir de rango.
-// nextRankCost: Shards necesarios para evolucionar.
 const RANK_CONFIG = {
     'B':  { powerInc: 1,  maxLvl: 10, nextRankCost: 100,   nextRank: 'A' },
     'A':  { powerInc: 2,  maxLvl: 20, nextRankCost: 500,   nextRank: 'S' },
@@ -48,12 +42,12 @@ const RANK_CONFIG = {
     'R':  { powerInc: 4,  maxLvl: 40, nextRankCost: 2000,  nextRank: 'XR' },
     'XR': { powerInc: 5,  maxLvl: 50, nextRankCost: 5000,  nextRank: 'UR' },
     'UR': { powerInc: 6,  maxLvl: 60, nextRankCost: 10000, nextRank: 'MR' },
-    'MR': { powerInc: 8,  maxLvl: 70, nextRankCost: null,  nextRank: null } 
+    'MR': { powerInc: 8,  maxLvl: 70, nextRankCost: null,  nextRank: null }
 };
 
 const RANK_ORDER = ['B', 'A', 'S', 'R', 'XR', 'UR', 'MR'];
 
-// Listas de Personajes y Temas
+// Listas de Personajes y Temas (CORREGIDO: Sin espacios extra)
 const CHARACTERS = [
     { id: "lobito", name: "Lobito", type: "general" },
     { id: "cachorrito", name: "Cachorrito", type: "general" },
@@ -77,7 +71,6 @@ const THEME_EXCLUSIVE_INSTRUMENTAL = "focused";
 // Fábrica de Catálogo: Genera todos los IDs únicos posibles
 function generateCardCatalog() {
     const catalog = [];
-    
     CHARACTERS.forEach(char => {
         // 1. Asignar temas generales a TODOS
         THEMES_GENERAL.forEach(theme => {
@@ -88,7 +81,6 @@ function generateCardCatalog() {
                 displayName: `${char.name} [${theme.charAt(0).toUpperCase() + theme.slice(1)}]`
             });
         });
-
         // 2. Asignar tema exclusivo según tipo
         if (char.type === "vocal_dance") {
             catalog.push({
@@ -106,7 +98,6 @@ function generateCardCatalog() {
             });
         }
     });
-
     return catalog;
 }
 
@@ -122,31 +113,27 @@ class GameState {
         this.myId = null;
         this.isHost = false;
         this.roomCode = "";
-        
         this.profileName = "Lobo Invitado";
         this.createdAt = Date.now();
-
         this.xp = 0;
         this.level = 1;
         this.biblioTokens = 0;
-        this.rhythmShards = 0; 
-
+        this.rhythmShards = 0;
         this.selectedCollections = ["c1"];
         this.bookProgress = {};
         this.completedBooks = [];
         this.chromoInventory = [];
         
         // Inventario de Cartas: { cardId: { level, rank, xp, count } }
-        // 'count' guarda cuántos duplicados tienes almacenados como "comida"
         this.cardInventory = {};
-        this.equippedCards = []; 
+        this.equippedCards = [];
         
         // Project Moonlight Stats
         this.rhythm = {
             bestScores: {},
             plays: 0
         };
-
+        
         this.savedPlayer = this.createEmptyPlayer("local", this.profileName);
     }
 
@@ -162,15 +149,31 @@ class GameState {
         return { id, name, x: 200, y: 150, money: 0, shovel: "toy", inventory: [], color: "#f1c40f" };
     }
 
-    getActivePlayer() { return this.players[this.myId] || this.savedPlayer; }
-    getAllPlayers() { return Object.values(this.players); }
-    
+    getActivePlayer() { 
+        return this.players[this.myId] || this.savedPlayer; 
+    }
+
+    getAllPlayers() { 
+        return Object.values(this.players); 
+    }
+
     updateMyPosition(x, y) {
         const p = this.getActivePlayer();
-        if(p) { p.x = x; p.y = y; }
+        if(p) { 
+            p.x = x; 
+            p.y = y; 
+        }
     }
-    addRemotePlayer(data) { if (data.id !== this.myId) this.players[data.id] = data; }
-    removePlayer(id) { delete this.players[id]; }
+
+    addRemotePlayer(data) { 
+        if (data.id !== this.myId) {
+            this.players[data.id] = data; 
+        }
+    }
+
+    removePlayer(id) { 
+        delete this.players[id]; 
+    }
 
     // --- ECONOMÍA BÁSICA ---
     mineTreasure() {
@@ -178,11 +181,22 @@ class GameState {
         const luck = SHOVEL_DATA[p.shovel].luck;
         let roll = Math.random() * 100;
         let tierIndex = 0;
-        if (roll > 95) tierIndex = 3; else if (roll > 75) tierIndex = 2; else if (roll > 40) tierIndex = 1;
-        if (luck >= 5 && Math.random() < 0.2) tierIndex = Math.min(tierIndex + 1, 3);
+        
+        if (roll > 95) tierIndex = 3;
+        else if (roll > 75) tierIndex = 2;
+        else if (roll > 40) tierIndex = 1;
+        
+        if (luck >= 5 && Math.random() < 0.2) {
+            tierIndex = Math.min(tierIndex + 1, 3);
+        }
+        
         const template = TREASURE_TYPES[tierIndex];
         const treasure = { ...template, timestamp: Date.now() };
-        if (Math.random() < treasure.btChance) this.biblioTokens += 5;
+        
+        if (Math.random() < treasure.btChance) {
+            this.biblioTokens += 5;
+        }
+        
         p.inventory.push(treasure);
         return treasure;
     }
@@ -199,7 +213,11 @@ class GameState {
     buyShovel(type) {
         const p = this.getActivePlayer();
         const cost = SHOVEL_DATA[type].price;
-        if (p.money >= cost) { p.money -= cost; p.shovel = type; return true; }
+        if (p.money >= cost) { 
+            p.money -= cost; 
+            p.shovel = type; 
+            return true; 
+        }
         return false;
     }
 
@@ -208,47 +226,43 @@ class GameState {
         this.level = Math.floor(this.xp / 1000) + 1;
     }
 
-        /**
+    /**
      * Aplica XP ganada en una partida rítmica a las cartas equipadas.
      * Sube niveles automáticamente si hay suficiente XP.
      */
     applyXpToCards(xpGained) {
         if (xpGained <= 0) return;
-        
         const equippedIds = [...this.equippedCards];
         if (equippedIds.length === 0) return;
-
+        
         // Repartir XP equitativamente entre las cartas equipadas
         const xpPerCard = Math.floor(xpGained / equippedIds.length);
         const LEVEL_THRESHOLD = 100; // 100 XP = 1 Nivel
-
+        
         equippedIds.forEach(id => {
             const record = this.getCardRecord(id);
-            
             // Añadir XP al registro de la carta
             record.xp += xpPerCard;
             
             // Bucle para subir múltiples niveles si la XP lo permite
             while (record.xp >= LEVEL_THRESHOLD) {
                 const config = RANK_CONFIG[record.rank];
-                
                 // Verificar si aún puede subir de nivel en este rango
                 if (record.level < config.maxLvl) {
                     record.level++;
                     record.xp -= LEVEL_THRESHOLD;
                 } else {
                     // Ha alcanzado el nivel máximo de su rango actual.
-                    // La XP sobrante se pierde hasta que suba de rango manualmente.
-                    break; 
+                    break;
                 }
             }
         });
     }
-    // --- LÓGICA DE CARTAS v4 (FEED SYSTEM) ---
 
+    // --- LÓGICA DE CARTAS v4 (FEED SYSTEM) ---
     getCardRecord(cardId) {
         if (!this.cardInventory[cardId]) {
-            this.cardInventory[cardId] = { level: 1, rank: "B", xp: 0, count: 1 }; // count=1 porque acabas de obtenerla
+            this.cardInventory[cardId] = { level: 1, rank: "B", xp: 0, count: 1 };
         }
         return this.cardInventory[cardId];
     }
@@ -257,48 +271,41 @@ class GameState {
         const record = this.getCardRecord(cardId);
         const currentRankIdx = RANK_ORDER.indexOf(record.rank);
         if (currentRankIdx === -1) return 1;
-
+        
         let totalPower = 0;
-
         // Sumar potencia de rangos anteriores maximizados
         for (let i = 0; i < currentRankIdx; i++) {
             const prevRank = RANK_ORDER[i];
             const config = RANK_CONFIG[prevRank];
             totalPower += config.maxLvl * config.powerInc;
         }
-
+        
         // Sumar potencia del rango actual
         const currentConfig = RANK_CONFIG[record.rank];
         totalPower += record.level * currentConfig.powerInc;
-
+        
         return totalPower;
     }
 
     /**
-     * ALIMENTAR CARTA (FEED)
-     * Consume duplicados de otras cartas para dar XP/Nivel a la carta principal.
-     * @param {string} targetId - ID de la carta que quieres mejorar.
-     * @param {Array<string>} foodIds - Lista de IDs de cartas a consumir.
-     */
-       /**
      * EQUIPAR O QUITAR CARTA
      * @param {string} cardId - ID de la carta a equipar/quitar
      * @returns {boolean} true si tuvo éxito, false si falló (límite alcanzado)
      */
     toggleEquipCard(cardId) {
         const index = this.equippedCards.indexOf(cardId);
-
+        
         // CASO A: Ya está equipada -> Quitarla
         if (index >= 0) {
             this.equippedCards.splice(index, 1);
             return true;
         }
-
+        
         // CASO B: No está equipada -> Intentar ponerla
         if (this.equippedCards.length >= 5) {
             return false; // Límite de 5 miembros TXT
         }
-
+        
         this.equippedCards.push(cardId);
         return true;
     }
@@ -319,45 +326,41 @@ class GameState {
         if (targetRecord.level >= targetConfig.maxLvl) {
             return { success: false, reason: "max_level" };
         }
-
+        
         let totalXpGained = 0;
         let consumedCount = 0;
-
+        
         foodIds.forEach(foodId => {
             if (foodId === targetId) return; // No comerse a sí misma
             
             const foodRecord = this.cardInventory[foodId];
-            
             // Verificar que exista y tenga copias disponibles
             if (!foodRecord || foodRecord.count <= 0) return;
-
+            
             // Consumir 1 copia
             foodRecord.count--;
             consumedCount++;
             
             // Calcular XP basada en rareza/nivel de la comida
-            // Regla: Base 100 + (ÍndiceRango * 50) + (Nivel * 10)
             const rankIdx = RANK_ORDER.indexOf(foodRecord.rank);
             const xpValue = 100 + (rankIdx * 50) + (foodRecord.level * 10);
-            
             totalXpGained += xpValue;
         });
-
+        
         if (consumedCount === 0) return { success: false, reason: "no_food" };
-
+        
         // Aplicar XP a la carta objetivo
         targetRecord.xp += totalXpGained;
         
         // Subir niveles automáticamente
         let levelsUp = 0;
         const LEVEL_THRESHOLD = 100;
-        
         while (targetRecord.xp >= LEVEL_THRESHOLD && targetRecord.level < targetConfig.maxLvl) {
             targetRecord.level++;
             targetRecord.xp -= LEVEL_THRESHOLD;
             levelsUp++;
         }
-
+        
         return { 
             success: true, 
             xpGained: totalXpGained, 
@@ -369,16 +372,15 @@ class GameState {
     upgradeCardRank(cardId) {
         const record = this.getCardRecord(cardId);
         const config = RANK_CONFIG[record.rank];
-
+        
         if (!config.nextRank) return false; // Ya es MR
         if (record.level < config.maxLvl) return false; // No está al máximo de nivel
         if (this.rhythmShards < config.nextRankCost) return false; // Falta dinero
-
+        
         this.rhythmShards -= config.nextRankCost;
         record.rank = config.nextRank;
         record.level = 1; // REINICIO DE NIVEL
         record.xp = 0;
-        
         return true;
     }
 
@@ -387,7 +389,7 @@ class GameState {
         let shields = 0;
         let startCombo = 0;
         let multiplier = 1.0;
-
+        
         this.equippedCards.forEach(id => {
             const power = this.calculateCardPower(id);
             totalPowerSum += power;
@@ -398,10 +400,10 @@ class GameState {
             
             const catalogEntry = CARD_MAP[id];
             if (catalogEntry && catalogEntry.theme === "stillness" && songId === "bed_of_thorns") {
-                multiplier *= 1.55; 
+                multiplier *= 1.55;
             }
         });
-
+        
         return {
             power: totalPowerSum > 0 ? totalPowerSum : 1,
             shields: shields,
@@ -411,28 +413,22 @@ class GameState {
     }
 
     // --- APERTURA DE SOBRES (PACKS) ---
-    
-    /**
-     * Abre un sobre normal (BT) o premium (Shards)
-     * @param {string} type - 'normal' | 'premium'
-     * @returns {Object} Resultado con lista de cartas obtenidas
-     */
     openCardPack(type) {
         const isPremium = type === 'premium';
         const costCurrency = isPremium ? 'rhythmShards' : 'biblioTokens';
-        const costAmount = isPremium ? 50 : 40; // Precios ajustables
+        const costAmount = isPremium ? 50 : 40;
         
         if (this[costCurrency] < costAmount) return null;
+        
         this[costCurrency] -= costAmount;
-
         const drawnCards = [];
-        const count = isPremium ? 5 : 3; 
-
+        const count = isPremium ? 5 : 3;
+        
         // Rangos permitidos según tipo de pack
         const allowedRanks = isPremium 
             ? ['A', 'S', 'R', 'XR', 'UR'] 
             : ['B', 'A', 'S', 'R', 'XR'];
-
+        
         for (let i = 0; i < count; i++) {
             // 1. Elegir personaje aleatorio
             const randomChar = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)];
@@ -462,18 +458,28 @@ class GameState {
                 else if (roll > 0.35) initialRank = 'A';
                 else initialRank = 'B';
             }
-
+            
             // Guardar en inventario
             if (!this.cardInventory[cardId]) {
                 this.cardInventory[cardId] = { level: 1, rank: initialRank, xp: 0, count: 1 };
-                drawnCards.push({ id: cardId, isNew: true, rank: initialRank, name: CARD_MAP[cardId]?.displayName || cardId });
+                drawnCards.push({ 
+                    id: cardId, 
+                    isNew: true, 
+                    rank: initialRank, 
+                    name: CARD_MAP[cardId]?.displayName || cardId 
+                });
             } else {
                 // Duplicado: Aumentar contador (comida)
                 this.cardInventory[cardId].count++;
-                drawnCards.push({ id: cardId, isNew: false, rank: this.cardInventory[cardId].rank, name: CARD_MAP[cardId]?.displayName || cardId });
+                drawnCards.push({ 
+                    id: cardId, 
+                    isNew: false, 
+                    rank: this.cardInventory[cardId].rank, 
+                    name: CARD_MAP[cardId]?.displayName || cardId 
+                });
             }
         }
-
+        
         return {
             packName: isPremium ? "Sobre Premium" : "Sobre Normal",
             cards: drawnCards
@@ -483,23 +489,20 @@ class GameState {
     // --- GUARDADO/CARGA ---
     loadFromSave(save) {
         if (!save) return;
+        
         this.profileName = save.profile?.name || "Lobo Invitado";
         this.createdAt = save.profile?.createdAt || Date.now();
-
         this.xp = save.progression?.xp || 0;
         this.level = save.progression?.level || 1;
         this.biblioTokens = save.progression?.biblioTokens || 0;
         this.rhythmShards = save.progression?.rhythmShards || 0;
-        
         this.selectedCollections = save.library?.selectedCollections || ["c1"];
         this.bookProgress = save.library?.bookProgress || {};
         this.completedBooks = save.library?.completedBooks || [];
-        
         this.cardInventory = save.cards?.inventory || {};
         this.equippedCards = save.cards?.equipped || [];
-        
         this.rhythm = save.rhythm || { bestScores: {}, plays: 0 };
-
+        
         this.savedPlayer = {
             ...this.createEmptyPlayer("local", this.profileName),
             money: save.player?.money || 0,
@@ -514,8 +517,17 @@ class GameState {
             version: 4,
             profile: { name: this.profileName, createdAt: this.createdAt, updatedAt: Date.now() },
             player: { money: p.money, shovel: p.shovel, inventory: p.inventory },
-            progression: { xp: this.xp, level: this.level, biblioTokens: this.biblioTokens, rhythmShards: this.rhythmShards },
-            library: { selectedCollections: this.selectedCollections, bookProgress: this.bookProgress, completedBooks: this.completedBooks },
+            progression: { 
+                xp: this.xp, 
+                level: this.level, 
+                biblioTokens: this.biblioTokens, 
+                rhythmShards: this.rhythmShards 
+            },
+            library: { 
+                selectedCollections: this.selectedCollections, 
+                bookProgress: this.bookProgress, 
+                completedBooks: this.completedBooks 
+            },
             cards: { inventory: this.cardInventory, equipped: this.equippedCards },
             rhythm: this.rhythm,
             settings: { autoSave: true }
@@ -523,7 +535,7 @@ class GameState {
     }
 
     // --- FUNCIONES FALTANTES PARA COMPATIBILIDAD CON MAIN.JS ---
-
+    
     /**
      * Devuelve los libros filtrados por colecciones activas
      */
@@ -536,18 +548,112 @@ class GameState {
      */
     toggleCollection(id) {
         const index = this.selectedCollections.indexOf(id);
-
         if (index >= 0) {
             // Intentar quitar
-            if (this.selectedCollections.length <= 1) return false; // No permitir cero colecciones
+            if (this.selectedCollections.length <= 1) return false;
             this.selectedCollections.splice(index, 1);
             return true;
         } else {
             // Intentar agregar
-            if (this.selectedCollections.length >= 3) return false; // Máximo 3
+            if (this.selectedCollections.length >= 3) return false;
             this.selectedCollections.push(id);
             return true;
         }
+    }
+
+    /**
+     * Lee una página de un libro
+     */
+    readPage(bookId) {
+        const book = BOOK_CATALOG.find(b => b.id === bookId);
+        if (!book) return null;
+        
+        if (this.completedBooks.includes(bookId)) {
+            return null; // Ya completado
+        }
+        
+        const currentProgress = this.bookProgress[bookId] || 0;
+        if (currentProgress >= book.pages) {
+            return null; // Ya tiene todas las páginas
+        }
+        
+        // Avanzar progreso
+        this.bookProgress[bookId] = currentProgress + 1;
+        const newProgress = currentProgress + 1;
+        
+        // Verificar si se completó
+        let completed = false;
+        if (newProgress >= book.pages) {
+            this.completedBooks.push(bookId);
+            this.biblioTokens += book.rewardBT;
+            this.addXP(book.rewardXP);
+            completed = true;
+        }
+        
+        return {
+            book: book,
+            progress: newProgress,
+            completed: completed,
+            rewardBT: completed ? book.rewardBT : 0,
+            rewardXP: completed ? book.rewardXP : 0
+        };
+    }
+
+    /**
+     * Abre un paquete de cromos
+     */
+    openChromoPack(type) {
+        const pack = CHROMO_PACKS[type];
+        if (!pack) return null;
+        
+        if (this.biblioTokens < pack.cost) return null;
+        
+        this.biblioTokens -= pack.cost;
+        const results = [];
+        let completions = [];
+        
+        // Obtener libros disponibles de colecciones activas
+        const availableBooks = this.getAvailableBooks();
+        if (availableBooks.length === 0) {
+            this.biblioTokens += pack.cost; // Reembolsar
+            return null;
+        }
+        
+        for (let i = 0; i < pack.pages; i++) {
+            // Elegir libro aleatorio de colecciones activas
+            const randomBook = availableBooks[Math.floor(Math.random() * availableBooks.length)];
+            results.push(randomBook);
+            
+            // Actualizar progreso
+            const currentProgress = this.bookProgress[randomBook.id] || 0;
+            if (currentProgress < randomBook.pages) {
+                this.bookProgress[randomBook.id] = currentProgress + 1;
+                
+                // Verificar si se completó
+                if (this.bookProgress[randomBook.id] >= randomBook.pages) {
+                    if (!this.completedBooks.includes(randomBook.id)) {
+                        this.completedBooks.push(randomBook.id);
+                        this.biblioTokens += randomBook.rewardBT;
+                        this.addXP(randomBook.rewardXP);
+                        completions.push(randomBook);
+                    }
+                }
+            }
+        }
+        
+        // Guardar en historial
+        this.chromoInventory.unshift({
+            packName: pack.name,
+            pages: results.length,
+            completions: completions.length,
+            timestamp: Date.now()
+        });
+        
+        return {
+            packName: pack.name,
+            results: results,
+            completions: completions
+        };
     }
 
     /**
@@ -555,20 +661,18 @@ class GameState {
      */
     recordRhythm(results) {
         this.rhythm.plays++;
-
+        
         // Guardar mejor score si supera el anterior
         const songId = results.songId || "bed_of_thorns";
         const prevBest = this.rhythm.bestScores[songId] || 0;
-        
         if (results.score > prevBest) {
             this.rhythm.bestScores[songId] = results.score;
         }
-
+        
         // Calcular Recompensas BT y XP
-        // Fórmula sugerida: Base + Bonus por Rango
-        let btReward = Math.floor(results.score / 500); 
+        let btReward = Math.floor(results.score / 500);
         let xpReward = Math.floor(results.score / 20);
-
+        
         // Bonificación extra por rango alto
         if (results.rank === "S+" || results.rank === "S") {
             btReward += 100;
@@ -577,10 +681,10 @@ class GameState {
             btReward += 50;
             xpReward += 100;
         }
-
+        
         this.biblioTokens += btReward;
-        this.addXP(xpReward); // Asumiendo que addXP existe en GameState
-
+        this.addXP(xpReward);
+        
         return {
             bt: btReward,
             xp: xpReward
