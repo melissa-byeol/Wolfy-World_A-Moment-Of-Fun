@@ -8,8 +8,7 @@
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="style.css">
 
-    <!-- PeerJS para Multijugador P2P -->
-    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js" defer></script>
+    <!-- PeerJS y conectores removidos en reset -->
 </head>
 <body>
 
@@ -92,7 +91,7 @@
         <button class="back-btn" data-back="menu-screen">← Menú</button>
 
         <div id="dig-lobby">
-            <h2>⛏️ Dig For Treasures Online</h2>
+            <h2>⛏️ Dig For Treasures</h2>
             <input type="text" id="dig-username" placeholder="Nombre en sala">
             <input type="text" id="dig-room" placeholder="Código de sala" value="LOBO1">
             <div>
@@ -234,9 +233,7 @@
             <small class="warning-note">⚠️ Límite: Máximo 5 cartas equipadas (Miembros del grupo).</small>
         </div>
 
-        <audio id="moon-audio" preload="auto">
-            <source src="assets/bed-of-thorns.mp3" type="audio/mpeg">
-        </audio>
+        <audio id="moon-audio" preload="auto"></audio>
 
         <div class="canvas-wrapper">
             <canvas id="moon-canvas"></canvas>
