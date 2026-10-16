@@ -1,10 +1,12 @@
-
 :root{
   --bg:#0f1115;
   --panel:#16181c;
   --accent:#4fc3f7;
   --muted:#9aa4b2;
   --card-bg:#121416;
+  --gold:#f1c40f;
+  --danger:#e74c3c;
+  --success:#2ecc71;
 }
 *{box-sizing:border-box}
 body{
@@ -20,13 +22,16 @@ header{
   align-items:center;
   padding:12px 20px;
   border-bottom:1px solid rgba(255,255,255,0.03);
+  background:var(--panel);
 }
-h1{margin:0;font-size:18px}
+h1{margin:0;font-size:18px;color:var(--gold)}
 main#app{
   display:grid;
   grid-template-columns:320px 1fr 300px;
   gap:16px;
   padding:18px;
+  height: calc(100vh - 60px); /* Ajuste para footer/header */
+  overflow:hidden;
 }
 .card-panel{
   background:var(--panel);
@@ -34,13 +39,18 @@ main#app{
   padding:12px;
   box-shadow:0 2px 8px rgba(0,0,0,0.5);
   margin-bottom:12px;
+  overflow-y:auto;
+  max-height: 100%;
 }
-.left-col, .right-col { }
+.left-col, .right-col { display:flex; flex-direction:column; gap:12px; }
+.center-col { display:flex; flex-direction:column; gap:12px; }
+
+/* Collection Grid */
 .collection-grid{
   display:grid;
-  grid-template-columns:repeat(2,1fr);
+  grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));
   gap:8px;
-  max-height:360px;
+  max-height:400px;
   overflow:auto;
 }
 .card-tile{
@@ -51,13 +61,23 @@ main#app{
   flex-direction:column;
   gap:6px;
   border:1px solid rgba(255,255,255,0.03);
+  transition: transform 0.2s, border-color 0.2s;
+  cursor:pointer;
 }
-.small{
-  font-size:12px;color:var(--muted);
+.card-tile:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
 }
-.pack-controls{display:flex;flex-direction:column;gap:8px}
-.pack-log{max-height:220px;overflow:auto;font-size:13px}
-.pack-log div{padding:6px;border-bottom:1px dashed rgba(255,255,255,0.02)}
+.equipped-border {
+    border: 2px solid var(--gold) !important;
+    box-shadow: 0 0 10px rgba(241, 196, 15, 0.3);
+}
+.small{ font-size:12px;color:var(--muted); }
+.badge{background:rgba(255,255,255,0.03);padding:2px 6px;border-radius:4px;font-size:11px;}
+.card-actions-row { display:flex; gap:4px; margin-top:auto; }
+.btn-small { padding:4px 8px; font-size:11px; width:auto; }
+
+/* Buttons General */
 button{
   background:var(--accent);
   color:#022;
@@ -66,22 +86,70 @@ button{
   border-radius:6px;
   cursor:pointer;
   font-weight:600;
+  transition: all 0.2s;
 }
+button:hover { filter:brightness(1.1); }
 button.secondary{background:transparent;color:var(--accent);border:1px solid rgba(79,195,247,0.12)}
-#rhythm-root{display:flex;flex-direction:column;gap:8px;align-items:center}
-#rhythm-canvas{background:#05060a;border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.02)}
-.rg-controls{display:flex;gap:8px;align-items:center}
-.hint{font-size:12px;color:var(--muted)}
-.form-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+button.chromo-btn { background: #3498db; color:white; }
+button.success-btn { background: var(--success); color:white; }
+button.danger-btn { background: var(--danger); color:white; }
+button:disabled { opacity:0.5; cursor:not-allowed; }
+
+/* Inputs & Selects */
 input[type="text"], input[type="password"], select{
   padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);background:#0b0d10;color:inherit;width:100%;
+  margin-bottom:8px;
 }
-aside#right-col{position:relative}
-.footer{margin-top:10px;color:var(--muted);font-size:13px}
-.account-box{display:flex;flex-direction:column;gap:6px}
-.delete-confirm{margin-top:6px}
-.badge{background:rgba(255,255,255,0.03);padding:4px 6px;border-radius:6px;font-size:13px}
-.card-meta{display:flex;justify-content:space-between;align-items:center}
+
+/* Rhythm Game Area */
+.game-area { flex-grow:1; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+#rhythm-root { position:relative; width:100%; max-width:800px; aspect-ratio: 16/9; background:#05060a; border-radius:8px; overflow:hidden; border:2px solid #333; }
+#rhythm-canvas { display:block; width:100%; height:100%; image-rendering: pixelated; }
+.rg-controls { display:flex; gap:8px; align-items:center; margin-top:10px; justify-content:center; }
+.stats-row { display:flex; gap:15px; margin-top:5px; font-size:14px; color:var(--muted); justify-content:center; }
+.hint { font-size:12px; color:var(--muted); text-align:center; margin-top:5px; }
+
+/* Results Box */
+.results-box {
+    background: var(--panel);
+    border: 1px solid var(--gold);
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+    text-align: center;
+    width: 100%;
+    max-width: 400px;
+}
+.results-box h3 { margin:0 0 10px 0; color:var(--gold); }
+.hidden { display:none !important; }
+
+/* Pack Log */
+.pack-log{max-height:220px;overflow:auto;font-size:12px;background:#0b0d10;padding:5px;border-radius:4px;}
+.pack-log div{padding:4px;border-bottom:1px dashed rgba(255,255,255,0.02);}
+
+/* Modal Feed */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85); z-index: 9999;
+    display: flex; justify-content: center; align-items: center;
+}
+.modal-content {
+    background: var(--panel); padding: 20px; border-radius: 10px;
+    width: 90%; max-width: 500px; border: 1px solid var(--accent);
+    max-height: 80vh; overflow-y: auto;
+}
+.item-list-scrollable {
+    max-height: 300px; overflow-y: auto; background: #0b0d10;
+    padding: 10px; border-radius: 6px; margin-bottom: 10px;
+}
+.item-list-scrollable label {
+    display: block; padding: 5px; border-bottom: 1px solid #333;
+    cursor: pointer; font-size: 13px;
+}
+.item-list-scrollable input[type="checkbox"] { margin-right: 10px; accent-color: var(--gold); }
+.modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:15px; }
+
+/* Rarity Colors (Left Border Accent) */
 .rarity-B{border-left:4px solid #9fb8ff}
 .rarity-A{border-left:4px solid #7fffb1}
 .rarity-S{border-left:4px solid #ffd57f}
@@ -89,3 +157,6 @@ aside#right-col{position:relative}
 .rarity-XR{border-left:4px solid #c97fff}
 .rarity-UR{border-left:4px solid #ffad4a}
 .rarity-MR{border-left:4px solid #ffd700}
+
+/* Footer */
+footer { text-align:center; padding:10px; color:var(--muted); font-size:12px; }
