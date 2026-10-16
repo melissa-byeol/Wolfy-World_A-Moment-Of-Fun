@@ -1,4 +1,4 @@
-!doctype html>
+<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
@@ -8,11 +8,12 @@
 </head>
 <body>
   <header>
-    <h1>Wolfy World — A Moment Of Fun</h1>
+    <h1>🐺 Wolfy World — A Moment Of Fun</h1>
     <div id="account-area"></div>
   </header>
 
   <main id="app">
+    <!-- COLUMNA IZQUIERDA: CUENTA Y TIENDA -->
     <section id="left-col">
       <div class="card-panel">
         <h2>Cuenta</h2>
@@ -31,20 +32,23 @@
         <h2>Abrir Paquetes</h2>
         <div class="pack-controls">
           <select id="pack-type">
-            <option value="standard">Paquete Estándar (cost 10 BT)</option>
-            <option value="premium">Paquete Premium (cost 50 BT)</option>
+            <option value="standard">Estándar (10 BT)</option>
+            <option value="premium">Premium (50 💎)</option>
           </select>
           <button id="open-pack">Abrir paquete</button>
-          <div id="last-draw"></div>
+          <div id="last-draw" class="small"></div>
         </div>
       </div>
-
+      
+      <!-- NUEVO: GESTIÓN DE CARTAS -->
       <div class="card-panel">
-        <h2>Mis Cartas</h2>
+        <h2>Gestión de Cartas</h2>
+        <p class="small">Equipadas: <b id="equip-count">0</b>/5 | Potencia Total: <b id="total-power-display">0</b></p>
         <div id="collection" class="collection-grid"></div>
       </div>
     </section>
 
+    <!-- COLUMNA CENTRAL: JUEGO RÍTMICO -->
     <section id="center-col">
       <div class="card-panel">
         <h2>Selector de Canciones</h2>
@@ -61,22 +65,32 @@
         </div>
       </div>
 
-      <div class="card-panel">
-        <h2>Rhythm Game (prueba)</h2>
+      <div class="card-panel game-area">
+        <h2>Rhythm Stage</h2>
         <div id="rhythm-root">
-          <canvas id="rhythm-canvas" width="800" height="200"></canvas>
+          <!-- Canvas más grande para 4 carriles -->
+          <canvas id="rhythm-canvas" width="800" height="450"></canvas>
+          
           <div class="rg-controls">
-            <button id="rg-start">Iniciar</button>
-            <button id="rg-stop">Detener</button>
-            <div>Score: <span id="rg-score">0</span></div>
-            <div>Combo: <span id="rg-combo">0</span></div>
-            <div>Accuracy: <span id="rg-acc">0%</span></div>
+            <button id="rg-start">▶️ Iniciar</button>
+            <button id="rg-stop" disabled>⏹ Detener</button>
           </div>
-          <p class="hint">Pulsa la tecla ESPACIO para golpear el beat.</p>
+          
+          <div class="stats-row">
+             <div>Score: <span id="rg-score">0</span></div>
+             <div>Combo: <span id="rg-combo">0</span></div>
+             <div>Acc: <span id="rg-acc">0%</span></div>
+             <div>Power: <span id="rg-power">x1</span></div>
+          </div>
+          
+          <p class="hint">Teclas: D / F / J / K</p>
         </div>
+        
+        <div id="moon-results" class="results-box hidden"></div>
       </div>
     </section>
 
+    <!-- COLUMNA DERECHA: LOGS Y CREACIÓN -->
     <aside id="right-col">
       <div class="card-panel">
         <h2>Crear / Eliminar Cuenta</h2>
@@ -90,10 +104,26 @@
     </aside>
   </main>
 
+  <!-- MODAL DE ALIMENTACIÓN (FEED) -->
+  <div id="feed-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <h3>🍽️ Alimentar Carta</h3>
+      <p>Selecciona cartas duplicadas o débiles para subir nivel a <b id="feed-target-name">...</b>.</p>
+      
+      <div id="food-selection-list" class="item-list-scrollable"></div>
+
+      <div class="modal-actions">
+        <button id="btn-feed-confirm" class="primary-btn">Confirmar</button>
+        <button id="btn-feed-cancel" class="secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <footer>
-    <small>Demo — sustituye recursos por tus assets y canciones reales.</small>
+    <small>Demo v5 — Sistema RPG Completo.</small>
   </footer>
 
+  <script src="game-state.js" defer></script> <!-- Nuevo archivo lógico -->
   <script src="main.js" defer></script>
   <script src="rhythm-game.js" defer></script>
 </body>
