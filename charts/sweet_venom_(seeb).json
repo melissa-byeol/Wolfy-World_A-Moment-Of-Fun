@@ -1,0 +1,20 @@
+{
+  "id": "sweet_venom_(seeb)",
+  "title": "Sweet Venom (SeeB Remix)",
+  "artist": "TXT",
+  "bpm": 135,
+  "duration": 180,
+  "offsetMs": 0,
+  "notes": [
+    { "time": 0.1, "lane": 1 },
+    { "time": 0.3, "lane": 2 },
+    { "time": 0.5, "lane": 1 },
+    { "time": 0.7, "lane": 2 },
+    { "time": 1.2, "lane": 0 },
+    { "time": 1.4, "lane": 3 },
+    { "time": 1.6, "lane": 0 },
+    { "time": 1.8, "lane": 3 },
+    { "time": 1.9, "lane": 0 },
+    { "time": 2.0, "lane": 2 }
+  ]
+}
