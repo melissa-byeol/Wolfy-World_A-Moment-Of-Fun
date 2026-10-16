@@ -252,18 +252,41 @@ function renderSongs() {
 }
 
 // --- BINDINGS FINALES ---
+// --- BINDINGS FINALES ---
 function setupBindings() {
     el('open-pack').onclick = () => {
         const type = el('pack-type').value;
         openPack(type);
     };
     
-    // El motor rítmico se conecta vía API global definida abajo
-    el('rg-start').onclick = () => {
-        if(window.RhythmEngine) window.RhythmEngine.start(getCurrentSongData(), getDifficulty());
+    el('rg-start').onclick = async () => {
+        const song = getCurrentSongData();
+        if(!song) return;
+
+        // 1. Intentar cargar el chart específico si existe
+        // Convención: charts/{id}.json
+        const chartPath = `charts/${song.id}.json`;
+        
+        showToast(`Cargando chart de ${song.title}...`, "info");
+        const loaded = await window.RhythmEngine.loadChart(chartPath);
+        
+        if(!loaded) {
+            showToast("No se encontró chart. Generando demo...", "error");
+            // Fallback opcional: Si no hay json, podrías generar notas aleatorias aquí
+            // Pero para mantener integridad, abortamos o pedimos al usuario que cree el json.
+            return; 
+        }
+
+        // 2. Iniciar el juego
+        window.RhythmEngine.start(song, getDifficulty());
+        el('rg-stop').disabled = false;
+        el('rg-start').disabled = true;
     };
+    
     el('rg-stop').onclick = () => {
-        if(window.RhythmEngine) window.RhythmEngine.stop();
+        window.RhythmEngine.stop();
+        el('rg-stop').disabled = true;
+        el('rg-start').disabled = false;
     };
 }
 
