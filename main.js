@@ -1,317 +1,328 @@
+// main.js - Controlador Principal v6
 
-// main.js - account, cards, packs, song selector, UI bindings
-// NOTE: This is a demo client-side system (localStorage). Replace storage with backend calls for production.
+// Instancia global del estado
+let GS = new window.GameStateClass();
 
-importScripts = undefined; // avoid worker confusion in some hosts
+// --- DATOS DE CANCIONES NUEVAS ---
+const SONG_LIST = [
+    { id: 'demo1', title: 'Demo Track 1', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', bpm: 120 },
+    { id: 'bed_of_thorns', title: 'Bed of Thorns', src: 'assets/bed-of-thorns.mp3', bpm: 135 },
+    { id: 'sweet_venom', title: 'Sweet Venom (SeeB Remix)', src: 'assets/sweet-venom.mp3', bpm: 128 },
+    { id: 'new_kidz', title: 'New Kidz On The Block', src: 'assets/new-kidz.mp3', bpm: 110 },
+    { id: 'exotic', title: 'Exotic', src: 'assets/exotic.mp3', bpm: 140 },
+    { id: 'curious', title: 'Curious', src: 'assets/curious.mp3', bpm: 125 }
+];
 
-// ---------- Data: progression values by rarity (from your sequence) ----------
-const POWER_TABLE = {
-  B: [2,3,4,5,6,7,8,9,10,11],
-  A: [13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51],
-  S: [54,57,60,63,66,69,72,75,78,81,84,87,90,93,96,99,102,105,108,111,114,117,120,123,126,129,132,135,138,141],
-  R: [145,149,153,157,161,165,169,173,177,181,185,189,193,197,201,205,209,213,217,221,225,229,233,237,241,245,249,253,257,261,265,269,273,277,281,285,289,293,297,301],
-  XR: [306,311,316,321,326,331,336,341,346,351,356,361,366,371,376,381,386,391,396,401,406,411,416,421,426,431,436,441,446,451,456,461,466,471,476,481,486,491,496,501,506,511,516,521,526,531,536,541,546,551],
-  UR: [557,563,569,575,581,587,593,599,605,611,617,623,629,635,641,647,653,659,665,671,677,683,689,695,701,707,713,719,725,731,737,743,749,755,761,767,773,779,785,791,797,803,809,815,821,827,833,839,845,851,857,863,869,875,881,887,893,899,905,911],
-  MR: [919,927,935,943,951,959,967,975,983,991,999,1007,1015,1023,1031,1039,1047,1055,1063,1071,1079,1087,1095,1103,1111,1119,1127,1135,1143,1151,1159,1167,1175,1183,1191,1199,1207,1215,1223,1231,1239,1247,1255,1263,1271,1279,1287,1295,1303,1311,1319,1327,1335,1343,1351,1359,1367,1375,1383,1391,1399,1407,1415,1423,1431,1439,1447,1455,1463,1471]
-};
+// --- INICIALIZACIÓN ---
+function init() {
+    // Cargar guardado si existe
+    const saved = localStorage.getItem('wolfy_world_save_v6');
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            GS.loadFromSave(data);
+        } catch(e) { console.error("Error cargando save", e); }
+    }
 
-// rarities ordered by strength/weight
-const RARITIES = ['B','A','S','R','XR','UR','MR'];
-
-// weights for pack rarity distribution (example; tweak to taste)
-const PACK_WEIGHTS = {
-  standard: {B:70, A:20, S:7, R:2, XR:0.7, UR:0.2, MR:0.1},
-  premium: {B:40, A:30, S:18, R:7, XR:3, UR:1.5, MR:0.5}
-};
-
-// packs cost
-const PACK_COST = { standard: 10, premium: 50 };
-
-// ---------- Local storage helpers ----------
-const STORAGE_KEY = 'wolfy_demo_v1';
-function loadState(){
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if(!raw) return { accounts: {}, sessions: {}, songs: [], global: {} };
-  try { return JSON.parse(raw); } catch(e){ return { accounts:{}, sessions:{}, songs:[], global:{} }; }
-}
-function saveState(state){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-let STATE = loadState();
-
-// ---------- Demo songs ----------
-if(!STATE.songs || STATE.songs.length === 0){
-  STATE.songs = [
-    { id:'demo1', title:'Demo Track 1', src:'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', bpm: 120 },
-    { id:'demo2', title:'Ambient Loop', src:'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', bpm: 100 }
-  ];
-  saveState(STATE);
-}
-
-// ---------- Account manager ----------
-const Account = {
-  current: null,
-  create(username, password){
-    if(!username) throw 'username required';
-    if(STATE.accounts[username]) throw 'user exists';
-    STATE.accounts[username] = {
-      username,
-      password, // demo: plaintext. In prod use server + hashing.
-      tokens: 100,
-      shards: 10,
-      cards: {}, // key: rarity+level -> count
-      createdAt: Date.now()
-    };
-    saveState(STATE);
-    this.login(username, password);
-  },
-  login(username, password){
-    const u = STATE.accounts[username];
-    if(!u) throw 'no such user';
-    if(u.password !== password) throw 'bad credentials';
-    this.current = username;
     renderAccountUI();
-  },
-  logout(){
-    this.current = null;
-    renderAccountUI();
-  },
-  delete(usernameConfirm){
-    if(!this.current) throw 'no active session';
-    if(usernameConfirm !== this.current) throw 'confirmation mismatch';
-    delete STATE.accounts[this.current];
-    saveState(STATE);
-    this.current = null;
-    renderAccountUI();
-  },
-  get(){
-    if(!this.current) return null;
-    return STATE.accounts[this.current];
-  },
-  modifyBalances(deltaTokens=0, deltaShards=0){
-    const u = this.get();
-    if(!u) throw 'no user';
-    u.tokens = Math.max(0, (u.tokens||0) + deltaTokens);
-    u.shards = Math.max(0, (u.shards||0) + deltaShards);
-    saveState(STATE);
-    renderBalances();
-  },
-  addCard(rarity, level){
-    const u = this.get();
-    if(!u) throw 'no user';
-    const key = `${rarity}-${level}`;
-    u.cards[key] = (u.cards[key]||0) + 1;
-    saveState(STATE);
-    renderCollection();
-  }
-};
-
-// ---------- Utility ----------
-function chooseWeighted(weightMap){
-  const total = Object.values(weightMap).reduce((a,b)=>a+b,0);
-  let r = Math.random()*total;
-  for(const k of Object.keys(weightMap)){
-    r -= weightMap[k];
-    if(r <= 0) return k;
-  }
-  // fallback
-  return Object.keys(weightMap)[0];
-}
-function randInt(max){ return Math.floor(Math.random()*max); }
-
-// ---------- Pack opening ----------
-function openPack(type='standard'){
-  const user = Account.get();
-  if(!user) { alert('Inicia sesión para abrir paquetes'); return; }
-  const cost = PACK_COST[type] || 10;
-  if(user.tokens < cost){ alert('No tienes suficientes Beat Tokens'); return; }
-  // deduct
-  Account.modifyBalances(-cost, 0);
-  const rarity = chooseWeighted(PACK_WEIGHTS[type]);
-  const levels = POWER_TABLE[rarity];
-  const levelIdx = randInt(levels.length);
-  const level = levelIdx + 1;
-  // give card
-  Account.addCard(rarity, level);
-  logPack(`Abriste paquete ${type} → obtuviste ${rarity} lvl.${level}`);
-  // reward shards randomly on premium
-  if(type==='premium' && Math.random() < 0.35){
-    const shards = 1 + Math.floor(Math.random()*3);
-    Account.modifyBalances(0, shards);
-    logPack(`Bonus: +${shards} Rhythm Shards`);
-  }
-  renderBalances();
+    renderSongs();
+    setupBindings();
+    updateMenuUI();
 }
 
-// ---------- UI rendering ----------
+// --- GUARDADO AUTOMÁTICO ---
+function saveGame() {
+    localStorage.setItem('wolfy_world_save_v6', JSON.stringify(GS.toSave()));
+}
+
+// --- UI HELPERS ---
 function el(id){ return document.getElementById(id); }
 
-function renderAccountUI(){
-  const box = el('account-ui');
-  box.innerHTML = '';
-  if(Account.current){
-    const u = Account.get();
+function showToast(msg, type="info") {
+    // Implementación simple de toast o alert si no hay librería
+    console.log(`[${type.toUpperCase()}] ${msg}`);
+    // Podrías añadir un div flotante aquí igual que antes
+}
+
+// --- ACCOUNT & BALANCES ---
+function renderAccountUI() {
+    const box = el('account-ui');
     box.innerHTML = `
-      <div class="account-box">
-        <div><strong>${u.username}</strong> <span class="small">(creada: ${new Date(u.createdAt).toLocaleString()})</span></div>
-        <div class="small">Cards: ${Object.keys(u.cards||{}).length}</div>
-        <div style="display:flex;gap:6px">
-          <button id="logout-btn" class="secondary">Cerrar sesión</button>
+        <div class="account-box">
+            <strong>${GS.profileName}</strong>
+            <button id="logout-btn" class="secondary">Resetear Perfil</button>
         </div>
-      </div>
     `;
-    el('logout-btn').onclick = ()=>{ Account.logout(); };
-  } else {
-    box.innerHTML = `
-      <div class="account-box">
-        <input id="login-user" placeholder="Usuario" />
-        <input id="login-pass" placeholder="Contraseña" type="password" />
-        <div style="display:flex;gap:8px">
-          <button id="login-btn">Iniciar</button>
-          <button id="signup-btn" class="secondary">Crear</button>
-        </div>
-      </div>
-    `;
-    el('login-btn').onclick = ()=>{
-      const u = el('login-user').value.trim();
-      const p = el('login-pass').value;
-      try { Account.login(u,p); } catch(e){ alert(e); }
+    el('logout-btn').onclick = () => {
+        if(confirm("¿Borrar progreso local?")) {
+            localStorage.removeItem('wolfy_world_save_v6');
+            location.reload();
+        }
     };
-    el('signup-btn').onclick = ()=>{
-      const u = el('login-user').value.trim();
-      const p = el('login-pass').value;
-      try { Account.create(u,p); } catch(e){ alert(e); }
-    };
-  }
-  renderBalances();
-  renderCollection();
+    renderBalances();
+    renderCollection();
 }
 
-function renderBalances(){
-  const u = Account.get();
-  el('tokens').textContent = u ? u.tokens : 0;
-  el('shards').textContent = u ? u.shards : 0;
+function renderBalances() {
+    el('tokens').textContent = GS.tokens;
+    el('shards').textContent = GS.shards;
 }
 
-// render collection
-function renderCollection(){
-  const grid = el('collection');
-  grid.innerHTML = '';
-  const u = Account.get();
-  if(!u){ grid.innerHTML = '<div class="small">Inicia sesión para ver tu colección</div>'; return; }
-  const entries = Object.entries(u.cards || {});
-  if(entries.length===0){ grid.innerHTML = '<div class="small">No tienes cartas aún. Abre paquetes!</div>'; return; }
-  // list cards
-  entries.forEach(([key, count])=>{
-    const [rarity, level] = key.split('-');
-    const power = POWER_TABLE[rarity][level-1] || 0;
-    const div = document.createElement('div');
-    div.className = `card-tile rarity-${rarity}`;
-    div.innerHTML = `
-      <div style="display:flex;justify-content:space-between">
-        <div><strong>${rarity} Lvl.${level}</strong></div>
-        <div class="badge">${count}x</div>
-      </div>
-      <div class="small">Power: ${power}</div>
-      <div class="card-meta small">
-        <div>Rarity: ${rarity}</div>
-        <div><button class="secondary view-card" data-key="${key}">Ver</button></div>
-      </div>
-    `;
-    grid.appendChild(div);
-  });
-  // view handlers
-  document.querySelectorAll('.view-card').forEach(btn=>{
-    btn.onclick = ()=>{ alert('Card view: '+btn.dataset.key); };
-  });
+// --- COLECCIÓN DE CARTAS (GESTIÓN) ---
+function renderCollection() {
+    const grid = el('collection');
+    grid.innerHTML = '';
+    
+    const ownedIds = Object.keys(GS.cardInventory);
+    if(ownedIds.length === 0) {
+        grid.innerHTML = '<div class="small">No tienes cartas. ¡Abre paquetes!</div>';
+        return;
+    }
+
+    let totalPower = 0;
+
+    ownedIds.forEach(id => {
+        const record = GS.getCardRecord(id);
+        const catalogEntry = CARD_MAP[id]; // Acceso directo desde game-state.js scope global
+        if (!catalogEntry) return;
+
+        const power = GS.calculateCardPower(id);
+        totalPower += power;
+        const isEquipped = GS.equippedCards.includes(id);
+        const config = RANK_CONFIG[record.rank];
+        const canUpgrade = record.level >= config.maxLvl && !!config.nextRank;
+
+        const cardDiv = document.createElement('div');
+        cardDiv.className = `card-tile rarity-${record.rank} ${isEquipped ? 'equipped-border' : ''}`;
+        
+        cardDiv.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <strong>${catalogEntry.displayName}</strong>
+                <span class="badge">${record.rank} L.${record.level}</span>
+            </div>
+            <div class="small">Pow: ${power} | Dupes: ${record.count - 1}</div>
+            <div class="card-actions-row">
+                <button data-action="equip" data-id="${id}" class="${isEquipped?'secondary':'primary-btn'}">
+                    ${isEquipped ? "Quitar" : "Equipar"}
+                </button>
+                <button data-action="feed" data-id="${id}" class="secondary small-btn">🍽️</button>
+                ${canUpgrade ? `<button data-action="upgrade" data-id="${id}" class="chromo-btn small-btn">⬆️</button>` : ''}
+            </div>
+        `;
+        grid.appendChild(cardDiv);
+    });
+
+    el('total-power-display').innerText = totalPower;
+    el('equip-count').innerText = GS.equippedCards.length;
 }
 
-// pack log
-function logPack(text){
-  const node = document.createElement('div');
-  node.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
-  el('pack-log').prepend(node);
+// Delegación de eventos en la colección
+el('collection').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if(!btn) return;
+
+    const action = btn.dataset.action;
+    const id = btn.dataset.id;
+
+    if(action === 'equip') {
+        if(GS.toggleEquipCard(id)) {
+            saveGame();
+            renderCollection();
+        } else {
+            showToast("Máximo 5 cartas equipadas.", "error");
+        }
+    }
+    if(action === 'feed') {
+        openFeedModal(id);
+    }
+    if(action === 'upgrade') {
+        if(GS.upgradeCardRank(id)) {
+            saveGame();
+            renderCollection();
+            renderBalances();
+            showToast("¡Rango subido!", "success");
+        } else {
+            showToast("Faltan Shards o Nivel Max.", "error");
+        }
+    }
+});
+
+// --- PACKS ---
+function openPack(type) {
+    const res = GS.openCardPack(type);
+    if(!res) {
+        showToast(`No tienes suficientes monedas (${type}).`, "error");
+        return;
+    }
+    
+    saveGame();
+    renderBalances();
+    renderCollection();
+    
+    // Mostrar últimos draws
+    const lastDraw = el('last-draw');
+    lastDraw.innerHTML = res.cards.map(c => 
+        `<span class="${c.isNew ? 'text-green' : 'text-gray'}">${c.name} [${c.rank}]</span>`
+    ).join('<br>');
+    
+    logPack(`Abriste ${res.packName}: ${res.cards.length} cartas.`);
 }
 
-// song UI
-function renderSongs(){
-  const sel = el('song-select'); sel.innerHTML = '';
-  STATE.songs.forEach(s=>{
-    const opt = document.createElement('option'); opt.value = s.id; opt.textContent = `${s.title} (BPM ${s.bpm || '?'})`;
-    sel.appendChild(opt);
-  });
-  sel.onchange = ()=>{ loadSong(sel.value); };
-  loadSong(sel.value || STATE.songs[0].id);
+// --- FEED MODAL LOGIC ---
+let feedTargetId = null;
+let selectedFoodIds = new Set();
+
+function openFeedModal(targetId) {
+    feedTargetId = targetId;
+    selectedFoodIds.clear();
+    
+    const targetCatalog = CARD_MAP[targetId];
+    el('feed-target-name').innerText = targetCatalog?.displayName || targetId;
+    
+    const list = el('food-selection-list');
+    list.innerHTML = "";
+
+    Object.keys(GS.cardInventory).forEach(id => {
+        if (id === targetId) return; 
+        const rec = GS.cardInventory[id];
+        if (rec.count <= 0) return; 
+
+        const catalog = CARD_MAP[id];
+        if(!catalog) return;
+
+        const label = document.createElement('label');
+        label.style.display = "block";
+        label.style.padding = "5px";
+        label.style.borderBottom = "1px solid #333";
+        label.innerHTML = `
+            <input type="checkbox" value="${id}" class="food-check">
+            [${rec.rank}] ${catalog.displayName} (x${rec.count})
+        `;
+        list.appendChild(label);
+    });
+
+    el('feed-modal').classList.remove('hidden');
 }
 
-function loadSong(id){
-  const s = STATE.songs.find(x=>x.id===id);
-  if(!s) return;
-  const audio = el('song-audio');
-  audio.src = s.src;
-  audio.load();
-}
-
-// create / delete UI
-function renderCreateUI(){
-  const box = el('create-ui');
-  box.innerHTML = `
-    <div class="form-row"><input id="new-user" placeholder="Nuevo usuario"/></div>
-    <div class="form-row"><input id="new-pass" placeholder="Contraseña" type="password"/></div>
-    <div class="form-row">
-      <button id="create-account-btn">Crear Cuenta</button>
-      <button id="delete-account-btn" class="secondary">Eliminar Cuenta</button>
-    </div>
-    <div id="delete-area" class="delete-confirm small"></div>
-  `;
-  el('create-account-btn').onclick = ()=>{
-    try { Account.create(el('new-user').value.trim(), el('new-pass').value); alert('Cuenta creada e iniciada'); }
-    catch(e){ alert(e); }
-  };
-  el('delete-account-btn').onclick = ()=>{
-    const u = Account.current;
-    if(!u){ alert('Inicia sesión antes de eliminar'); return; }
-    const area = el('delete-area');
-    area.innerHTML = `
-      Escribe tu usuario <strong>${u}</strong> aquí para confirmar: 
-      <input id="del-confirm" placeholder="Escribe tu usuario" />
-      <button id="del-confirm-btn" class="secondary">Confirmar</button>
-    `;
-    el('del-confirm-btn').onclick = ()=>{
-      const val = el('del-confirm').value.trim();
-      try {
-        Account.delete(val);
-        alert('Cuenta eliminada');
-        area.innerHTML = '';
-      } catch(e){ alert(e); }
-    };
-  };
-}
-
-// bindings
-function setupBindings(){
-  el('open-pack').onclick = ()=>{
-    const type = el('pack-type').value;
-    openPack(type);
-  };
-  el('rg-start').onclick = ()=>{ RhythmGame.start(); };
-  el('rg-stop').onclick = ()=>{ RhythmGame.stop(); };
-}
-
-// initial render
-renderAccountUI();
-renderCreateUI();
-renderSongs();
-setupBindings();
-
-// expose minimal API for rhythm-game to update UI
-window.AppAPI = {
-  addScore(s){ el('rg-score').textContent = s; },
-  setCombo(c){ el('rg-combo').textContent = c; },
-  setAcc(a){ el('rg-acc').textContent = `${Math.round(a*100)}%`; },
-  getCurrentSong(){ return STATE.songs.find(s=>s.id===el('song-select').value) || STATE.songs[0]; },
-  getDifficulty(){ return el('difficulty').value; }
+el('btn-feed-cancel').onclick = () => {
+    el('feed-modal').classList.add('hidden');
+    feedTargetId = null;
 };
 
-// expose Account for debugging
-window._Account = Account;
+el('btn-feed-confirm').onclick = () => {
+    const checks = document.querySelectorAll('.food-check:checked');
+    const ids = Array.from(checks).map(c => c.value);
+    
+    if(ids.length === 0) return showToast("Selecciona comida.", "error");
 
-console.log('Main UI initialized');
+    const result = GS.feedCard(feedTargetId, ids);
+    
+    if(result && result.success) {
+        saveGame();
+        renderCollection();
+        showToast(`¡Alimentada! +${result.levelsUp} Niveles`, "success");
+        el('feed-modal').classList.add('hidden');
+    } else {
+        showToast("Error al alimentar.", "error");
+    }
+};
+
+// --- SONG SELECTOR ---
+function renderSongs() {
+    const sel = el('song-select');
+    sel.innerHTML = '';
+    SONG_LIST.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = `${s.title} (BPM ${s.bpm})`;
+        sel.appendChild(opt);
+    });
+    sel.onchange = () => {
+        const song = SONG_LIST.find(x => x.id === sel.value);
+        if(song) {
+            el('song-audio').src = song.src;
+            el('song-audio').load();
+        }
+    };
+    // Load first by default
+    if(SONG_LIST.length > 0) {
+        sel.value = SONG_LIST[0].id;
+        sel.dispatchEvent(new Event('change'));
+    }
+}
+
+// --- BINDINGS FINALES ---
+function setupBindings() {
+    el('open-pack').onclick = () => {
+        const type = el('pack-type').value;
+        openPack(type);
+    };
+    
+    // El motor rítmico se conecta vía API global definida abajo
+    el('rg-start').onclick = () => {
+        if(window.RhythmEngine) window.RhythmEngine.start(getCurrentSongData(), getDifficulty());
+    };
+    el('rg-stop').onclick = () => {
+        if(window.RhythmEngine) window.RhythmEngine.stop();
+    };
+}
+
+function getCurrentSongData() {
+    const id = el('song-select').value;
+    return SONG_LIST.find(s => s.id === id) || SONG_LIST[0];
+}
+
+function getDifficulty() {
+    return el('difficulty').value;
+}
+
+function updateMenuUI() {
+    renderBalances();
+    renderCollection();
+}
+
+function logPack(text) {
+    const node = document.createElement('div');
+    node.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+    el('pack-log').prepend(node);
+}
+
+// --- EXPOSE API FOR RHYTHM ENGINE ---
+window.AppAPI = {
+    addScore(s){ el('rg-score').textContent = s; },
+    setCombo(c){ el('rg-combo').textContent = c; },
+    setAcc(a){ el('rg-acc').textContent = `${Math.round(a*100)}%`; },
+    setPower(p){ el('rg-power').textContent = `x${p.toFixed(1)}`; },
+    onGameEnd(results) {
+        // Registrar recompensas
+        let shardsEarned = 0;
+        if (results.rank === "S+" || results.rank === "S") shardsEarned = 10;
+        else if (results.rank === "A") shardsEarned = 5;
+        else if (results.rank === "B") shardsEarned = 2;
+        else shardsEarned = 1;
+        
+        GS.shards += shardsEarned;
+        GS.applyXpToCards(Math.floor(results.score / 20)); // XP basada en score
+        
+        // Guardar mejor score
+        const songId = results.songId;
+        if(!GS.rhythmStats.bestScores[songId] || results.score > GS.rhythmStats.bestScores[songId]) {
+            GS.rhythmStats.bestScores[songId] = results.score;
+        }
+        GS.rhythmStats.plays++;
+        
+        saveGame();
+        renderBalances();
+        renderCollection();
+        
+        el('moon-results').innerHTML = `
+            <h3>Rango: ${results.rank}</h3>
+            <p>Score: ${results.score} | Combo: ${results.maxCombo}</p>
+            <p>Recompensa: +${shardsEarned} 💎 Shards</p>
+        `;
+        el('moon-results').classList.remove('hidden');
+    }
+};
+
+// Arrancar todo
+init();
