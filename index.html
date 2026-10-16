@@ -1,1 +1,100 @@
+!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Wolfy World — A Moment Of Fun</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Wolfy World — A Moment Of Fun</h1>
+    <div id="account-area"></div>
+  </header>
 
+  <main id="app">
+    <section id="left-col">
+      <div class="card-panel">
+        <h2>Cuenta</h2>
+        <div id="account-ui"></div>
+      </div>
+
+      <div class="card-panel">
+        <h2>Monedas</h2>
+        <div class="balances">
+          <div>Beat Tokens: <span id="tokens">0</span></div>
+          <div>Rhythm Shards: <span id="shards">0</span></div>
+        </div>
+      </div>
+
+      <div class="card-panel">
+        <h2>Abrir Paquetes</h2>
+        <div class="pack-controls">
+          <select id="pack-type">
+            <option value="standard">Paquete Estándar (cost 10 BT)</option>
+            <option value="premium">Paquete Premium (cost 50 BT)</option>
+          </select>
+          <button id="open-pack">Abrir paquete</button>
+          <div id="last-draw"></div>
+        </div>
+      </div>
+
+      <div class="card-panel">
+        <h2>Mis Cartas</h2>
+        <div id="collection" class="collection-grid"></div>
+      </div>
+    </section>
+
+    <section id="center-col">
+      <div class="card-panel">
+        <h2>Selector de Canciones</h2>
+        <select id="song-select"></select>
+        <label for="difficulty">Dificultad</label>
+        <select id="difficulty">
+          <option value="easy">Fácil</option>
+          <option value="normal" selected>Normal</option>
+          <option value="hard">Difícil</option>
+          <option value="expert">Experto</option>
+        </select>
+        <div class="audio-controls">
+          <audio id="song-audio" controls preload="auto"></audio>
+        </div>
+      </div>
+
+      <div class="card-panel">
+        <h2>Rhythm Game (prueba)</h2>
+        <div id="rhythm-root">
+          <canvas id="rhythm-canvas" width="800" height="200"></canvas>
+          <div class="rg-controls">
+            <button id="rg-start">Iniciar</button>
+            <button id="rg-stop">Detener</button>
+            <div>Score: <span id="rg-score">0</span></div>
+            <div>Combo: <span id="rg-combo">0</span></div>
+            <div>Accuracy: <span id="rg-acc">0%</span></div>
+          </div>
+          <p class="hint">Pulsa la tecla ESPACIO para golpear el beat.</p>
+        </div>
+      </div>
+    </section>
+
+    <aside id="right-col">
+      <div class="card-panel">
+        <h2>Crear / Eliminar Cuenta</h2>
+        <div id="create-ui"></div>
+      </div>
+
+      <div class="card-panel">
+        <h2>Pack Log</h2>
+        <div id="pack-log" class="pack-log"></div>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    <small>Demo — sustituye recursos por tus assets y canciones reales.</small>
+  </footer>
+
+  <script src="main.js" defer></script>
+  <script src="rhythm-game.js" defer></script>
+</body>
+</html>
