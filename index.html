@@ -65,26 +65,29 @@
         </div>
       </div>
 
-      <div class="card-panel game-area">
-        <h2>Rhythm Stage</h2>
-        <div id="rhythm-root">
-          <!-- Canvas más grande para 4 carriles -->
-          <canvas id="rhythm-canvas" width="800" height="450"></canvas>
-          
-          <div class="rg-controls">
-            <button id="rg-start">▶️ Iniciar</button>
-            <button id="rg-stop" disabled>⏹ Detener</button>
-          </div>
-          
-          <div class="stats-row">
-             <div>Score: <span id="rg-score">0</span></div>
-             <div>Combo: <span id="rg-combo">0</span></div>
-             <div>Acc: <span id="rg-acc">0%</span></div>
-             <div>Power: <span id="rg-power">x1</span></div>
-          </div>
-          
-          <p class="hint">Teclas: D / F / J / K</p>
-        </div>
+     <div class="card-panel game-area">
+    <h2>Rhythm Stage</h2>
+    
+    <!-- El contenedor del juego -->
+    <div id="rhythm-root">
+        <canvas id="rhythm-canvas" width="800" height="450"></canvas>
+    </div>
+    
+    <!-- Los controles van FUERA de rhythm-root, pero DENTRO de game-area -->
+    <div class="rg-controls">
+        <button id="rg-start">▶️ Iniciar</button>
+        <button id="rg-stop" disabled>⏹ Detener</button>
+    </div>
+    
+    <div class="stats-row">
+        <div>Score: <span id="rg-score">0</span></div>
+        <div>Combo: <span id="rg-combo">0</span></div>
+        <div>Acc: <span id="rg-acc">0%</span></div>
+        <div>Power: <span id="rg-power">x1</span></div>
+    </div>
+    
+    <p class="hint">Teclas: D / F / J / K</p>
+</div>
         
         <div id="moon-results" class="results-box hidden"></div>
       </div>
