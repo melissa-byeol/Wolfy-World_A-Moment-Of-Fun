@@ -9,11 +9,6 @@
     { "time": 0.2, "lane": 0 }, { "time": 0.4, "lane": 0 },
     { "time": 0.6, "lane": 2 }, { "time": 0.8, "lane": 2 },
     { "time": 1.0, "lane": 2 }, { "time": 1.2, "lane": 1 },
-    { "time": 1.5, "lane": 0 }, { "time": 1.875, "lane": 0 },
-    { "time": 2.5, "lane": 3 }, { "time": 2.7, "lane": 0 },
-    { "time": 3.5, "lane": 0 }, { "time": 3.5, "lane": 1 },
-    { "time": 3.7, "lane": 1 }, { "time": 3.7, "lane": 2 },
-    { "time": 3.9, "lane": 2 }, { "time": 3.9, "lane": 3 },
-    { "time": 4.35, "lane": 0 }, { "time": 4.4, "lane": 1 }, { "time": 4.45, "lane": 2 }, { "time": 4.5, "lane": 3 }
+    { "time": 1.5, "lane": 0 }, { "time": 2.0, "lane": 0 },
   ]
 }
