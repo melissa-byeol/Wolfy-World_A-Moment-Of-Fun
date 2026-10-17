@@ -9,11 +9,11 @@
     { "time": 0.2, "lane": 0 }, { "time": 0.4, "lane": 0 },
     { "time": 0.6, "lane": 2 }, { "time": 0.8, "lane": 2 },
     { "time": 1.0, "lane": 2 }, { "time": 1.2, "lane": 1 },
-    { "time": 1.4, "lane": 0 }, { "time": 2.0, "lane": 0 },
-    { "time": 2.2, "lane": 3 }, { "time": 2.4, "lane": 0 },
-    { "time": 3.0, "lane": 0 }, { "time": 3.0, "lane": 1 },
-    { "time": 3.2, "lane": 1 }, { "time": 3.2, "lane": 2 },
-    { "time": 3.4, "lane": 2 }, { "time": 3.4, "lane": 3 },
-    { "time": 3.95, "lane": 0 }, { "time": 4.0, "lane": 1 }, { "time": 4.05, "lane": 2 }, { "time": 4.1, "lane": 3 }
+    { "time": 1.4, "lane": 0 }, { "time": 2.1, "lane": 0 },
+    { "time": 2.3, "lane": 3 }, { "time": 2.5, "lane": 0 },
+    { "time": 3.2, "lane": 0 }, { "time": 3.2, "lane": 1 },
+    { "time": 3.4, "lane": 1 }, { "time": 3.4, "lane": 2 },
+    { "time": 3.6, "lane": 2 }, { "time": 3.6, "lane": 3 },
+    { "time": 4.05, "lane": 0 }, { "time": 4.1, "lane": 1 }, { "time": 4.15, "lane": 2 }, { "time": 4.2, "lane": 3 }
   ]
 }
