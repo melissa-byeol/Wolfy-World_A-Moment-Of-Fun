@@ -1,6 +1,5 @@
-// rhythm-game.js - Motor Rítmico (reemplazo completo)
-// Usa spawn → hit-line progresivo (normalizado) para evitar notas "amontonadas" o fuera de vista.
-// Incluye: DPR/responsive, touch, keyboard, debug exposable.
+// rhythm-game.js - Motor Rítmico (corrección de progreso spawn -> hit)
+// Reemplaza totalmente tu archivo rhythm-game.js por este.
 
 const RhythmEngine = (function(){
   const canvas = document.getElementById('rhythm-canvas');
@@ -48,7 +47,6 @@ const RhythmEngine = (function(){
 
   // --- Responsive canvas + DPR handling ---
   function resizeCanvasForDisplay() {
-    // prefer parent width if available; otherwise window width minus margin
     const parent = canvas.parentElement;
     let parentWidth = parent ? Math.min(parent.clientWidth, LOGICAL_W) : Math.min(window.innerWidth - 20, LOGICAL_W);
     if(parentWidth <= 0) parentWidth = Math.min(window.innerWidth - 20, LOGICAL_W);
@@ -131,7 +129,6 @@ const RhythmEngine = (function(){
         y: -100
       })).sort((a,b) => a.time - b.time);
 
-      // expose small debug sample if requested
       return true;
     } catch (e) {
       console.error("Error cargando chart:", e);
@@ -199,17 +196,17 @@ const RhythmEngine = (function(){
     for (const note of notes) {
       if (note.judged) continue;
 
-      // diff: note.time - effectiveTime ; when diff === LEAD_TIME => spawn, diff === 0 => hit
-      const effectiveTime = elapsed - LEAD_TIME;
-      const diff = note.time - effectiveTime;
+      // Correct mapping:
+      // spawnTime = note.time - LEAD_TIME
+      // progress = (elapsed - spawnTime) / LEAD_TIME
+      // progress==0 => spawn (TOP_MARGIN); progress==1 => hit (HIT_LINE_Y)
+      const spawnTime = note.time - LEAD_TIME;
+      let progress = (elapsed - spawnTime) / Math.max(0.0001, LEAD_TIME);
 
-      // Normalized progress: 0 at spawn, 1 at hit
-      let progress = 1 - (diff / LEAD_TIME);
-      // clamp to avoid crazy values
+      // clamp to reasonable bounds to avoid crazy positions
       if (progress < -0.5) progress = -0.5;
       if (progress > 1.5) progress = 1.5;
 
-      // Compute y based on TOP_MARGIN + progress * TRAVEL
       note.y = TOP_MARGIN + progress * TRAVEL;
 
       // auto-miss if passed window
@@ -285,7 +282,6 @@ const RhythmEngine = (function(){
 
     // draw notes
     for (const note of notes) {
-      // skip if offscreen
       if (note.y < -80 || note.y > H + 80) continue;
       const cx = (note.lane || 0) * laneW + laneW/2;
       const r = Math.max(10, Math.round(18 * (W / LOGICAL_W)));
@@ -361,7 +357,7 @@ const RhythmEngine = (function(){
       combo++;
       if (combo > maxCombo) maxCombo = combo;
 
-      const comboBonus = 1 + (Math.min(combo, 100)/200);
+      const comboBonus = 1 + (Math.min(combo, 100) / 200);
       const pts = Math.round((basePts + totalPower) * (multiplier || 1) * comboBonus);
       score += pts;
 
@@ -371,7 +367,6 @@ const RhythmEngine = (function(){
         AppAPI.setAcc(hits / Math.max(1, (hits + misses)));
       } catch(e){}
     } else {
-      // miss (no note in window)
       misses++;
       combo = 0;
       try {
@@ -404,17 +399,15 @@ const RhythmEngine = (function(){
     }
   }
 
-  // --- Debug exposure (useful for console checks) ---
+  // --- Debug exposure ---
   const _debug = {
     getConfig: () => ({ W, H, HIT_LINE_Y, TOP_MARGIN, TRAVEL, LEAD_TIME, NOTE_SPEED, PERFECT_WIN, GOOD_WIN, MISS_WIN }),
     notesSample: () => notes.slice(0, 12),
     getState: () => ({ running, score, combo, hits, misses, shields })
   };
 
-  // Public API
   const api = { start, stop, loadChart, _debug };
   return api;
 })();
 
-// Expose to global for console access
 window.RhythmEngine = RhythmEngine;
