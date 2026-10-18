@@ -1,4 +1,4 @@
-// main.js - Controlador Principal v6
+// main.js - Controlador Principal v6 (actualizado con Wolfy Helper)
 
 // Instancia global del estado
 let GS = new window.GameStateClass();
@@ -27,6 +27,27 @@ function init() {
     renderAccountUI();
     renderSongs();
     setupBindings();
+
+    // Crear el botón Wolfy Helper si no existe (inserta junto a los controles)
+    (function createWolfyHelperButtonIfMissing(){
+      if (document.getElementById('wolfy-helper-btn')) return;
+      const target = document.getElementById('rg-controls') || document.getElementById('controls') || document.body;
+      const btn = document.createElement('button');
+      btn.id = 'wolfy-helper-btn';
+      btn.className = 'wolfy-btn';
+      btn.textContent = 'Wolfy Helper';
+      // Intentar colocarlo junto al botón de start si existe
+      const startBtn = document.getElementById('rg-start');
+      if (startBtn && startBtn.parentNode) {
+        startBtn.parentNode.insertBefore(btn, startBtn.nextSibling);
+      } else {
+        target.appendChild(btn);
+      }
+    })();
+
+    // Inicializar el listener/UI del Wolfy Helper
+    initWolfyHelperButton();
+
     updateMenuUI();
 }
 
@@ -252,7 +273,6 @@ function renderSongs() {
 }
 
 // --- BINDINGS FINALES ---
-// --- BINDINGS FINALES ---
 function setupBindings() {
     el('open-pack').onclick = () => {
         const type = el('pack-type').value;
@@ -308,6 +328,75 @@ function logPack(text) {
     const node = document.createElement('div');
     node.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
     el('pack-log').prepend(node);
+}
+
+// --- Inicializa el botón Wolfy Helper (pegar en main.js o en tu módulo de UI)
+// Asegura DOMContentLoaded y que RhythmEngine esté listo.
+
+function initWolfyHelperButton() {
+  const trySetup = () => {
+    const btn = document.getElementById('wolfy-helper-btn');
+    if (!btn) {
+      console.warn('Wolfy Helper button not found in DOM (id="wolfy-helper-btn")');
+      return;
+    }
+
+    // Read initial state safely
+    const getHelperState = () => {
+      try {
+        return !!(window.RhythmEngine && window.RhythmEngine._debug && window.RhythmEngine._debug.getConfig().helperMode);
+      } catch (e) { return false; }
+    };
+
+    // set UI state
+    const setUi = (on) => {
+      btn.classList.toggle('active', !!on);
+      btn.textContent = on ? 'Wolfy Helper: ON' : 'Wolfy Helper';
+    };
+
+    // ensure UI reflects engine state on load
+    setUi(getHelperState());
+
+    btn.addEventListener('click', () => {
+      // toggle helperMode via public API (safe call)
+      const newState = !getHelperState();
+      if (window.RhythmEngine && typeof window.RhythmEngine.setHelperMode === 'function') {
+        try {
+          window.RhythmEngine.setHelperMode(newState);
+          setUi(newState);
+        } catch (err) {
+          console.error('No se pudo cambiar helperMode:', err);
+        }
+      } else {
+        console.warn('RhythmEngine.setHelperMode no está disponible todavía.');
+      }
+    });
+  };
+
+  // Wait for DOM
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', trySetup, { once: true });
+  } else {
+    trySetup();
+  }
+
+  // If RhythmEngine might be created after DOM load, poll a few times to sync UI
+  const pollEngine = setInterval(() => {
+    if (window.RhythmEngine && window.RhythmEngine._debug) {
+      const btn = document.getElementById('wolfy-helper-btn');
+      if (btn) {
+        // sync ui text with engine state
+        try {
+          const engineState = window.RhythmEngine._debug.getConfig().helperMode;
+          btn.classList.toggle('active', !!engineState);
+          btn.textContent = engineState ? 'Wolfy Helper: ON' : 'Wolfy Helper';
+        } catch(e){}
+        clearInterval(pollEngine);
+      }
+    }
+  }, 200);
+  // stop polling after 5s
+  setTimeout(() => clearInterval(pollEngine), 5000);
 }
 
 // --- EXPOSE API FOR RHYTHM ENGINE ---
