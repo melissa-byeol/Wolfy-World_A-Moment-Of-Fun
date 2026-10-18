@@ -1,5 +1,5 @@
-// rhythm-game.js - Motor Rítmico (corrección de progreso spawn -> hit)
-// Reemplaza totalmente tu archivo rhythm-game.js por este.
+// rhythm-game.js - Motor Rítmico con "Wolfy Helper" (autoplay helper, música bajada, sin recompensa)
+// Reemplaza totalmente el archivo por este. Expone: RhythmEngine.setAutoplay(), RhythmEngine.setHelperMode(), y RhythmEngine._debug.
 
 const RhythmEngine = (function(){
   const canvas = document.getElementById('rhythm-canvas');
@@ -16,11 +16,11 @@ const RhythmEngine = (function(){
   let H = LOGICAL_H;
   let HIT_LINE_Y = Math.round(H * 0.82);
   const TOP_MARGIN = 40;   // px: margen superior donde nacen las notas
-  let LEAD_TIME = 1.8;     // segundos para que una nota vaya de spawn -> hit line
-  let TRAVEL = Math.max(80, HIT_LINE_Y - TOP_MARGIN); // px de recorrido visual entre spawn y hit line
-  let NOTE_SPEED = TRAVEL / Math.max(0.001, LEAD_TIME); // px/s derivado = TRAVEL / LEAD_TIME
+  let LEAD_TIME = 1.8;     // segundos para spawn -> hit
+  let TRAVEL = Math.max(80, HIT_LINE_Y - TOP_MARGIN);
+  let NOTE_SPEED = TRAVEL / Math.max(0.001, LEAD_TIME);
 
-  // Ventanas de juicio (base, se adaptan en resize para mobile)
+  // Ventanas de juicio (adaptadas en resize)
   let PERFECT_WIN = 0.06;
   let GOOD_WIN    = 0.12;
   let MISS_WIN    = 0.18;
@@ -28,7 +28,7 @@ const RhythmEngine = (function(){
   // Estado runtime
   let running = false;
   let startTime = 0;
-  let notes = []; // notas cargadas del chart
+  let notes = [];
   let currentSongId = "";
 
   // Stats
@@ -44,6 +44,12 @@ const RhythmEngine = (function(){
   // Key mapping & colors
   const KEYS = { 'd': 0, 'f': 1, 'j': 2, 'k': 3 };
   const COLORS = ['#ff0055', '#ffffff', '#333333', '#aa0033'];
+
+  // Autoplay / helper state
+  let autoplay = false;
+  let helperMode = false;          // cuando true: autoplay no da puntos (modo "Wolfy Helper")
+  let helperOriginalVolume = null; // guardamos volumen original del audio para restaurar
+  let prevElapsed = 0;
 
   // --- Responsive canvas + DPR handling ---
   function resizeCanvasForDisplay() {
@@ -62,18 +68,14 @@ const RhythmEngine = (function(){
     canvas.width = Math.round(targetW * DPR);
     canvas.height = Math.round(targetH * DPR);
 
-    // Scale the drawing context to work in CSS/logical pixels
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
-    // Update logical sizes used in the game
     W = targetW;
     H = targetH;
     HIT_LINE_Y = Math.round(H * 0.82);
 
-    // Recompute travel distance and speed
     recomputeNoteSpeed();
 
-    // Adjust judgement windows for small screens (more tolerance)
     const mobileFactor = (W <= 420) ? 1.35 : 1.0;
     PERFECT_WIN = 0.06 * mobileFactor;
     GOOD_WIN    = 0.12 * mobileFactor;
@@ -82,10 +84,9 @@ const RhythmEngine = (function(){
 
   function recomputeNoteSpeed() {
     TRAVEL = Math.max(80, HIT_LINE_Y - TOP_MARGIN);
-    NOTE_SPEED = TRAVEL / Math.max(0.001, LEAD_TIME); // px per second
+    NOTE_SPEED = TRAVEL / Math.max(0.001, LEAD_TIME);
   }
 
-  // Initial sizing + resize listener (debounced)
   resizeCanvasForDisplay();
   let _resizeTimer = null;
   window.addEventListener('resize', () => {
@@ -98,7 +99,7 @@ const RhythmEngine = (function(){
   // --- Touch input mapping to lanes ---
   function touchToLane(clientX) {
     const rect = canvas.getBoundingClientRect();
-    const x = clientX - rect.left; // CSS pixels
+    const x = clientX - rect.left;
     const laneWidth = W / 4;
     let lane = Math.floor(x / laneWidth);
     lane = Math.max(0, Math.min(3, lane));
@@ -108,7 +109,7 @@ const RhythmEngine = (function(){
     ev.preventDefault();
     for(const t of Array.from(ev.changedTouches)) {
       const lane = touchToLane(t.clientX);
-      inputHit(lane);
+      inputHit(lane, {autoplay:false});
     }
   }, { passive: false });
 
@@ -129,6 +130,7 @@ const RhythmEngine = (function(){
         y: -100
       })).sort((a,b) => a.time - b.time);
 
+      prevElapsed = 0;
       return true;
     } catch (e) {
       console.error("Error cargando chart:", e);
@@ -139,13 +141,11 @@ const RhythmEngine = (function(){
   // --- Start/Stop/Loop ---
   function start(songData, difficulty) {
     if (running) return;
-    // Reset stats
     score = 0; combo = 0; maxCombo = 0; hits = 0; misses = 0;
     running = true;
     startTime = performance.now();
     currentSongId = songData && songData.id ? songData.id : "";
 
-    // get stats from GS if present
     let stats = { power: 1, shields: 0, startCombo: 0, multiplier: 1 };
     if (window.GS && typeof window.GS.getRhythmStats === 'function') {
       try { stats = window.GS.getRhythmStats(currentSongId); } catch(e){ console.warn(e); }
@@ -156,15 +156,26 @@ const RhythmEngine = (function(){
     maxCombo = combo;
     multiplier = stats.multiplier || 1;
 
-    // try to play audio
+    // try to play audio and sync if possible
     if (audioEl) {
-      try { audioEl.currentTime = 0; audioEl.play().catch(() => {}); } catch(e){}
+      try {
+        audioEl.currentTime = 0;
+        const playPromise = audioEl.play();
+        if (playPromise && typeof playPromise.then === 'function') {
+          playPromise.then(()=> {
+            // align startTime with audio currentTime (seconds -> ms)
+            startTime = performance.now() - (audioEl.currentTime || 0) * 1000;
+            requestAnimationFrame(loop);
+          }).catch(()=> {
+            startTime = performance.now();
+            requestAnimationFrame(loop);
+          });
+          return;
+        } else {
+          startTime = performance.now() - (audioEl.currentTime || 0) * 1000;
+        }
+      } catch(e){}
     }
-
-    // ensure timing config is consistent
-    recomputeNoteSpeed();
-
-    try { AppAPI.setPower(totalPower); AppAPI.addScore(score); AppAPI.setCombo(combo); } catch(e){}
 
     requestAnimationFrame(loop);
   }
@@ -196,47 +207,49 @@ const RhythmEngine = (function(){
     for (const note of notes) {
       if (note.judged) continue;
 
-      // Correct mapping:
-      // spawnTime = note.time - LEAD_TIME
-      // progress = (elapsed - spawnTime) / LEAD_TIME
-      // progress==0 => spawn (TOP_MARGIN); progress==1 => hit (HIT_LINE_Y)
       const spawnTime = note.time - LEAD_TIME;
       let progress = (elapsed - spawnTime) / Math.max(0.0001, LEAD_TIME);
-
-      // clamp to reasonable bounds to avoid crazy positions
       if (progress < -0.5) progress = -0.5;
       if (progress > 1.5) progress = 1.5;
-
       note.y = TOP_MARGIN + progress * TRAVEL;
 
-      // auto-miss if passed window
-      if (elapsed > note.time + MISS_WIN) {
-        note.judged = true;
-        if (shields > 0) {
-          shields--;
-          note.hit = true;
-        } else {
-          note.missed = true;
-          misses++;
-          combo = 0;
+      // AUTOPLAY: si está activo, detectamos cruce temporal y pedimos golpe
+      if (autoplay) {
+        if (note.time > prevElapsed && note.time <= elapsed) {
+          // llama inputHit con el flag autoplay=true
+          inputHit(note.lane, {autoplay:true});
         }
-        try { AppAPI.setCombo(combo); } catch(e){}
+      }
+
+      // auto-miss
+      if (elapsed > note.time + MISS_WIN) {
+        if (!note.judged) {
+          note.judged = true;
+          if (shields > 0) {
+            shields--;
+            note.hit = true;
+          } else {
+            note.missed = true;
+            misses++;
+            combo = 0;
+          }
+          try { AppAPI.setCombo(combo); } catch(e){}
+        }
       }
     }
+
+    prevElapsed = elapsed;
   }
 
   function draw(elapsed) {
-    // clear in logical coords
     ctx.clearRect(0, 0, W, H);
 
-    // background
     const pulse = Math.sin(elapsed * 4) * 0.05 + 0.95;
     ctx.fillStyle = `rgba(5, 6, 10, ${pulse})`;
     ctx.fillRect(0, 0, W, H);
 
     const laneW = W / 4;
 
-    // lanes
     ctx.strokeStyle = "rgba(255,255,255,0.08)";
     ctx.lineWidth = 1;
     for (let i=0; i<=4; i++) {
@@ -246,7 +259,7 @@ const RhythmEngine = (function(){
       ctx.stroke();
     }
 
-    // debug: spawn/top margin (temporary visual aid)
+    // spawn/top margin
     ctx.save();
     ctx.setLineDash([6,4]);
     ctx.strokeStyle = 'rgba(255,255,255,0.08)';
@@ -268,7 +281,7 @@ const RhythmEngine = (function(){
     ctx.stroke();
     ctx.restore();
 
-    // key indicators
+    // keys
     const keys = ['D','F','J','K'];
     ctx.font = `${Math.max(12, Math.round(16 * (W / LOGICAL_W)))}px monospace`;
     ctx.textAlign = "center";
@@ -280,7 +293,7 @@ const RhythmEngine = (function(){
       ctx.fillText(keys[i], cx, HIT_LINE_Y+28);
     }
 
-    // draw notes
+    // notes
     for (const note of notes) {
       if (note.y < -80 || note.y > H + 80) continue;
       const cx = (note.lane || 0) * laneW + laneW/2;
@@ -319,16 +332,25 @@ const RhythmEngine = (function(){
     }
   }
 
-  // --- Input handling ---
+  // --- Input handling (keyboard + autoplay calls this) ---
   window.addEventListener('keydown', (e) => {
     const key = (e.key || '').toLowerCase();
+    if (key === 'a') { // toggle autoplay quick key
+      setAutoplay(!autoplay);
+      return;
+    }
     if (KEYS[key] !== undefined) {
       e.preventDefault();
-      inputHit(KEYS[key]);
+      inputHit(KEYS[key], {autoplay:false});
     }
   });
 
-  function inputHit(lane) {
+  /**
+   * inputHit(lane, {autoplay})
+   * - autoplay: si true => el golpe vino del autoplay.
+   * En helperMode + autoplay: marcamos la nota pero NO actualizamos score/combo/AppAPI.
+   */
+  function inputHit(lane, {autoplay=false} = {}) {
     if (!running) return;
     const elapsed = (performance.now() - startTime) / 1000;
 
@@ -348,6 +370,13 @@ const RhythmEngine = (function(){
       bestNote.judged = true;
       bestNote.hit = true;
 
+      // Si esto viene del helper (autoplay + helperMode), NO otorgamos puntos
+      if (autoplay && helperMode) {
+        // solo marcamos la nota visualmente
+        return;
+      }
+
+      // scoring normal
       let basePts = 0;
       if (minDelta <= PERFECT_WIN) basePts = 100;
       else if (minDelta <= GOOD_WIN) basePts = 50;
@@ -367,12 +396,12 @@ const RhythmEngine = (function(){
         AppAPI.setAcc(hits / Math.max(1, (hits + misses)));
       } catch(e){}
     } else {
-      misses++;
-      combo = 0;
-      try {
-        AppAPI.setCombo(combo);
-        AppAPI.setAcc(hits / Math.max(1, (hits + misses)));
-      } catch(e){}
+      // miss by player (not autoplay helper)
+      if (!(autoplay && helperMode)) {
+        misses++;
+        combo = 0;
+        try { AppAPI.setCombo(combo); AppAPI.setAcc(hits / Math.max(1, (hits + misses))); } catch(e){}
+      }
     }
   }
 
@@ -399,14 +428,47 @@ const RhythmEngine = (function(){
     }
   }
 
+  // --- Autoplay & Helper API ---
+  function setAutoplay(enabled) {
+    autoplay = !!enabled;
+    if (autoplay) prevElapsed = 0;
+    console.log('Autoplay', autoplay ? 'ON' : 'OFF');
+  }
+
+  function setHelperMode(enabled) {
+    const turningOn = !!enabled;
+    if (turningOn === helperMode) return;
+    helperMode = turningOn;
+    console.log('Wolfy Helper', helperMode ? 'ACTIVADO' : 'DESACTIVADO');
+
+    // bajar volumen al activar helper, restaurarlo al desactivar
+    if (audioEl) {
+      try {
+        if (helperMode) {
+          helperOriginalVolume = (typeof audioEl.volume === 'number') ? audioEl.volume : 1.0;
+          // bajar un 40% y asegurarnos no quede demasiado bajo
+          audioEl.volume = Math.max(0.12, helperOriginalVolume * 0.45);
+        } else {
+          if (helperOriginalVolume !== null) {
+            audioEl.volume = helperOriginalVolume;
+            helperOriginalVolume = null;
+          }
+        }
+      } catch(e){ console.warn('No se pudo cambiar volumen del audio', e); }
+    }
+
+    // Cuando helper se activa, es práctico activar autoplay también
+    if (helperMode) setAutoplay(true);
+  }
+
   // --- Debug exposure ---
   const _debug = {
-    getConfig: () => ({ W, H, HIT_LINE_Y, TOP_MARGIN, TRAVEL, LEAD_TIME, NOTE_SPEED, PERFECT_WIN, GOOD_WIN, MISS_WIN }),
+    getConfig: () => ({ W, H, HIT_LINE_Y, TOP_MARGIN, TRAVEL, LEAD_TIME, NOTE_SPEED, PERFECT_WIN, GOOD_WIN, MISS_WIN, autoplay, helperMode }),
     notesSample: () => notes.slice(0, 12),
     getState: () => ({ running, score, combo, hits, misses, shields })
   };
 
-  const api = { start, stop, loadChart, _debug };
+  const api = { start, stop, loadChart, setAutoplay, setHelperMode, _debug };
   return api;
 })();
 
