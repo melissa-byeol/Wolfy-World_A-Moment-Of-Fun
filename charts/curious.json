@@ -20,8 +20,8 @@
     { "time": 5.4, "lane": 2}, { "time": 5.9, "lane": 1},
     { "time": 5.9, "lane": 0}, { "time": 6.25, "lane": 1},
     { "time": 6.25, "lane": 0}, { "time": 6.35, "lane": 2},
-    { "time": 6.5, "lane": 1}, { "time": 6.5, "lane": 0},
-    { "time": 6.8, "lane": 3}, { "time": 7.0, "lane": 2},
-    { "time": 7.2, "lane": 1}, { "time": 7.2, "lane": 0}
+    { "time": 6.6, "lane": 1}, { "time": 6.6, "lane": 0},
+    { "time": 7.0, "lane": 3}, { "time": 7.2, "lane": 2},
+    { "time": 7.4, "lane": 1}, { "time": 7.4, "lane": 0}
   ]
 }
