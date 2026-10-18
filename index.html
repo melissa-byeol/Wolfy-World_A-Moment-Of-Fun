@@ -73,12 +73,14 @@
         <canvas id="rhythm-canvas" width="800" height="450"></canvas>
     </div>
     
-    <!-- Los controles van FUERA de rhythm-root, pero DENTRO de game-area -->
-    <div class="rg-controls">
-      <button id="wolfy-helper-btn" class="wolfy-btn">Wolfy Helper</button>
-        <button id="rg-start">▶️ Iniciar</button>
-        <button id="rg-stop" disabled>⏹ Detener</button>
-    </div>
+   <!-- Dentro de <div class="card-panel game-area"> -->
+<div class="rg-controls">
+    <!-- BOTÓN WOLFY HELPER EXPLÍCITO -->
+    <button id="wolfy-helper-btn" class="secondary">🐺 Wolfy Helper</button>
+    
+    <button id="rg-start">▶️ Iniciar</button>
+    <button id="rg-stop" disabled>⏹ Detener</button>
+</div>
     
     <div class="stats-row">
         <div>Score: <span id="rg-score">0</span></div>
