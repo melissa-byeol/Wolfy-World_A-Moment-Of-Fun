@@ -12,8 +12,8 @@
     { "time": 1.5, "lane": 0 }, { "time": 1.95, "lane": 0 },
     { "time": 2.15, "lane": 1}, { "time": 2.3, "lane": 0},
     { "time": 2.75, "lane": 0}, { "time": 2.95, "lane": 1},
-    { "time": 3.1, "lane": 2}, { "time": 3.45, "lane": 0},
-    { "time": 3.5, "lane": 1}, { "time": 3.55, "lane": 2},
-    { "time": 3.6, "lane": 3}
+    { "time": 3.1, "lane": 2}, { "time": 3.55, "lane": 0},
+    { "time": 3.6, "lane": 1}, { "time": 3.65, "lane": 2},
+    { "time": 3.7, "lane": 3}
   ]
 }
