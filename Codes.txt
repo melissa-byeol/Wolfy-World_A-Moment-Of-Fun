@@ -41,3 +41,6 @@ Buenas prácticas
 Registro (rellena cuando agregues un código real):
 # DATE | CODE | DESCRIPCION | UBICACION
 
+window.RhythmEngine && window.RhythmEngine.setAutoplay(false);
+window.RhythmEngine && window.RhythmEngine.setHelperMode(false); 
+console.log('Forzado: autoplay OFF, helperMode OFF', window.RhythmEngine && window.RhythmEngine._debug && window.RhythmEngine._debug.getConfig());
