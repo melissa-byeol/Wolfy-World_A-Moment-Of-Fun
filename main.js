@@ -1,9 +1,9 @@
-// main.js - Controlador Principal v6 (actualizado con Wolfy Helper)
+// main.js - Controlador Principal v7 (Estable & Robusto)
 
 // Instancia global del estado
-let GS = new window.GameStateClass();
+let GS = null; // Se inicializará después de cargar GameStateClass
 
-// --- DATOS DE CANCIONES NUEVAS ---
+// --- DATOS DE CANCIONES ---
 const SONG_LIST = [
     { id: 'demo1', title: 'Demo Track 1', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', bpm: 120 },
     { id: 'bed_of_thorns', title: 'Bed of Thorns', src: 'assets/bed-of-thorns.mp3', bpm: 135 },
@@ -13,46 +13,41 @@ const SONG_LIST = [
     { id: 'curious', title: 'Curious', src: 'assets/curious.mp3', bpm: 129 }
 ];
 
-// --- INICIALIZACIÓN ---
+// --- INICIALIZACIÓN SEGURA ---
 function init() {
-    // Cargar guardado si existe
+    // 1. Verificar que GameStateClass exista (cargado desde game-state.js)
+    if (typeof window.GameStateClass === 'undefined') {
+        console.error("ERROR CRÍTICO: GameStateClass no encontrado. ¿game-state.js cargó bien?");
+        return;
+    }
+
+    // 2. Crear instancia
+    GS = new window.GameStateClass();
+
+    // 3. Cargar Guardado
     const saved = localStorage.getItem('wolfy_world_save_v6');
     if (saved) {
         try {
             const data = JSON.parse(saved);
             GS.loadFromSave(data);
-        } catch(e) { console.error("Error cargando save", e); }
+        } catch(e) { 
+            console.error("Error cargando save", e); 
+        }
+    } else {
+        // Primer arranque: dar monedas iniciales para probar
+        GS.initUser("Invitado", 100, 10);
     }
 
+    // 4. Renderizar UI
     renderAccountUI();
     renderSongs();
     setupBindings();
-
-    // Crear el botón Wolfy Helper si no existe (inserta junto a los controles)
-    (function createWolfyHelperButtonIfMissing(){
-      if (document.getElementById('wolfy-helper-btn')) return;
-      const target = document.getElementById('rg-controls') || document.getElementById('controls') || document.body;
-      const btn = document.createElement('button');
-      btn.id = 'wolfy-helper-btn';
-      btn.className = 'wolfy-btn';
-      btn.textContent = 'Wolfy Helper';
-      // Intentar colocarlo junto al botón de start si existe
-      const startBtn = document.getElementById('rg-start');
-      if (startBtn && startBtn.parentNode) {
-        startBtn.parentNode.insertBefore(btn, startBtn.nextSibling);
-      } else {
-        target.appendChild(btn);
-      }
-    })();
-
-    // Inicializar el listener/UI del Wolfy Helper
-    initWolfyHelperButton();
-
     updateMenuUI();
 }
 
 // --- GUARDADO AUTOMÁTICO ---
 function saveGame() {
+    if (!GS) return;
     localStorage.setItem('wolfy_world_save_v6', JSON.stringify(GS.toSave()));
 }
 
@@ -60,43 +55,54 @@ function saveGame() {
 function el(id){ return document.getElementById(id); }
 
 function showToast(msg, type="info") {
-    // Implementación simple de toast o alert si no hay librería
     console.log(`[${type.toUpperCase()}] ${msg}`);
-    // Podrías añadir un div flotante aquí igual que antes
+    // Opcional: Alerta visual simple si no hay toast container
+    if(type === 'error') alert(msg);
 }
 
 // --- ACCOUNT & BALANCES ---
 function renderAccountUI() {
     const box = el('account-ui');
+    if(!box) return;
+    
     box.innerHTML = `
         <div class="account-box">
             <strong>${GS.profileName}</strong>
-            <button id="logout-btn" class="secondary">Resetear Perfil</button>
+            <button id="logout-btn" class="secondary btn-xs">Resetear Perfil</button>
         </div>
     `;
-    el('logout-btn').onclick = () => {
-        if(confirm("¿Borrar progreso local?")) {
-            localStorage.removeItem('wolfy_world_save_v6');
-            location.reload();
-        }
-    };
+    
+    const logoutBtn = el('logout-btn');
+    if(logoutBtn) {
+        logoutBtn.onclick = () => {
+            if(confirm("¿Borrar progreso local?")) {
+                localStorage.removeItem('wolfy_world_save_v6');
+                location.reload();
+            }
+        };
+    }
+    
     renderBalances();
     renderCollection();
 }
 
 function renderBalances() {
-    el('tokens').textContent = GS.tokens;
-    el('shards').textContent = GS.shards;
+    const tEl = el('tokens');
+    const sEl = el('shards');
+    if(tEl) tEl.textContent = GS.tokens;
+    if(sEl) sEl.textContent = GS.shards;
 }
 
-// --- COLECCIÓN DE CARTAS (GESTIÓN) ---
+// --- COLECCIÓN DE CARTAS (GESTIÓN ROBUSTA) ---
 function renderCollection() {
     const grid = el('collection');
+    if(!grid) return;
+    
     grid.innerHTML = '';
     
     const ownedIds = Object.keys(GS.cardInventory);
     if(ownedIds.length === 0) {
-        grid.innerHTML = '<div class="small">No tienes cartas. ¡Abre paquetes!</div>';
+        grid.innerHTML = '<div class="small empty-msg">No tienes cartas. ¡Abre paquetes!</div>';
         return;
     }
 
@@ -104,7 +110,7 @@ function renderCollection() {
 
     ownedIds.forEach(id => {
         const record = GS.getCardRecord(id);
-        const catalogEntry = CARD_MAP[id]; // Acceso directo desde game-state.js scope global
+        const catalogEntry = CARD_MAP[id]; 
         if (!catalogEntry) return;
 
         const power = GS.calculateCardPower(id);
@@ -118,55 +124,60 @@ function renderCollection() {
         
         cardDiv.innerHTML = `
             <div style="display:flex;justify-content:space-between;align-items:center;">
-                <strong>${catalogEntry.displayName}</strong>
-                <span class="badge">${record.rank} L.${record.level}</span>
+                <strong class="card-title">${catalogEntry.displayName}</strong>
+                <span class="badge rank-badge-${record.rank}">${record.rank} L.${record.level}</span>
             </div>
             <div class="small">Pow: ${power} | Dupes: ${record.count - 1}</div>
             <div class="card-actions-row">
-                <button data-action="equip" data-id="${id}" class="${isEquipped?'secondary':'primary-btn'}">
-                    ${isEquipped ? "Quitar" : "Equipar"}
+                <button data-action="equip" data-id="${id}" class="${isEquipped?'secondary':'primary-btn'} btn-xs">
+                    ${isEquipped ? "❌ Quitar" : "✅ Equipar"}
                 </button>
-                <button data-action="feed" data-id="${id}" class="secondary small-btn">🍽️</button>
-                ${canUpgrade ? `<button data-action="upgrade" data-id="${id}" class="chromo-btn small-btn">⬆️</button>` : ''}
+                <button data-action="feed" data-id="${id}" class="secondary btn-xs feed-btn" title="Alimentar">🍽️</button>
+                ${canUpgrade ? `<button data-action="upgrade" data-id="${id}" class="chromo-btn btn-xs upgrade-btn" title="Subir Rango">⬆️</button>` : ''}
             </div>
         `;
         grid.appendChild(cardDiv);
     });
 
-    el('total-power-display').innerText = totalPower;
-    el('equip-count').innerText = GS.equippedCards.length;
+    const tpEl = el('total-power-display');
+    const ecEl = el('equip-count');
+    if(tpEl) tpEl.innerText = totalPower;
+    if(ecEl) ecEl.innerText = GS.equippedCards.length;
 }
 
-// Delegación de eventos en la colección
-el('collection').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-action]');
-    if(!btn) return;
+// Delegación de eventos en la colección (UNA SOLA VEZ, EN EL PADRE)
+// Esto evita problemas si renderCollection limpia el innerHTML frecuentemente
+if (el('collection')) {
+    el('collection').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action]');
+        if(!btn) return;
 
-    const action = btn.dataset.action;
-    const id = btn.dataset.id;
+        const action = btn.dataset.action;
+        const id = btn.dataset.id;
 
-    if(action === 'equip') {
-        if(GS.toggleEquipCard(id)) {
-            saveGame();
-            renderCollection();
-        } else {
-            showToast("Máximo 5 cartas equipadas.", "error");
+        if(action === 'equip') {
+            if(GS.toggleEquipCard(id)) {
+                saveGame();
+                renderCollection();
+            } else {
+                showToast("Máximo 5 cartas equipadas.", "error");
+            }
         }
-    }
-    if(action === 'feed') {
-        openFeedModal(id);
-    }
-    if(action === 'upgrade') {
-        if(GS.upgradeCardRank(id)) {
-            saveGame();
-            renderCollection();
-            renderBalances();
-            showToast("¡Rango subido!", "success");
-        } else {
-            showToast("Faltan Shards o Nivel Max.", "error");
+        if(action === 'feed') {
+            openFeedModal(id);
         }
-    }
-});
+        if(action === 'upgrade') {
+            if(GS.upgradeCardRank(id)) {
+                saveGame();
+                renderCollection();
+                renderBalances();
+                showToast("¡Rango subido!", "success");
+            } else {
+                showToast("Faltan Shards o Nivel Max.", "error");
+            }
+        }
+    });
+}
 
 // --- PACKS ---
 function openPack(type) {
@@ -180,11 +191,12 @@ function openPack(type) {
     renderBalances();
     renderCollection();
     
-    // Mostrar últimos draws
     const lastDraw = el('last-draw');
-    lastDraw.innerHTML = res.cards.map(c => 
-        `<span class="${c.isNew ? 'text-green' : 'text-gray'}">${c.name} [${c.rank}]</span>`
-    ).join('<br>');
+    if(lastDraw) {
+        lastDraw.innerHTML = res.cards.map(c => 
+            `<span class="${c.isNew ? 'text-green' : 'text-gray'}">${c.name} [${c.rank}]</span>`
+        ).join('<br>');
+    }
     
     logPack(`Abriste ${res.packName}: ${res.cards.length} cartas.`);
 }
@@ -198,9 +210,11 @@ function openFeedModal(targetId) {
     selectedFoodIds.clear();
     
     const targetCatalog = CARD_MAP[targetId];
-    el('feed-target-name').innerText = targetCatalog?.displayName || targetId;
+    const nameEl = el('feed-target-name');
+    if(nameEl) nameEl.innerText = targetCatalog?.displayName || targetId;
     
     const list = el('food-selection-list');
+    if(!list) return;
     list.innerHTML = "";
 
     Object.keys(GS.cardInventory).forEach(id => {
@@ -222,35 +236,45 @@ function openFeedModal(targetId) {
         list.appendChild(label);
     });
 
-    el('feed-modal').classList.remove('hidden');
+    const modal = el('feed-modal');
+    if(modal) modal.classList.remove('hidden');
 }
 
-el('btn-feed-cancel').onclick = () => {
-    el('feed-modal').classList.add('hidden');
-    feedTargetId = null;
-};
-
-el('btn-feed-confirm').onclick = () => {
-    const checks = document.querySelectorAll('.food-check:checked');
-    const ids = Array.from(checks).map(c => c.value);
-    
-    if(ids.length === 0) return showToast("Selecciona comida.", "error");
-
-    const result = GS.feedCard(feedTargetId, ids);
-    
-    if(result && result.success) {
-        saveGame();
-        renderCollection();
-        showToast(`¡Alimentada! +${result.levelsUp} Niveles`, "success");
+// Conectar botones del modal (verificando existencia)
+const cancelBtn = el('btn-feed-cancel');
+if(cancelBtn) {
+    cancelBtn.onclick = () => {
         el('feed-modal').classList.add('hidden');
-    } else {
-        showToast("Error al alimentar.", "error");
-    }
-};
+        feedTargetId = null;
+    };
+}
+
+const confirmBtn = el('btn-feed-confirm');
+if(confirmBtn) {
+    confirmBtn.onclick = () => {
+        const checks = document.querySelectorAll('.food-check:checked');
+        const ids = Array.from(checks).map(c => c.value);
+        
+        if(ids.length === 0) return showToast("Selecciona comida.", "error");
+
+        const result = GS.feedCard(feedTargetId, ids);
+        
+        if(result && result.success) {
+            saveGame();
+            renderCollection();
+            showToast(`¡Alimentada! +${result.levelsUp} Niveles`, "success");
+            el('feed-modal').classList.add('hidden');
+        } else {
+            showToast("Error al alimentar.", "error");
+        }
+    };
+}
 
 // --- SONG SELECTOR ---
 function renderSongs() {
     const sel = el('song-select');
+    if(!sel) return;
+    
     sel.innerHTML = '';
     SONG_LIST.forEach(s => {
         const opt = document.createElement('option');
@@ -258,65 +282,118 @@ function renderSongs() {
         opt.textContent = `${s.title} (BPM ${s.bpm})`;
         sel.appendChild(opt);
     });
+    
     sel.onchange = () => {
         const song = SONG_LIST.find(x => x.id === sel.value);
         if(song) {
-            el('song-audio').src = song.src;
-            el('song-audio').load();
+            const audio = el('song-audio');
+            if(audio) {
+                audio.src = song.src;
+                audio.load();
+            }
         }
     };
-    // Load first by default
+    
     if(SONG_LIST.length > 0) {
         sel.value = SONG_LIST[0].id;
         sel.dispatchEvent(new Event('change'));
     }
 }
 
-// --- BINDINGS FINALES ---
+// --- BINDINGS FINALES (CONEXIÓN DIRECTA Y SEGURA) ---
 function setupBindings() {
-    el('open-pack').onclick = () => {
-        const type = el('pack-type').value;
-        openPack(type);
-    };
-    
-    el('rg-start').onclick = async () => {
-        const song = getCurrentSongData();
-        if(!song) return;
+    // Pack Button
+    const packBtn = el('open-pack');
+    if(packBtn) {
+        packBtn.onclick = () => {
+            const type = el('pack-type').value;
+            openPack(type);
+        };
+    }
 
-        // 1. Intentar cargar el chart específico si existe
-        // Convención: charts/{id}.json
-        const chartPath = `charts/${song.id}.json`;
-        
-        showToast(`Cargando chart de ${song.title}...`, "info");
-        const loaded = await window.RhythmEngine.loadChart(chartPath);
-        
-        if(!loaded) {
-            showToast("No se encontró chart. Generando demo...", "error");
-            // Fallback opcional: Si no hay json, podrías generar notas aleatorias aquí
-            // Pero para mantener integridad, abortamos o pedimos al usuario que cree el json.
-            return; 
-        }
+    // Rhythm Start
+    const startBtn = el('rg-start');
+    if(startBtn) {
+        startBtn.onclick = async () => {
+            const song = getCurrentSongData();
+            if(!song) return;
 
-        // 2. Iniciar el juego
-        window.RhythmEngine.start(song, getDifficulty());
-        el('rg-stop').disabled = false;
-        el('rg-start').disabled = true;
-    };
-    
-    el('rg-stop').onclick = () => {
-        window.RhythmEngine.stop();
-        el('rg-stop').disabled = true;
-        el('rg-start').disabled = false;
-    };
+            const chartPath = `charts/${song.id}.json`;
+            
+            // Intentar cargar chart
+            const loaded = await window.RhythmEngine.loadChart(chartPath);
+            
+            if(!loaded) {
+                showToast("No se encontró chart. Usa demo1 o crea el JSON.", "error");
+                return; 
+            }
+
+            window.RhythmEngine.start(song, getDifficulty());
+            
+            // Actualizar UI botones
+            const stopBtn = el('rg-stop');
+            if(stopBtn) stopBtn.disabled = false;
+            startBtn.disabled = true;
+        };
+    }
+
+    // Rhythm Stop
+    const stopBtn = el('rg-stop');
+    if(stopBtn) {
+        stopBtn.onclick = () => {
+            window.RhythmEngine.stop();
+            stopBtn.disabled = true;
+            if(startBtn) startBtn.disabled = false;
+        };
+    }
+
+    // ⭐ WOLFY HELPER BUTTON (LA CORRECCIÓN CLAVE) ⭐
+    const helperBtn = el('wolfy-helper-btn');
+    if(helperBtn) {
+        // Estado inicial
+        let isHelperOn = false;
+        
+        // Función para actualizar texto/clase
+        const updateHelperUI = () => {
+            if(isHelperOn) {
+                helperBtn.textContent = "🐺 Helper: ON";
+                helperBtn.classList.add('active');
+                helperBtn.classList.remove('secondary');
+            } else {
+                helperBtn.textContent = "🐺 Wolfy Helper";
+                helperBtn.classList.remove('active');
+                helperBtn.classList.add('secondary');
+            }
+        };
+
+        // Click Handler
+        helperBtn.onclick = () => {
+            isHelperOn = !isHelperOn;
+            
+            // Llamar a la API del motor
+            if(window.RhythmEngine && typeof window.RhythmEngine.setHelperMode === 'function') {
+                window.RhythmEngine.setHelperMode(isHelperOn);
+            } else {
+                console.warn("RhythmEngine no listo aún.");
+            }
+            
+            updateHelperUI();
+        };
+        
+        // Asegurar UI correcta al inicio
+        updateHelperUI();
+    } else {
+        console.error("ERROR: No se encontró #wolfy-helper-btn en el HTML.");
+    }
 }
 
 function getCurrentSongData() {
-    const id = el('song-select').value;
+    const id = el('song-select')?.value;
     return SONG_LIST.find(s => s.id === id) || SONG_LIST[0];
 }
 
 function getDifficulty() {
-    return el('difficulty').value;
+    return el('difficulty')?.value || 'normal';
 }
 
 function updateMenuUI() {
@@ -327,86 +404,29 @@ function updateMenuUI() {
 function logPack(text) {
     const node = document.createElement('div');
     node.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
-    el('pack-log').prepend(node);
-}
-
-// --- Inicializa el botón Wolfy Helper (pegar en main.js o en tu módulo de UI)
-// Asegura DOMContentLoaded y que RhythmEngine esté listo.
-
-function initWolfyHelperButton() {
-  const trySetup = () => {
-    const btn = document.getElementById('wolfy-helper-btn');
-    if (!btn) {
-      console.warn('Wolfy Helper button not found in DOM (id="wolfy-helper-btn")');
-      return;
-    }
-
-    // Read initial state safely
-    const getHelperState = () => {
-      try {
-        return !!(window.RhythmEngine && window.RhythmEngine._debug && window.RhythmEngine._debug.getConfig().helperMode);
-      } catch (e) { return false; }
-    };
-
-    // set UI state
-    const setUi = (on) => {
-      btn.classList.toggle('active', !!on);
-      btn.textContent = on ? 'Wolfy Helper: ON' : 'Wolfy Helper';
-    };
-
-    // ensure UI reflects engine state on load
-    setUi(getHelperState());
-
-    btn.addEventListener('click', () => {
-      // toggle helperMode via public API (safe call)
-      const newState = !getHelperState();
-      if (window.RhythmEngine && typeof window.RhythmEngine.setHelperMode === 'function') {
-        try {
-          window.RhythmEngine.setHelperMode(newState);
-          setUi(newState);
-        } catch (err) {
-          console.error('No se pudo cambiar helperMode:', err);
-        }
-      } else {
-        console.warn('RhythmEngine.setHelperMode no está disponible todavía.');
-      }
-    });
-  };
-
-  // Wait for DOM
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', trySetup, { once: true });
-  } else {
-    trySetup();
-  }
-
-  // If RhythmEngine might be created after DOM load, poll a few times to sync UI
-  const pollEngine = setInterval(() => {
-    if (window.RhythmEngine && window.RhythmEngine._debug) {
-      const btn = document.getElementById('wolfy-helper-btn');
-      if (btn) {
-        // sync ui text with engine state
-        try {
-          const engineState = window.RhythmEngine._debug.getConfig().helperMode;
-          btn.classList.toggle('active', !!engineState);
-          btn.textContent = engineState ? 'Wolfy Helper: ON' : 'Wolfy Helper';
-        } catch(e){}
-        clearInterval(pollEngine);
-      }
-    }
-  }, 200);
-  // stop polling after 5s
-  setTimeout(() => clearInterval(pollEngine), 5000);
+    const logContainer = el('pack-log');
+    if(logContainer) logContainer.prepend(node);
 }
 
 // --- EXPOSE API FOR RHYTHM ENGINE ---
 window.AppAPI = {
-    addScore(s){ el('rg-score').textContent = s; },
-    setCombo(c){ el('rg-combo').textContent = c; },
-    setAcc(a){ el('rg-acc').textContent = `${Math.round(a*100)}%`; },
-    setPower(p){ el('rg-power').textContent = `x${p.toFixed(1)}`; },
+    addScore(s){ 
+        const elSc = el('rg-score');
+        if(elSc) elSc.textContent = s; 
+    },
+    setCombo(c){ 
+        const elCb = el('rg-combo');
+        if(elCb) elCb.textContent = c; 
+    },
+    setAcc(a){ 
+        const elAc = el('rg-acc');
+        if(elAc) elAc.textContent = `${Math.round(a*100)}%`; 
+    },
+    setPower(p){ 
+        const elPw = el('rg-power');
+        if(elPw) elPw.textContent = `x${p.toFixed(1)}`; 
+    },
     onGameEnd(results) {
-        // Registrar recompensas
         let shardsEarned = 0;
         if (results.rank === "S+" || results.rank === "S") shardsEarned = 10;
         else if (results.rank === "A") shardsEarned = 5;
@@ -414,9 +434,8 @@ window.AppAPI = {
         else shardsEarned = 1;
         
         GS.shards += shardsEarned;
-        GS.applyXpToCards(Math.floor(results.score / 20)); // XP basada en score
+        GS.applyXpToCards(Math.floor(results.score / 20)); 
         
-        // Guardar mejor score
         const songId = results.songId;
         if(!GS.rhythmStats.bestScores[songId] || results.score > GS.rhythmStats.bestScores[songId]) {
             GS.rhythmStats.bestScores[songId] = results.score;
@@ -427,14 +446,21 @@ window.AppAPI = {
         renderBalances();
         renderCollection();
         
-        el('moon-results').innerHTML = `
-            <h3>Rango: ${results.rank}</h3>
-            <p>Score: ${results.score} | Combo: ${results.maxCombo}</p>
-            <p>Recompensa: +${shardsEarned} 💎 Shards</p>
-        `;
-        el('moon-results').classList.remove('hidden');
+        const resBox = el('moon-results');
+        if(resBox) {
+            resBox.innerHTML = `
+                <h3>Rango: ${results.rank}</h3>
+                <p>Score: ${results.score} | Combo: ${results.maxCombo}</p>
+                <p>Recompensa: +${shardsEarned} 💎 Shards</p>
+            `;
+            resBox.classList.remove('hidden');
+        }
     }
 };
 
-// Arrancar todo
-init();
+// Arrancar todo cuando el DOM esté listo
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
