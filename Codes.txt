@@ -1,0 +1,43 @@
+Codigos de desarrolladora - Easter eggs y pruebas
+
+Este archivo contiene códigos ("codigos de desarrolladora") diseñados para pruebas, debugging y pequeños easter‑eggs dentro del proyecto.
+
+NOTA: No incluir contraseñas, claves privadas, tokens ni información sensible.
+
+Formato recomendado
+- CODE-<AREA>-<NNN>
+  - AREA: UI, RG (rhythm game), ASSET, TEST, etc.
+  - NNN: número incremental de 001 en adelante
+
+Ejemplos (puedes copiarlos o editarlos):
+- CODE-RG-001 : CHOCOLATOSO    -> Marca un punto "chocolatoso" para pruebas de timing en charts/demo1.json
+- CODE-RG-002 : WOLFYHELPER    -> Referencia al modo helper/autoplay (main.js)
+- CODE-UI-001 : HOLA_DEV       -> Mensaje de prueba para interfaces y tooltips
+- CODE-TEST-001 : AUTOHIT       -> Test de autoplay interno: activa comportamiento de test
+
+Cómo esconder códigos en el repo
+- En archivos JS: añadir un comentario legible por grep
+  // CODE-RG-003: TU_CODIGO_AQUI
+- En JSON (sin romper parseo): añadir un campo opcional en un objeto
+  "_dev_code": "CODE-JSON-001"
+- En assets: incluir el código en el nombre del archivo (por ejemplo: tile_CODE-IMG-001.png)
+- En archivos de texto o markdown: incluir bloque comentado con el prefijo CODE-
+
+Cómo buscarlos rápidamente
+- Linux / macOS:
+  grep -R "CODE-" .
+- Windows (PowerShell):
+  Select-String -Path .\* -Pattern "CODE-" -Recurse
+
+Uso en el juego
+- Estos códigos son para pruebas y easter‑eggs, no deben otorgar recompensas reales a menos que se programe explícitamente.
+- Si quieres que el juego reconozca alguno de estos códigos (por ejemplo, dar una estrella visual o desbloquear un modo), dime cuáles y te doy el snippet para integrarlo.
+
+Buenas prácticas
+- Mantener la lista en este archivo y actualizar con cada nuevo código.
+- Evitar exponer datos sensibles.
+- Documentar en el commit mensaje dónde se colocó el código.
+
+Registro (rellena cuando agregues un código real):
+# DATE | CODE | DESCRIPCION | UBICACION
+
