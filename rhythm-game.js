@@ -42,7 +42,7 @@ const RhythmEngine = (function(){
   let multiplier = 1;
 
   // Key mapping & colors
-  const KEYS = { 'd': 0, 'f': 1, 'j': 2, 'k': 3 };
+  const KEYS = { 'd': 0, 'f': 1, 'j': 2, 'k': 3, 'ArrowLeft': 0, 'ArrowDown': 1, 'ArrowUp': 2, 'ArrowRight': 3};
   const COLORS = ['#ff0055', '#ffffff', '#333333', '#aa0033'];
 
   // Autoplay / helper state
