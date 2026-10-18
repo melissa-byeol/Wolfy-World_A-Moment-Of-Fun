@@ -428,39 +428,46 @@ const RhythmEngine = (function(){
     }
   }
 
-  // --- Autoplay & Helper API ---
-  function setAutoplay(enabled) {
-    autoplay = !!enabled;
-    if (autoplay) prevElapsed = 0;
-    console.log('Autoplay', autoplay ? 'ON' : 'OFF');
+  // --- Autoplay & Helper API (FIX) ---
+function setAutoplay(enabled) {
+  autoplay = !!enabled;
+  // si activamos autoplay, reseteamos prevElapsed para evitar hits instantáneos por cruce acumulado
+  if (autoplay) {
+    prevElapsed = 0;
   }
+  console.log('Autoplay', autoplay ? 'ON' : 'OFF');
+}
 
-  function setHelperMode(enabled) {
-    const turningOn = !!enabled;
-    if (turningOn === helperMode) return;
-    helperMode = turningOn;
-    console.log('Wolfy Helper', helperMode ? 'ACTIVADO' : 'DESACTIVADO');
+function setHelperMode(enabled) {
+  const turningOn = !!enabled;
+  if (turningOn === helperMode) return;
+  helperMode = turningOn;
+  console.log('Wolfy Helper', helperMode ? 'ACTIVADO' : 'DESACTIVADO');
 
-    // bajar volumen al activar helper, restaurarlo al desactivar
-    if (audioEl) {
-      try {
-        if (helperMode) {
-          helperOriginalVolume = (typeof audioEl.volume === 'number') ? audioEl.volume : 1.0;
-          // bajar un 40% y asegurarnos no quede demasiado bajo
-          audioEl.volume = Math.max(0.12, helperOriginalVolume * 0.45);
-        } else {
-          if (helperOriginalVolume !== null) {
-            audioEl.volume = helperOriginalVolume;
-            helperOriginalVolume = null;
-          }
+  // bajar/restaurar volumen de forma segura
+  if (audioEl) {
+    try {
+      if (helperMode) {
+        helperOriginalVolume = (typeof audioEl.volume === 'number') ? audioEl.volume : 1.0;
+        audioEl.volume = Math.max(0.12, helperOriginalVolume * 0.45);
+      } else {
+        if (helperOriginalVolume !== null) {
+          audioEl.volume = helperOriginalVolume;
+          helperOriginalVolume = null;
         }
-      } catch(e){ console.warn('No se pudo cambiar volumen del audio', e); }
+      }
+    } catch (e) {
+      console.warn('No se pudo cambiar volumen del audio', e);
     }
-
-    // Cuando helper se activa, es práctico activar autoplay también
-    if (helperMode) setAutoplay(true);
   }
 
+  // Aseguramos que al salir de helper mode también se apague el autoplay
+  if (helperMode) {
+    setAutoplay(true);
+  } else {
+    setAutoplay(false);
+  }
+}
   // --- Debug exposure ---
   const _debug = {
     getConfig: () => ({ W, H, HIT_LINE_Y, TOP_MARGIN, TRAVEL, LEAD_TIME, NOTE_SPEED, PERFECT_WIN, GOOD_WIN, MISS_WIN, autoplay, helperMode }),
