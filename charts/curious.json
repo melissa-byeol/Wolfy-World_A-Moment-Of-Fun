@@ -14,7 +14,9 @@
     { "time": 2.75, "lane": 0}, { "time": 2.95, "lane": 1},
     { "time": 3.1, "lane": 2}, { "time": 3.55, "lane": 0},
     { "time": 3.6, "lane": 1}, { "time": 3.65, "lane": 2},
-    { "time": 3.7, "lane": 3}, { "time": 3.8, "lane": 1},
-    { "time": 4.0, "lane": 0}, { "time": 4.0, "lane": 2}
+    { "time": 3.7, "lane": 3}, { "time": 4.1, "lane": 1},
+    { "time": 4.6, "lane": 0}, { "time": 4.6, "lane": 2},
+    { "time": 4.8, "lane": 1}, { "time": 5.3, "lane": 0},
+    { "time": 5.3, "lane": 2},
   ]
 }
