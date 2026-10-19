@@ -6,7 +6,7 @@
   "duration": 192,
   "offsetMs": 0,
   "notes": [
-    { "time": 0.3, "lane": 0}, { "time": 0.45, "lane": 1},
+    { "time": 0.3, "lane": 0, "duration": 0.2}, { "time": 0.45, "lane": 1, "duration": 0.2},
     { "time": 0.6, "lane": 2, "duration": 1}
   ]
 }
