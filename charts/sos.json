@@ -1,0 +1,12 @@
+{
+  "id": "sos",
+  "title": "SOS (Prod. By Marshmellow)",
+  "artist": "Seventeen",
+  "bpm": 152,
+  "duration": 212,
+  "offsetMs": 0,
+  "notes": [
+    { "time": 0.1, "lane": 0}, { "time": 0.25, "lane": 1},
+    { "time": 0.4, "lane": 2}
+  ]
+}
