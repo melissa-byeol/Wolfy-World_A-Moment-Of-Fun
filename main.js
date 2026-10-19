@@ -11,7 +11,7 @@ const SONG_LIST = [
     { id: 'new_kidz', title: 'New Kidz On The Block', src: 'assets/new-kidz-on-the-block.mp3', bpm: 110 },
     { id: 'exotic', title: 'Exotic', src: 'assets/exotic.mp3', bpm: 140 },
     { id: 'curious', title: 'Curious', src: 'assets/curious.mp3', bpm: 129 },
-    { id: 'sos', title: 'SOS (Prod. By Marshmellow)', src: 'assets/sos.mp3', bpm: 152}
+    { id: 'sos', title: 'SOS (Prod. By Marshmello)', src: 'assets/sos.mp3', bpm: 152}
 ];
 
 // --- INICIALIZACIÓN SEGURA ---
