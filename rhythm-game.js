@@ -1,4 +1,4 @@
-// rhythm-game.js - Motor Rítmico v7 (Limpio y Único)
+// rhythm-game.js - Motor Rítmico v8 (Con Soporte HOLDS)
 
 const RhythmEngine = (function(){
   const canvas = document.getElementById('rhythm-canvas');
@@ -10,7 +10,6 @@ const RhythmEngine = (function(){
   const LOGICAL_W = 800;
   const LOGICAL_H = 450;
 
-  // Reconfigurables (se recalculan al hacer resize)
   let W = LOGICAL_W;
   let H = LOGICAL_H;
   let HIT_LINE_Y = Math.round(H * 0.82);
@@ -27,7 +26,7 @@ const RhythmEngine = (function(){
   // Estado runtime
   let running = false;
   let startTime = 0;
-  let notes = [];
+  let notes = []; // Array mixto: Tap Notes y Hold Notes
   let currentSongId = "";
 
   // Stats
@@ -46,6 +45,9 @@ const RhythmEngine = (function(){
     'arrowleft': 0, 'arrowdown': 1, 'arrowup': 2, 'arrowright': 3
   };
   const COLORS = ['#ff0055', '#ffffff', '#333333', '#aa0033'];
+  
+  // Track active keys for Hold detection
+  const activeKeys = new Set(); 
 
   // Autoplay / helper state
   let autoplay = false;
@@ -107,15 +109,42 @@ const RhythmEngine = (function(){
     lane = Math.max(0, Math.min(3, lane));
     return lane;
   }
-  canvas.addEventListener('touchstart', (ev) => {
-    ev.preventDefault();
-    for(const t of Array.from(ev.changedTouches)) {
-      const lane = touchToLane(t.clientX);
-      inputHit(lane, {autoplay:false});
-    }
-  }, { passive: false });
+  
+  // Helper to simulate key press/release for touch
+  function handleTouchStart(e) {
+      e.preventDefault();
+      for(const t of Array.from(e.changedTouches)) {
+          const lane = touchToLane(t.clientX);
+          activateLane(lane);
+      }
+  }
+  function handleTouchEnd(e) {
+      e.preventDefault();
+      for(const t of Array.from(e.changedTouches)) {
+          const lane = touchToLane(t.clientX);
+          deactivateLane(lane);
+      }
+  }
 
-  // --- Chart loader ---
+  canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+  canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+  canvas.addEventListener('mousedown', (e) => {
+      if(!running) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const lane = Math.floor((x / rect.width) * 4);
+      if(lane >=0 && lane < 4) activateLane(lane);
+  });
+  canvas.addEventListener('mouseup', (e) => {
+      if(!running) return;
+       const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const lane = Math.floor((x / rect.width) * 4);
+      if(lane >=0 && lane < 4) deactivateLane(lane);
+  });
+
+
+  // --- Chart loader (Updated for Holds) ---
   async function loadChart(url) {
     try {
       const res = await fetch(url);
@@ -123,16 +152,30 @@ const RhythmEngine = (function(){
       const data = await res.json();
 
       const offsetSeconds = (data.offsetMs || 0) / 1000;
-      notes = (data.notes || []).map(n => ({
-        time: (n.time || 0) + offsetSeconds,
-        lane: (typeof n.lane === 'number') ? n.lane : 0,
-        judged: false,
-        hit: false,
-        missed: false,
-        y: -100
-      })).sort((a,b) => a.time - b.time);
+      
+      notes = (data.notes || []).map(n => {
+          const isHold = typeof n.duration === 'number' && n.duration > 0;
+          return {
+              type: isHold ? 'hold' : 'tap',
+              time: (n.time || 0) + offsetSeconds,
+              endTime: isHold ? ((n.time || 0) + n.duration + offsetSeconds) : null,
+              lane: (typeof n.lane === 'number') ? n.lane : 0,
+              
+              // State flags
+              judgedHead: false, // ¿Se golpeó el inicio?
+              holdingBody: false, // ¿Se está sosteniendo ahora mismo?
+              bodyBroken: false, // ¿Se soltó antes de tiempo?
+              judgedTail: false, // ¿Se completó el final?
+              
+              hit: false, // Éxito total
+              missed: false, // Fallo total
+              y: -100,
+              tailY: -100 // Posición Y del final de la barra
+          };
+      }).sort((a,b) => a.time - b.time);
 
       prevElapsed = 0;
+      activeKeys.clear(); // Resetear teclas presionadas
       return true;
     } catch (e) {
       console.error("Error cargando chart:", e);
@@ -158,7 +201,6 @@ const RhythmEngine = (function(){
     maxCombo = combo;
     multiplier = stats.multiplier || 1;
 
-    // try to play audio and sync if possible
     if (audioEl) {
       try {
         audioEl.currentTime = 0;
@@ -195,47 +237,107 @@ const RhythmEngine = (function(){
     update(elapsed);
     draw(elapsed);
 
-    const lastNoteTime = notes.length > 0 ? notes[notes.length - 1].time : 0;
+    const lastNoteTime = notes.length > 0 ? (notes[notes.length-1].endTime || notes[notes.length-1].time) : 0;
     if (elapsed > lastNoteTime + 2.5) {
-      stop();
+        stop();
     } else {
-      requestAnimationFrame(loop);
+        requestAnimationFrame(loop);
     }
   }
 
-  // --- Update & Draw ---
+  // --- Update Logic (Complex for Holds) ---
   function update(elapsed) {
     for (const note of notes) {
-      if (note.judged) continue;
+        
+        // Calculate Positions
+        const spawnTime = note.time - LEAD_TIME;
+        let progressHead = (elapsed - spawnTime) / Math.max(0.0001, LEAD_TIME);
+        if (progressHead < -0.5) progressHead = -0.5;
+        if (progressHead > 1.5) progressHead = 1.5;
+        note.y = TOP_MARGIN + progressHead * TRAVEL;
 
-      const spawnTime = note.time - LEAD_TIME;
-      let progress = (elapsed - spawnTime) / Math.max(0.0001, LEAD_TIME);
-      if (progress < -0.5) progress = -0.5;
-      if (progress > 1.5) progress = 1.5;
-      note.y = TOP_MARGIN + progress * TRAVEL;
-
-      // AUTOPLAY
-      if (autoplay) {
-        if (note.time > prevElapsed && note.time <= elapsed) {
-          inputHit(note.lane, {autoplay:true});
+        if (note.type === 'hold') {
+             const endSpawnTime = note.endTime - LEAD_TIME;
+             let progressTail = (elapsed - endSpawnTime) / Math.max(0.0001, LEAD_TIME);
+             if (progressTail < -0.5) progressTail = -0.5;
+             if (progressTail > 1.5) progressTail = 1.5;
+             note.tailY = TOP_MARGIN + progressTail * TRAVEL;
+             
+             // Check Body Status
+             // If head was hit AND we are currently between head and tail time
+             if (note.judgedHead && !note.bodyBroken && !note.judgedTail) {
+                 if (elapsed >= note.time && elapsed <= note.endTime) {
+                     // Is the key still pressed?
+                     if (!activeKeys.has(note.lane)) {
+                         note.bodyBroken = true; // FAIL! Released too early
+                         note.missed = true;
+                         misses++;
+                         combo = 0;
+                         try { AppAPI.setCombo(combo); } catch(e){}
+                     } else {
+                         note.holdingBody = true; // Visual feedback that it's being held
+                     }
+                 } else if (elapsed > note.endTime) {
+                     // Time passed without breaking? Success!
+                     if (!note.bodyBroken) {
+                         note.judgedTail = true;
+                         note.hit = true;
+                         hits++;
+                         combo++;
+                         if (combo > maxCombo) maxCombo = combo;
+                         
+                         // Award points for successful hold completion
+                         const pts = Math.round((50 + totalPower) * (multiplier || 1));
+                         score += pts;
+                         try {
+                            AppAPI.addScore(score);
+                            AppAPI.setCombo(combo);
+                            AppAPI.setAcc(hits / Math.max(1, (hits + misses)));
+                        } catch(e){}
+                     }
+                 }
+             }
         }
-      }
 
-      // auto-miss
-      if (elapsed > note.time + MISS_WIN) {
-        if (!note.judged) {
-          note.judged = true;
-          if (shields > 0) {
-            shields--;
-            note.hit = true;
-          } else {
-            note.missed = true;
-            misses++;
-            combo = 0;
-          }
-          try { AppAPI.setCombo(combo); } catch(e){}
+        // Auto-Miss Head (for both tap and hold starts)
+        if (!note.judgedHead && elapsed > note.time + MISS_WIN) {
+            note.judgedHead = true;
+            if (shields > 0) {
+                shields--;
+                note.judgedHead = true; // Mark as handled by shield
+                // For holds, if shield takes the head, does it auto-complete body? 
+                // Usually yes in casual games. Let's say YES for simplicity.
+                if(note.type === 'hold') {
+                    note.hit = true;
+                    note.judgedTail = true;
+                    hits++;
+                    combo++;
+                    if (combo > maxCombo) maxCombo = combo;
+                }
+            } else {
+                note.missed = true;
+                misses++;
+                combo = 0;
+                if(note.type === 'hold') note.bodyBroken = true; // Ensure body doesn't trigger later
+            }
+            try { AppAPI.setCombo(combo); } catch(e){}
         }
-      }
+        
+        // Autoplay Logic for Heads
+        if (autoplay && !note.judgedHead) {
+             if (note.time > prevElapsed && note.time <= elapsed) {
+                 // Simulate pressing the key
+                 activateLane(note.lane);
+                 // Schedule release for holds after duration
+                 if(note.type === 'hold') {
+                     setTimeout(() => {
+                         if(running) deactivateLane(note.lane);
+                     }, note.endTime * 1000 - elapsed * 1000);
+                 } else {
+                      deactivateLane(note.lane);
+                 }
+             }
+        }
     }
 
     prevElapsed = elapsed;
@@ -259,17 +361,7 @@ const RhythmEngine = (function(){
       ctx.stroke();
     }
 
-    // spawn/top margin
-    ctx.save();
-    ctx.setLineDash([6,4]);
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-    ctx.beginPath();
-    ctx.moveTo(0, TOP_MARGIN);
-    ctx.lineTo(W, TOP_MARGIN);
-    ctx.stroke();
-    ctx.restore();
-
-    // hit line
+    // Hit line
     ctx.save();
     ctx.shadowBlur = 14;
     ctx.shadowColor = "#f1c40f";
@@ -281,62 +373,135 @@ const RhythmEngine = (function(){
     ctx.stroke();
     ctx.restore();
 
-    // keys
+    // Draw Notes
+    for (const note of notes) {
+        if (note.y < -100 || note.y > H + 100) continue; // Optimization
+        
+        const cx = note.lane * laneW + laneW/2;
+        const r = Math.max(10, Math.round(18 * (W / LOGICAL_W)));
+        const color = COLORS[note.lane % COLORS.length];
+
+        if (note.type === 'hold') {
+            // Draw Body (Rectangle connecting Head and Tail)
+            if (note.judgedHead && !note.missed) {
+                // Only draw body if head is hit
+                const topY = note.y;
+                const bottomY = note.tailY;
+                
+                // Clamp drawing to screen
+                const drawTop = Math.max(topY, 0);
+                const drawBottom = Math.min(bottomY, H);
+                
+                if (drawBottom > drawTop) {
+                    ctx.fillStyle = note.holdingBody ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.1)";
+                    ctx.fillRect(cx - r, drawTop, r*2, drawBottom - drawTop);
+                    
+                    // Glow effect if holding correctly
+                    if(note.holdingBody) {
+                         ctx.shadowBlur = 10;
+                         ctx.shadowColor = color;
+                         ctx.strokeStyle = color;
+                         ctx.lineWidth = 2;
+                         ctx.strokeRect(cx - r, drawTop, r*2, drawBottom - drawTop);
+                         ctx.shadowBlur = 0;
+                    }
+                }
+            }
+
+            // Draw Head Circle
+            if (!note.judgedHead || !note.hit) {
+                 ctx.fillStyle = color;
+                 ctx.beginPath();
+                 ctx.arc(cx, note.y, r, 0, Math.PI*2);
+                 ctx.fill();
+                 ctx.strokeStyle = "white";
+                 ctx.lineWidth = 2;
+                 ctx.stroke();
+            } else if (note.hit) {
+                 // Explosion/Fade out on complete success
+                 const alpha = Math.max(0, 1 - (elapsed - note.endTime)*2);
+                 if(alpha > 0) {
+                     ctx.globalAlpha = alpha;
+                     ctx.fillStyle = "#fff";
+                     ctx.beginPath();
+                     ctx.arc(cx, note.y, r*1.5, 0, Math.PI*2);
+                     ctx.fill();
+                     ctx.globalAlpha = 1.0;
+                 }
+            }
+            
+            // Draw Tail Cap (Optional visual cue)
+            if (!note.judgedTail && !note.missed && note.tailY > 0 && note.tailY < H) {
+                 ctx.fillStyle = "rgba(255,255,255,0.5)";
+                 ctx.beginPath();
+                 ctx.arc(cx, note.tailY, r*0.8, 0, Math.PI*2);
+                 ctx.fill();
+            }
+
+        } else {
+            // Standard Tap Note
+            if (!note.judgedHead || !note.hit) {
+                ctx.fillStyle = color;
+                ctx.save();
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = color;
+                ctx.beginPath();
+                ctx.arc(cx, note.y, r, 0, Math.PI*2);
+                ctx.fill();
+                ctx.restore();
+
+                ctx.strokeStyle = "rgba(255,255,255,0.9)";
+                ctx.lineWidth = Math.max(1, Math.round(2 * (W / LOGICAL_W)));
+                ctx.beginPath();
+                ctx.arc(cx, note.y, r, 0, Math.PI*2);
+                ctx.stroke();
+                
+                ctx.fillStyle = "black";
+                ctx.font = `${Math.max(10, Math.round(14 * (W / LOGICAL_W)))}px Arial`;
+                ctx.textAlign = "center";
+                ctx.fillText("🌹", cx, note.y + Math.round(5 * (W / LOGICAL_W)));
+            } else if (note.hit) {
+                 const alpha = Math.max(0, 1 - (elapsed - note.time) * 3);
+                 ctx.globalAlpha = alpha;
+                 ctx.fillStyle = "#fff";
+                 ctx.beginPath();
+                 ctx.arc(cx, HIT_LINE_Y, r * 1.4, 0, Math.PI*2);
+                 ctx.fill();
+                 ctx.globalAlpha = 1.0;
+            }
+        }
+    }
+    
+    // Keys Indicator
     const keys = ['D','F','J','K'];
     ctx.font = `${Math.max(12, Math.round(16 * (W / LOGICAL_W)))}px monospace`;
     ctx.textAlign = "center";
     for (let i=0; i<4; i++) {
       const cx = i*laneW + laneW/2;
-      ctx.fillStyle = "rgba(0,0,0,0.45)";
+      ctx.fillStyle = activeKeys.has(i) ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.45)";
       ctx.fillRect(cx-15, HIT_LINE_Y+10, 30, 25);
-      ctx.fillStyle = "#ddd";
+      ctx.fillStyle = activeKeys.has(i) ? "#fff" : "#ddd";
       ctx.fillText(keys[i], cx, HIT_LINE_Y+28);
-    }
-
-    // notes
-    for (const note of notes) {
-      if (note.y < -80 || note.y > H + 80) continue;
-      const cx = (note.lane || 0) * laneW + laneW/2;
-      const r = Math.max(10, Math.round(18 * (W / LOGICAL_W)));
-
-      if (note.judged) {
-        if (note.hit) {
-          const alpha = Math.max(0, 1 - (elapsed - note.time) * 3);
-          ctx.globalAlpha = alpha;
-          ctx.fillStyle = "#fff";
-          ctx.beginPath();
-          ctx.arc(cx, HIT_LINE_Y, r * 1.4, 0, Math.PI*2);
-          ctx.fill();
-          ctx.globalAlpha = 1.0;
-        }
-      } else {
-        ctx.fillStyle = COLORS[note.lane % COLORS.length];
-        ctx.save();
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = COLORS[note.lane % COLORS.length];
-        ctx.beginPath();
-        ctx.arc(cx, note.y, r, 0, Math.PI*2);
-        ctx.fill();
-        ctx.restore();
-
-        ctx.strokeStyle = "rgba(255,255,255,0.9)";
-        ctx.lineWidth = Math.max(1, Math.round(2 * (W / LOGICAL_W)));
-        ctx.beginPath();
-        ctx.arc(cx, note.y, r, 0, Math.PI*2);
-        ctx.stroke();
-
-        ctx.fillStyle = "black";
-        ctx.font = `${Math.max(10, Math.round(14 * (W / LOGICAL_W)))}px Arial`;
-        ctx.fillText("🌹", cx, note.y + Math.round(5 * (W / LOGICAL_W)));
-      }
     }
   }
 
-  // --- Input handling ---
+  // --- Input Handling Helpers ---
+  function activateLane(lane) {
+      if(activeKeys.has(lane)) return; // Already down
+      activeKeys.add(lane);
+      inputHit(lane, {autoplay:false});
+  }
+  
+  function deactivateLane(lane) {
+      activeKeys.delete(lane);
+      // No need to call inputHit here, logic is in update() checking activeKeys
+  }
+
   window.addEventListener('keydown', (e) => {
     const target = e.target;
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
     if (e.ctrlKey || e.altKey || e.metaKey) return;
+    if (e.repeat) return; // Ignore key repeats
 
     const key = (e.key || '').toLowerCase();
 
@@ -344,60 +509,76 @@ const RhythmEngine = (function(){
       setAutoplay(!autoplay);
       return;
     }
-    if (KEYS[key] !== undefined) {
+    
+    const lane = KEYS[key];
+    if (lane !== undefined) {
       e.preventDefault();
-      inputHit(KEYS[key], {autoplay:false});
+      activateLane(lane);
     }
+  });
+
+  window.addEventListener('keyup', (e) => {
+     const key = (e.key || '').toLowerCase();
+     const lane = KEYS[key];
+     if (lane !== undefined) {
+         deactivateLane(lane);
+     }
   });
 
   function inputHit(lane, {autoplay=false} = {}) {
     if (!running) return;
     const elapsed = (performance.now() - startTime) / 1000;
 
+    // Find best TAP or HOLD HEAD candidate
     let bestNote = null;
     let minDelta = Infinity;
+    
     for (const note of notes) {
-      if (note.judged) continue;
-      if ((note.lane || 0) !== lane) continue;
-      const delta = Math.abs(note.time - elapsed);
-      if (delta <= MISS_WIN && delta < minDelta) {
-        bestNote = note;
-        minDelta = delta;
-      }
+        // Skip if already judged head OR if it's a hold body part (we only judge heads initially)
+        if (note.judgedHead) continue; 
+        if (note.lane !== lane) continue;
+        
+        const delta = Math.abs(note.time - elapsed);
+        if (delta <= MISS_WIN && delta < minDelta) {
+            bestNote = note;
+            minDelta = delta;
+        }
     }
 
     if (bestNote) {
-      bestNote.judged = true;
-      bestNote.hit = true;
+        bestNote.judgedHead = true;
+        
+        if (autoplay && helperMode) {
+            // Just mark visually, no points
+            bestNote.hit = true; 
+            return;
+        }
 
-      if (autoplay && helperMode) {
-        return; // Helper mode doesn't give points
-      }
+        // Determine Score based on precision
+        let basePts = 0;
+        if (minDelta <= PERFECT_WIN) basePts = 100;
+        else if (minDelta <= GOOD_WIN) basePts = 50;
+        else basePts = 10; // Bad but counts as hit
+        
+        hits++;
+        combo++;
+        if (combo > maxCombo) maxCombo = combo;
 
-      let basePts = 0;
-      if (minDelta <= PERFECT_WIN) basePts = 100;
-      else if (minDelta <= GOOD_WIN) basePts = 50;
-      else basePts = 10;
+        const comboBonus = 1 + (Math.min(combo, 100) / 200);
+        const pts = Math.round((basePts + totalPower) * (multiplier || 1) * comboBonus);
+        score += pts;
 
-      hits++;
-      combo++;
-      if (combo > maxCombo) maxCombo = combo;
-
-      const comboBonus = 1 + (Math.min(combo, 100) / 200);
-      const pts = Math.round((basePts + totalPower) * (multiplier || 1) * comboBonus);
-      score += pts;
-
-      try {
-        AppAPI.addScore(score);
-        AppAPI.setCombo(combo);
-        AppAPI.setAcc(hits / Math.max(1, (hits + misses)));
-      } catch(e){}
-    } else {
-      if (!(autoplay && helperMode)) {
-        misses++;
-        combo = 0;
-        try { AppAPI.setCombo(combo); AppAPI.setAcc(hits / Math.max(1, (hits + misses))); } catch(e){}
-      }
+        try {
+            AppAPI.addScore(score);
+            AppAPI.setCombo(combo);
+            AppAPI.setAcc(hits / Math.max(1, (hits + misses)));
+        } catch(e){}
+        
+        // If it's a tap note, it's fully done now.
+        if(bestNote.type === 'tap') {
+            bestNote.hit = true;
+        }
+        // If it's a hold, waiting for update() to check body/tail
     }
   }
 
