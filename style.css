@@ -446,3 +446,61 @@ input:focus, select:focus {
     border: 1px solid rgba(255,255,255,0.05);
 }
 .results-box h3 { color: var(--accent-warning); margin: 0 0 10px 0; }
+
+/* --- FOODY CHAOS UI --- */
+.context-menu {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(22, 24, 28, 0.95);
+    border: 1px solid var(--accent-primary);
+    padding: 15px;
+    border-radius: 12px;
+    min-width: 250px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    z-index: 100;
+    animation: slideUp 0.3s ease-out;
+}
+.context-menu h4 { margin: 0 0 10px 0; color: var(--accent-warning); }
+.context-menu ul { list-style: none; padding: 0; margin: 0; }
+.context-menu li { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 5px 0; 
+    border-bottom: 1px solid #333;
+    font-size: 0.9rem;
+}
+.context-menu button { padding: 4px 8px; font-size: 0.8rem; }
+
+.team-member-card {
+    background: var(--bg-card);
+    padding: 8px;
+    border-radius: 8px;
+    min-width: 120px;
+    text-align: center;
+    border-left: 4px solid #fff; /* Color dinámico */
+}
+.team-member-card .bar-bg {
+    height: 6px;
+    background: #333;
+    border-radius: 3px;
+    margin-top: 5px;
+    overflow: hidden;
+}
+.team-member-card .bar-fill {
+    height: 100%;
+    background: var(--accent-success);
+    width: 0%;
+    transition: width 0.3s;
+}
+
+@keyframes fadeUp {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-20px); }
+}
+@keyframes slideUp {
+    from { transform: translate(-50%, 20px); opacity: 0; }
+    to { transform: translate(-50%, 0); opacity: 1; }
+}
