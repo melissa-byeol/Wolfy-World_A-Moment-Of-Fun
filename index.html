@@ -102,46 +102,6 @@
         <h2>Crear / Eliminar Cuenta</h2>
         <div id="create-ui"></div>
       </div>
-      <!-- Dentro de .menu-grid en #menu-screen -->
-<button class="menu-card" data-module="foody">
-    <span class="menu-icon">🍕</span>
-    <strong>Foody Chaos</strong>
-    <small>Sobrevive a la Tienda</small>
-</button>
-
-<!-- Nueva Pantalla Oculta (Ponla antes del footer o después de moonlight-screen) -->
-<div id="foody-screen" class="screen">
-    <button class="back-btn" data-back="menu-screen">← Menú</button>
-    
-    <div class="foody-header">
-        <h2>🍕 Foody Chaos</h2>
-        <div class="foody-stats">
-            <div>Tiempo: <span id="fd-time">60</span>s</div>
-            <div>Puntos: <span id="fd-score">0</span></div>
-            <div>Combo: <span id="fd-combo">x1</span></div>
-        </div>
-    </div>
-
-    <!-- Área de Juego: La Tienda -->
-    <div id="shop-floor" class="shop-floor-container">
-        <!-- Los items aparecerán aquí dinámicamente -->
-    </div>
-
-    <!-- Barra de Equipo Activo (Visualización de quién está comiendo) -->
-    <div class="team-bar">
-        <h3>Tu Equipo:</h3>
-        <div id="active-team-display" class="team-slots"></div>
-    </div>
-
-    <!-- Tienda de Mejoras -->
-    <div class="upgrade-panel">
-        <h3>Mejoras Instantáneas</h3>
-        <div class="upgrades-grid">
-            <button id="upg-speed" class="secondary">⚡ Velocidad Masticación (+10% CPS)<br><small>Coste: 500 pts</small></button>
-            <button id="upg-value" class="secondary">💎 Valor Nutricional (+20% Pts/Bocado)<br><small>Coste: 800 pts</small></button>
-            <button id="upg-auto" class="chromo-btn">🤖 Ayudante Automático<br><small>Coste: 2000 pts</small></button>
-        </div>
-    </div>
 
     <div class="controls-row">
         <button id="fd-start" class="success-btn">▶️ Iniciar Partida</button>
@@ -173,6 +133,31 @@
     </div>
   </div>
 
+  <!-- Script del nuevo motor -->
+<script src="foody-engine.js" defer></script>
+
+<!-- Modal/Pantalla Fullscreen para Foody -->
+<div id="foody-fullscreen-modal" class="modal-overlay hidden" style="z-index: 9999;">
+    <div class="modal-content" style="width: 95vw; height: 90vh; display:flex; flex-direction:column; padding:0; overflow:hidden;">
+        <header style="background:#1a1a2e; padding:10px 20px; display:flex; justify-content:space-between; align-items:center;">
+            <h2>🍕 Foody Chaos: Despensa Infinita</h2>
+            <div>
+                <button id="fd-close-btn" class="danger-btn">Salir</button>
+            </div>
+        </header>
+        
+        <!-- Contenedor donde FoodyEngine inyectará el Canvas -->
+        <div id="foody-canvas-container" style="flex-grow:1; position:relative; background:#000;"></div>
+        
+        <!-- HUD Inferior: Estadísticas del Equipo -->
+        <footer style="background:#16181c; padding:10px; display:flex; gap:10px; overflow-x:auto;">
+            <div id="team-hud-list" style="display:flex; gap:10px;">
+                <!-- Se llenará dinámicamente -->
+            </div>
+        </footer>
+    </div>
+</div>
+  
   <footer>
     <small>Demo v5 — Sistema RPG Completo.</small>
   </footer>
