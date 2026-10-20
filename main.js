@@ -446,6 +446,43 @@ function logPack(text) {
     if(logContainer) logContainer.prepend(node);
 }
 
+function renderFoodyHUD() {
+    const hudList = document.getElementById('team-hud-list');
+    if(!hudList) return;
+    hudList.innerHTML = '';
+    
+    // Acceder a los stats internos del motor (hack temporal para demo)
+    // Idealmente, FoodyEngine debería exponer getTeamStats()
+    // Como es IIFE cerrada, simulamos leyendo desde GS directamente para el HUD statico
+    // Nota: Esto no refleja el "currentLoad" en tiempo real sin reescribir el getter, 
+    // pero sirve para mostrar quiénes están en el equipo.
+    
+    if(!GS) return;
+    
+    GS.equippedCards.forEach(id => {
+        const rec = GS.getCardRecord(id);
+        const cat = CARD_MAP[id];
+        const power = GS.calculateCardPower(id);
+        
+        const div = document.createElement('div');
+        div.className = 'team-member-card';
+        div.style.borderLeftColor = getRankColor(rec.rank); // Usa la func local o repítela
+        
+        div.innerHTML = `
+            <strong style="font-size:0.8em">${cat ? cat.displayName.split('[')[0] : id}</strong>
+            <div class="small">Capacidad: ~${10 + RANK_ORDER.indexOf(rec.rank)*10}kg</div>
+            <div class="bar-bg"><div class="bar-fill" style="width: 0%"></div></div>
+        `;
+        hudList.appendChild(div);
+    });
+}
+
+// Helper duplicado local para evitar scope issues rápidos
+function getRankColor(rank) {
+    const colors = { 'B':'#9fb8ff', 'A':'#7fffb1', 'S':'#ffd57f', 'R':'#ff9fb2', 'XR':'#c97fff', 'UR':'#ffad4a', 'MR':'#ffd700' };
+    return colors[rank] || '#fff';
+}
+
 // --- EXPOSE API FOR RHYTHM ENGINE ---
 window.AppAPI = {
     addScore(s){ 
