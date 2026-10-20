@@ -73,10 +73,7 @@ const FoodyEngine = (function() {
         setupInputListeners();
     }
 
-    /**
-     * Carga un mapa desde JSON y prepara al equipo
-     */
-    async function loadMap(mapUrl, gsInstance) {
+        async function loadMap(mapUrl, gsInstance) {
         try {
             const res = await fetch(mapUrl);
             if(!res.ok) throw new Error(`No encontrado: ${mapUrl}`);
@@ -84,34 +81,32 @@ const FoodyEngine = (function() {
             
             currentMap = data;
             
-            // Preparar Equipo basado en GS.equippedCards
+            // Preparar Equipo basado en GS.equippedCards usando LAS NUEVAS STATS
             teamStats = gsInstance.equippedCards.map(cardId => {
-                const record = gsInstance.getCardRecord(cardId);
+                const fs = gsInstance.getFoodyStats(cardId); // ⭐ LLAMADA ACTUALIZADA
                 const catalog = CARD_MAP[cardId];
                 
-                // Fórmula de Capacidad: Base + (RangoIndex * 10) + (Level * 2)
-                // Ejemplo: B Lvl 1 = 10kg. MR Lvl 70 = ~150kg.
-                const rankIdx = RANK_ORDER.indexOf(record.rank);
-                const baseCap = 10;
-                const cap = baseCap + (rankIdx * 10) + (record.level * 2);
-                
+                if(!fs) return null; // Ignorar si no hay datos
+
                 return {
                     id: cardId,
-                    name: catalog ? catalog.displayName : cardId,
-                    maxCapacity: cap,
-                    currentLoad: 0, // kg comidos/llevados
-                    color: getRankColor(record.rank)
+                    name: catalog ? catalog.displayName.split('[')[0] : cardId,
+                    maxCapacity: fs.capacity,
+                    currentLoad: 0,
+                    speed: fs.speed,       // Usar para moverse más lento/rápido
+                    strength: fs.strength, // Usar para romper puertas/cajas
+                    hp: fs.hp,             // Vida actual
+                    maxHp: fs.hp,
+                    special: fs.special,
+                    color: getRankColor(fs.rank || 'B') // Asumiendo que tienes acceso al rank aquí o lo pasas
                 };
-            });
+            }).filter(Boolean); // Eliminar nulos
 
-            // Resetear posición al inicio definido en el mapa
             playerPos = { ...data.startPos || {x:1, y:1} };
-            
-            renderLoop(); // Dibujar primer frame
+            renderLoop(); 
             
         } catch(e) {
             console.error("Error cargando mapa:", e);
-            alert("No se pudo cargar el mapa. ¿Existe la carpeta /maps/?");
         }
     }
 
