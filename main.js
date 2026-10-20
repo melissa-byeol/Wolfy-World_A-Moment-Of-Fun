@@ -387,6 +387,42 @@ function setupBindings() {
     } else {
         console.error("ERROR: No se encontró #wolfy-helper-btn en el HTML.");
     }
+
+        // ... código existente ...
+
+    // ⭐ NUEVO: BINDING PARA FOODY CHAOS ⭐
+    const foodyBtn = document.querySelector('[data-module="foody"]');
+    if(foodyBtn) {
+        foodyBtn.onclick = () => {
+            // Abrir Modal Fullscreen
+            const modal = document.getElementById('foody-fullscreen-modal');
+            if(modal) {
+                modal.classList.remove('hidden');
+                
+                // Inicializar Motor si no está hecho
+                if(window.FoodyEngine && GS) {
+                    // Limpiar contenedor previo
+                    const container = document.getElementById('foody-canvas-container');
+                    if(container) container.innerHTML = '';
+                    
+                    // Iniciar
+                    window.FoodyEngine.init(GS, 'foody-canvas-container');
+                    window.FoodyAPI.startGame();
+                    
+                    // Renderizar HUD inicial
+                    renderFoodyHUD();
+                }
+            }
+        };
+    }
+
+    const fdCloseBtn = document.getElementById('fd-close-btn');
+    if(fdCloseBtn) {
+        fdCloseBtn.onclick = () => {
+            document.getElementById('foody-fullscreen-modal').classList.add('hidden');
+            window.FoodyAPI.stopGame();
+        };
+    }
 }
 
 function getCurrentSongData() {
