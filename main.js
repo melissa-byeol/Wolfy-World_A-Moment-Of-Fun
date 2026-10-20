@@ -7,11 +7,12 @@ let GS = null; // Se inicializará después de cargar GameStateClass
 const SONG_LIST = [
     { id: 'demo1', title: 'Demo Track 1', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', bpm: 120 },
     { id: 'bed_of_thorns', title: 'Bed of Thorns', src: 'assets/bed-of-thorns.mp3', bpm: 135 },
-    { id: 'sweet_venom_(seeb)', title: 'Sweet Venom (SeeB Remix)', src: 'assets/sweet-venom-(seeb-remix).mp3', bpm: 128 },
+    { id: 'sweet_venom_(seeb)', title: 'Sweet Venom (SeeB Remix)', src: 'assets/sweet-venom-(seeb-remix).mp3', bpm: 120 },
     { id: 'new_kidz', title: 'New Kidz On The Block', src: 'assets/new-kidz-on-the-block.mp3', bpm: 110 },
     { id: 'exotic', title: 'Exotic', src: 'assets/exotic.mp3', bpm: 140 },
     { id: 'curious', title: 'Curious', src: 'assets/curious.mp3', bpm: 129 },
-    { id: 'sos', title: 'SOS (Prod. By Marshmello)', src: 'assets/sos.mp3', bpm: 152}
+    { id: 'sos', title: 'SOS (Prod. By Marshmello)', src: 'assets/sos.mp3', bpm: 152},
+    { id: 'scream', title: 'Scream', src: 'assets/scream.mp3', bpm: 154}
 ];
 
 // --- INICIALIZACIÓN SEGURA ---
