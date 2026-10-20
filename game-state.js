@@ -47,6 +47,12 @@ const CHARACTERS = [
     { id: "flautista", name: "Lobita Flautista", role: "inst" }
 ];
 
+// --- TEMAS DISPONIBLES ---
+const THEMES_GENERAL = ["Themeless", "Curiosity", "Playtime", "Party O'Clock", "[FX] Orange-White Blooded"];
+const THEME_PUPPY_EXCLUSIVE = "We're the new kids";
+const THEME_LOBITO_VOCAL_EXCLUSIVE = "Sharpened Vocals";
+const THEME_LOBITO_INST_EXCLUSIVE = "Focused Practice";
+
 // --- ARQUETIPOS DE ESTADÍSTICAS FOODY ---
 // Define los valores BASE para cada tipo de personaje en el modo tienda.
 // Estos valores se escalan con el Nivel y Rango de la carta.
