@@ -102,6 +102,54 @@
         <h2>Crear / Eliminar Cuenta</h2>
         <div id="create-ui"></div>
       </div>
+      <!-- Dentro de .menu-grid en #menu-screen -->
+<button class="menu-card" data-module="foody">
+    <span class="menu-icon">🍕</span>
+    <strong>Foody Chaos</strong>
+    <small>Sobrevive a la Tienda</small>
+</button>
+
+<!-- Nueva Pantalla Oculta (Ponla antes del footer o después de moonlight-screen) -->
+<div id="foody-screen" class="screen">
+    <button class="back-btn" data-back="menu-screen">← Menú</button>
+    
+    <div class="foody-header">
+        <h2>🍕 Foody Chaos</h2>
+        <div class="foody-stats">
+            <div>Tiempo: <span id="fd-time">60</span>s</div>
+            <div>Puntos: <span id="fd-score">0</span></div>
+            <div>Combo: <span id="fd-combo">x1</span></div>
+        </div>
+    </div>
+
+    <!-- Área de Juego: La Tienda -->
+    <div id="shop-floor" class="shop-floor-container">
+        <!-- Los items aparecerán aquí dinámicamente -->
+    </div>
+
+    <!-- Barra de Equipo Activo (Visualización de quién está comiendo) -->
+    <div class="team-bar">
+        <h3>Tu Equipo:</h3>
+        <div id="active-team-display" class="team-slots"></div>
+    </div>
+
+    <!-- Tienda de Mejoras -->
+    <div class="upgrade-panel">
+        <h3>Mejoras Instantáneas</h3>
+        <div class="upgrades-grid">
+            <button id="upg-speed" class="secondary">⚡ Velocidad Masticación (+10% CPS)<br><small>Coste: 500 pts</small></button>
+            <button id="upg-value" class="secondary">💎 Valor Nutricional (+20% Pts/Bocado)<br><small>Coste: 800 pts</small></button>
+            <button id="upg-auto" class="chromo-btn">🤖 Ayudante Automático<br><small>Coste: 2000 pts</small></button>
+        </div>
+    </div>
+
+    <div class="controls-row">
+        <button id="fd-start" class="success-btn">▶️ Iniciar Partida</button>
+        <button id="fd-stop" disabled>⏹ Detener</button>
+    </div>
+    
+    <div id="fd-results" class="results-box hidden"></div>
+</div>
 
       <div class="card-panel">
         <h2>Pack Log</h2>
