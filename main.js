@@ -390,39 +390,40 @@ function setupBindings() {
 
         // ... código existente ...
 
-    // ⭐ NUEVO: BINDING PARA FOODY CHAOS ⭐
-    const foodyBtn = document.querySelector('[data-module="foody"]');
-    if(foodyBtn) {
-        foodyBtn.onclick = () => {
-            // Abrir Modal Fullscreen
-            const modal = document.getElementById('foody-fullscreen-modal');
-            if(modal) {
-                modal.classList.remove('hidden');
-                
-                // Inicializar Motor si no está hecho
-                if(window.FoodyEngine && GS) {
-                    // Limpiar contenedor previo
-                    const container = document.getElementById('foody-canvas-container');
-                    if(container) container.innerHTML = '';
-                    
-                    // Iniciar
-                    window.FoodyEngine.init(GS, 'foody-canvas-container');
-                    window.FoodyAPI.startGame();
-                    
-                    // Renderizar HUD inicial
-                    renderFoodyHUD();
-                }
-            }
-        };
-    }
+// Dentro de setupBindings() o donde manejes la navegación
+document.querySelectorAll(".menu-card").forEach(btn => {
+    btn.addEventListener("click", () => {
+        const module = btn.dataset.module;
+        
+        // ... tus otros casos (dig, shop, etc) ...
 
-    const fdCloseBtn = document.getElementById('fd-close-btn');
-    if(fdCloseBtn) {
-        fdCloseBtn.onclick = () => {
-            document.getElementById('foody-fullscreen-modal').classList.add('hidden');
-            window.FoodyAPI.stopGame();
-        };
+        if (module === "foody") {
+            openFoodyModal();
+        }
+    });
+});
+
+// Función auxiliar para abrir Foody
+function openFoodyModal() {
+    const modal = document.getElementById('foody-modal');
+    if(modal) {
+        modal.classList.remove('hidden');
+        
+        // Inicializar motor pasando la instancia GS global
+        if(window.FoodyEngine && GS) {
+            window.FoodyEngine.init('foody-game-container', GS);
+        }
     }
+}
+
+// Listener para cerrar
+const closeBtn = document.getElementById('fd-close-btn');
+if(closeBtn) {
+    closeBtn.onclick = () => {
+        document.getElementById('foody-modal').classList.add('hidden');
+        // Detener motor implícitamente al ocultar o recargar
+    };
+}
 }
 
 function getCurrentSongData() {
