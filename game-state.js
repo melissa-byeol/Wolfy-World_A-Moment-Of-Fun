@@ -50,9 +50,10 @@ const CHARACTERS = [
 // --- TEMAS DISPONIBLES (OBJETOS ESTRUCTURADOS) ---
 // IMPORTANTE: Ahora son objetos con .name, .icon, .color para evitar errores de undefined
 const THEMES_GENERAL = [
-    { name: "Themeless", color: "#9aa4b2", icon: "⚪", synergy: null },
-    { name: "Curiosity", color: "#3498db", icon: "🔍", synergy: null },
+    { name: "Themeless", color: "#9aa4b2", icon: "⚪", synergy: [ { songId: 'exotic', multiplier: 1.55 } ] },
+    { name: "Curiosity", color: "#3498db", icon: "🔍", synergy: [ { songId: 'curious', multiplier: 1.55 } ] },
     { name: "Playtime", color: "#f1c40f", icon: "🎈", synergy: null },
+    { name: "Stillness In The Thorns", icon: "🌹", synergy: [ { songId: 'bed_of_thorns', multiplier: 1.55 }, { songId: 'stick_with_you', multiplier: 1.55 } ] }, 
     { name: "Party O'Clock", color: "#e67e22", icon: "🎉", synergy: null },
     { name: "[FX] Orange-White Blooded", color: "#ff5722", icon: "", synergy: null },
     
@@ -61,7 +62,7 @@ const THEMES_GENERAL = [
         name: "Where is the love?", 
         color: "#ff69b4", 
         icon: "❤️‍🔥", 
-        synergy: { songId: 'sos', multiplier: 1.55 } 
+        synergy: [ { songId: 'sos', multiplier: 1.55 } ] 
     }
 ];
 
@@ -69,7 +70,7 @@ const THEME_PUPPY_EXCLUSIVE = {
     name: "We're the new kids", 
     color: "#2ecc71", 
     icon: "🐶", 
-    synergy: null 
+    synergy: [ { songId: 'new_kidz', multiplier: 1.55 } ] 
 };
 
 const THEME_LOBITO_VOCAL_EXCLUSIVE = { 
@@ -157,7 +158,7 @@ function generateCardCatalog() {
                 rarityBase: 'common',
                 visualColor: themeObj.color,
                 visualIcon: themeObj.icon,
-                synergy: themeObj.synergy || null,
+                synergy: themeObj.synergy || [] ,
                 archetype: getArchetype(char.id, char.role)
             });
         });
@@ -173,7 +174,7 @@ function generateCardCatalog() {
                 rarityBase: 'rare',
                 visualColor: THEME_PUPPY_EXCLUSIVE.color,
                 visualIcon: THEME_PUPPY_EXCLUSIVE.icon,
-                synergy: THEME_PUPPY_EXCLUSIVE.synergy || null,
+                synergy: THEME_PUPPY_EXCLUSIVE.synergy || [] ,
                 archetype: getArchetype(char.id, char.role)
             });
         }
@@ -189,7 +190,7 @@ function generateCardCatalog() {
                 rarityBase: 'epic',
                 visualColor: THEME_LOBITO_VOCAL_EXCLUSIVE.color,
                 visualIcon: THEME_LOBITO_VOCAL_EXCLUSIVE.icon,
-                synergy: THEME_LOBITO_VOCAL_EXCLUSIVE.synergy || null,
+                synergy: THEME_LOBITO_VOCAL_EXCLUSIVE.synergy || [] ,
                 archetype: getArchetype(char.id, char.role)
             });
         }
@@ -205,7 +206,7 @@ function generateCardCatalog() {
                 rarityBase: 'epic',
                 visualColor: THEME_LOBITO_INST_EXCLUSIVE.color,
                 visualIcon: THEME_LOBITO_INST_EXCLUSIVE.icon,
-                synergy: THEME_LOBITO_INST_EXCLUSIVE.synergy || null,
+                synergy: THEME_LOBITO_INST_EXCLUSIVE.synergy || [] ,
                 archetype: getArchetype(char.id, char.role)
             });
         }
@@ -365,30 +366,49 @@ class GameState {
         };
     }
 
-    getRhythmStats(songId) {
+        getRhythmStats(songId) {
         let totalPowerSum = 0;
         let shields = 0;
         let startCombo = 0;
-        let multiplier = 1.0;
+        let globalMultiplier = 1.0; // Multiplicador global de score
 
         this.equippedCards.forEach(id => {
             const power = this.calculateCardPower(id);
-            totalPowerSum += power;
             const record = this.getCardRecord(id);
+            const catalogEntry = CARD_MAP[id];
+
+            if (!catalogEntry) return;
+
+            // 1. Potencia Base
+            let cardEffectivePower = power;
+
+            // 2. Aplicar Escudos y Combo Inicial según Rango
             if (['XR', 'UR', 'MR'].includes(record.rank)) shields += 1;
             if (record.rank === 'MR') startCombo += 10;
-            
-            const catalogEntry = CARD_MAP[id];
-            if (catalogEntry && catalogEntry.synergy && catalogEntry.synergy.songId === songId) {
-                 totalPowerSum *= catalogEntry.synergy.multiplier;
+
+            // 3. ⭐ LÓGICA DE MÚLTIPLES SINERGIAS ⭐
+            if (catalogEntry.synergies && Array.isArray(catalogEntry.synergies)) {
+                catalogEntry.synergies.forEach(syn => {
+                    if (syn.songId === songId) {
+                        // Opción A: Multiplicar la potencia INDIVIDUAL de la carta
+                        cardEffectivePower *= syn.multiplier;
+                        
+                        // Opción B (Alternativa): Sumar al multiplicador GLOBAL
+                        // globalMultiplier *= syn.multiplier; 
+                        
+                        // Usaremos Opción A para que sea más granular (solo afecta a esa carta)
+                    }
+                });
             }
+
+            totalPowerSum += cardEffectivePower;
         });
 
         return {
             power: totalPowerSum > 0 ? totalPowerSum : 1,
             shields: shields,
             startCombo: startCombo,
-            multiplier: multiplier
+            multiplier: globalMultiplier // Esto sigue siendo para efectos globales si los añades luego
         };
     }
 
