@@ -136,25 +136,32 @@
   <!-- Script del nuevo motor -->
 <script src="foody-engine.js" defer></script>
 
-<!-- Modal/Pantalla Fullscreen para Foody -->
-<div id="foody-fullscreen-modal" class="modal-overlay hidden" style="z-index: 9999;">
-    <div class="modal-content" style="width: 95vw; height: 90vh; display:flex; flex-direction:column; padding:0; overflow:hidden;">
-        <header style="background:#1a1a2e; padding:10px 20px; display:flex; justify-content:space-between; align-items:center;">
-            <h2>🍕 Foody Chaos: Despensa Infinita</h2>
+<!-- Contenedor Modal para Foody -->
+<div id="foody-modal" class="modal-overlay hidden" style="z-index: 9999;">
+    <div class="modal-content" style="width: 90vw; max-width: 800px; height: 80vh; display:flex; flex-direction:column; padding:0; overflow:hidden; background:#1a1a2e;">
+        
+        <!-- Header del Mini-Juego -->
+        <header style="background:#27293d; padding:10px 20px; display:flex; justify-content:space-between; align-items:center;">
+            <h2 style="margin:0; color:#ffd700;">🍕 Foody Chaos</h2>
             <div>
+                <span id="fd-timer-display" style="font-weight:bold; color:white; margin-right:15px;">60s</span>
                 <button id="fd-close-btn" class="danger-btn">Salir</button>
             </div>
         </header>
-        
-        <!-- Contenedor donde FoodyEngine inyectará el Canvas -->
-        <div id="foody-canvas-container" style="flex-grow:1; position:relative; background:#000;"></div>
-        
-        <!-- HUD Inferior: Estadísticas del Equipo -->
-        <footer style="background:#16181c; padding:10px; display:flex; gap:10px; overflow-x:auto;">
-            <div id="team-hud-list" style="display:flex; gap:10px;">
-                <!-- Se llenará dinámicamente -->
+
+        <!-- Área de Juego -->
+        <div style="flex-grow:1; position:relative; background:#000; display:flex; justify-content:center; align-items:center;">
+            <!-- El canvas se inyectará aquí vía JS -->
+            <div id="foody-game-container"></div>
+            
+            <!-- HUD de Equipo Superpuesto -->
+            <div id="foody-team-hud" style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.7); padding:10px; border-radius:8px; min-width:200px; pointer-events:none;">
+                <!-- Se llena dinámicamente -->
             </div>
-        </footer>
+        </div>
+
+        <!-- Resultados -->
+        <div id="fd-results" class="results-box hidden" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); z-index:10;"></div>
     </div>
 </div>
   
