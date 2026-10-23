@@ -25,7 +25,7 @@ const CHARACTERS = [
     { id: "tecladista", name: "Lobito Tecladista", role: "inst" },
     { id: "baterista", name: "Lobito Baterista", role: "inst" },
     { id: "guitarrero", name: "Lobito Guitarrero", role: "inst" },
-    { id: "bajista", name: "Lobito Bajista", role: "inst" }.
+    { id: "bajista", name: "Lobito Bajista", role: "inst" },
     
     // CACHORRITOS / CACHORROS
     { id: "cachorrito", name: "Cachorrito", role: "puppy_general" },
