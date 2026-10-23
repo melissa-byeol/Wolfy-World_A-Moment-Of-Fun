@@ -61,7 +61,7 @@ const THEMES_GENERAL = [
         name: "Where is the love?", 
         color: "#ff69b4", 
         icon: "❤️‍🔥", 
-        synergy: { songId: 'sos_seventeen', multiplier: 1.55 } 
+        synergy: { songId: 'sos', multiplier: 1.55 } 
     }
 ];
 
