@@ -1,113 +1,133 @@
 /**
- * WOLFY WORLD - FOODY CHAOS ENGINE v3 (Grid Based)
- * Exploración top-down con mapas JSON y gestión de inventario por capacidad.
+ * WOLFY WORLD - FOODY ENGINE v1
+ * Motor Top-Down para Foody Chaos.
  */
 
 const FoodyEngine = (function() {
-    // --- CONFIGURACIÓN DEL MOTOR ---
-    const TILE_SIZE = 40; // Tamaño visual de cada celda en px
-    const VIEWPORT_W = 600; // Ancho visible del canvas
-    const VIEWPORT_H = 400; // Alto visible del canvas
+    // --- ESTADO INTERNO ---
+    let canvas, ctx;
+    let isActive = false;
+    let lastTime = 0;
     
-    // Tipos de Tiles
-    const TILES = {
-        EMPTY: 0,
-        WALL: 1,
-        SHELF_SNACK: 2,
-        SHELF_DRINK: 3,
-        SHELF_FRESH: 4,
-        EXIT_DOOR: 9
+    // Mapa simple generado proceduralmente o cargado
+    // 0: Piso, 1: Pared, 2: Estante Snacks, 3: Estante Drinks, 4: Estante Fresh
+    let mapGrid = [];
+    const MAP_WIDTH = 15;
+    const MAP_HEIGHT = 10;
+    
+    // Jugador
+    let player = {
+        x: 1, y: 1, // Posición en grid
+        speed: 0.15, // Velocidad de interpolación visual
+        visualX: 40, visualY: 40, // Posición pixel actual para suavizado
+        direction: 'down'
     };
 
-    // Estado Runtime
-    let isActive = false;
-    let currentMap = null;
-    let playerPos = { x: 1, y: 1 }; // Posición en grid
-    let cameraOffset = { x: 0, y: 0 };
-    let teamStats = []; // Array de objetos { id, name, capacity, eaten }
+    // Equipo (Instancias activas durante la partida)
+    // Se poblará desde GameState.getFoodyStats() al iniciar
+    let teamMembers = []; 
+
+    // Items en pantalla
+    let activeItems = []; 
     
-    // DOM Elements
-    let canvas = null;
-    let ctx = null;
-    let uiContainer = null; // Donde pintamos menús contextuales HTML
-    
-    // Input State
-    const keysPressed = new Set();
-    let moveTimer = 0;
-    const MOVE_COOLDOWN = 150; // ms entre movimientos
+    // Temporizador
+    let timeLeft = 0;
+    let spawnTimer = 0;
+
+    // UI References
+    let uiElements = {};
 
     /**
-     * Inicializa el motor con una instancia de GameState externa
+     * INICIALIZACIÓN
+     * @param {string} containerId - ID del div contenedor
+     * @param {object} gsInstance - Instancia de GameState para leer cartas equipadas
      */
-    function init(gsInstance, containerId) {
-        if (!gsInstance) return console.error("GameState no proporcionado");
-        
+    function init(containerId, gsInstance) {
+        const container = document.getElementById(containerId);
+        if (!container) return console.error("Contenedor no encontrado");
+
         // Crear Canvas si no existe
-        let root = document.getElementById(containerId);
-        if(!root) {
-            root = document.createElement('div');
-            root.id = containerId;
-            document.body.appendChild(root);
+        if (!canvas) {
+            canvas = document.createElement('canvas');
+            canvas.width = MAP_WIDTH * FOODY_CONFIG.TILE_SIZE;
+            canvas.height = MAP_HEIGHT * FOODY_CONFIG.TILE_SIZE;
+            canvas.style.background = '#1a1a2e';
+            canvas.style.borderRadius = '8px';
+            canvas.style.display = 'block';
+            container.appendChild(canvas);
+            ctx = canvas.getContext('2d');
+        } else {
+            container.innerHTML = ''; // Limpiar reinicio
+            container.appendChild(canvas);
         }
 
-        canvas = document.createElement('canvas');
-        canvas.width = VIEWPORT_W;
-        canvas.height = VIEWPORT_H;
-        canvas.style.background = '#1a1a2e';
-        canvas.style.borderRadius = '8px';
-        canvas.style.display = 'block';
-        canvas.style.margin = '0 auto';
-        root.innerHTML = ''; // Limpiar anterior
-        root.appendChild(canvas);
-        
-        ctx = canvas.getContext('2d');
-        
-        // Contenedor para UI HTML (menús contextuales)
-        uiContainer = document.createElement('div');
-        uiContainer.className = 'foody-ui-layer';
-        root.appendChild(uiContainer);
+        // Generar Mapa Aleatorio Simple
+        generateMap();
 
-        // Cargar Mapa Demo
-        loadMap('maps/pantry_level_1.json', gsInstance);
+        // Preparar Equipo desde GameState
+        prepareTeam(gsInstance);
+
+        // Resetear Estado
+        resetGame();
         
-        setupInputListeners();
+        // Bindings de Input
+        setupInput();
+        
+        // Iniciar Loop
+        requestAnimationFrame(gameLoop);
     }
 
-        async function loadMap(mapUrl, gsInstance) {
-        try {
-            const res = await fetch(mapUrl);
-            if(!res.ok) throw new Error(`No encontrado: ${mapUrl}`);
-            const data = await res.json();
-            
-            currentMap = data;
-            
-            // Preparar Equipo basado en GS.equippedCards usando LAS NUEVAS STATS
-            teamStats = gsInstance.equippedCards.map(cardId => {
-                const fs = gsInstance.getFoodyStats(cardId); // ⭐ LLAMADA ACTUALIZADA
-                const catalog = CARD_MAP[cardId];
-                
-                if(!fs) return null; // Ignorar si no hay datos
-
-                return {
-                    id: cardId,
-                    name: catalog ? catalog.displayName.split('[')[0] : cardId,
-                    maxCapacity: fs.capacity,
-                    currentLoad: 0,
-                    speed: fs.speed,       // Usar para moverse más lento/rápido
-                    strength: fs.strength, // Usar para romper puertas/cajas
-                    hp: fs.hp,             // Vida actual
-                    maxHp: fs.hp,
-                    special: fs.special,
-                    color: getRankColor(fs.rank || 'B') // Asumiendo que tienes acceso al rank aquí o lo pasas
-                };
-            }).filter(Boolean); // Eliminar nulos
-
-            playerPos = { ...data.startPos || {x:1, y:1} };
-            renderLoop(); 
-            
-        } catch(e) {
-            console.error("Error cargando mapa:", e);
+    function generateMap() {
+        mapGrid = [];
+        for(let y=0; y<MAP_HEIGHT; y++) {
+            let row = [];
+            for(let x=0; x<MAP_WIDTH; x++) {
+                // Bordes son paredes
+                if(x===0 || x===MAP_WIDTH-1 || y===0 || y===MAP_HEIGHT-1) {
+                    row.push(1); 
+                } else {
+                    // Interior: Chance de tener estante
+                    const rand = Math.random();
+                    if(rand > 0.85) row.push(2); // Snack
+                    else if(rand > 0.70) row.push(3); // Drink
+                    else if(rand > 0.55) row.push(4); // Fresh
+                    else row.push(0); // Vacío
+                }
+            }
+            mapGrid.push(row);
         }
+        // Asegurar inicio despejado
+        mapGrid[1][1] = 0;
+        mapGrid[1][2] = 0;
+        mapGrid[2][1] = 0;
+    }
+
+    function prepareTeam(gs) {
+        teamMembers = [];
+        if(!gs || !gs.equippedCards || gs.equippedCards.length === 0) {
+            // Si no hay equipo, ponemos un dummy básico para probar
+            teamMembers.push({
+                name: "Lobito Solo",
+                capacity: 100,
+                currentLoad: 0,
+                color: "#fff"
+            });
+            return;
+        }
+
+        gs.equippedCards.forEach(id => {
+            const stats = gs.getFoodyStats(id);
+            if(stats) {
+                teamMembers.push({
+                    id: id,
+                    name: stats.roleName + " (" + id.split('_')[0] + ")",
+                    capacity: stats.capacity,
+                    currentLoad: 0,
+                    special: stats.special,
+                    color: getRankColor(stats.rank || 'B') // Necesitamos rank aquí, asumimos B si falla
+                });
+            }
+        });
     }
 
     function getRankColor(rank) {
@@ -115,288 +135,355 @@ const FoodyEngine = (function() {
         return colors[rank] || '#fff';
     }
 
-    // --- LÓGICA DE MOVIMIENTO Y CÁMARA ---
-    function update(dt) {
-        if (!isActive) return;
+    function resetGame() {
+        isActive = true;
+        timeLeft = FOODY_CONFIG.GAME_DURATION_SECONDS;
+        player.x = 1; player.y = 1;
+        player.visualX = player.x * FOODY_CONFIG.TILE_SIZE;
+        player.visualY = player.y * FOODY_CONFIG.TILE_SIZE;
+        activeItems = [];
+        teamMembers.forEach(m => m.currentLoad = 0);
+        updateHUD();
+    }
 
-        // Movimiento suave con cooldown
-        moveTimer += dt;
-        if (moveTimer >= MOVE_COOLDOWN) {
-            let dx = 0, dy = 0;
-            if (keysPressed.has('w') || keysPressed.has('arrowup')) dy = -1;
-            if (keysPressed.has('s') || keysPressed.has('arrowdown')) dy = 1;
-            if (keysPressed.has('a') || keysPressed.has('arrowleft')) dx = -1;
-            if (keysPressed.has('d') || keysPressed.has('arrowright')) dx = 1;
-
-            if (dx !== 0 || dy !== 0) {
-                const nx = playerPos.x + dx;
-                const ny = playerPos.y + dy;
-                
-                if (isWalkable(nx, ny)) {
-                    playerPos.x = nx;
-                    playerPos.y = ny;
-                    moveTimer = 0; // Reset cooldown
-                    
-                    checkInteraction(); // Ver si chocamos con algo interactuable
-                }
+    // --- INPUT HANDLING ---
+    const keys = new Set();
+    function setupInput() {
+        window.addEventListener('keydown', e => keys.add(e.key.toLowerCase()));
+        window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+        
+        // Interacción con ESPACIO o ENTER
+        window.addEventListener('keydown', e => {
+            if((e.code === 'Space' || e.code === 'Enter') && isActive) {
+                interactWithAdjacentShelf();
             }
+        });
+    }
+
+    // --- LÓGICA PRINCIPAL ---
+    function gameLoop(timestamp) {
+        if(!isActive) return;
+        
+        const dt = timestamp - lastTime;
+        lastTime = timestamp;
+
+        update(dt);
+        draw();
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    function update(dt) {
+        // 1. Movimiento Suave
+        const targetX = player.x * FOODY_CONFIG.TILE_SIZE;
+        const targetY = player.y * FOODY_CONFIG.TILE_SIZE;
+        
+        // Interpolación lineal simple (lerp)
+        player.visualX += (targetX - player.visualX) * 0.2;
+        player.visualY += (targetY - player.visualY) * 0.2;
+
+        // 2. Detección de Colisiones / Movimiento Grid
+        let moved = false;
+        if(keys.has('w') || keys.has('arrowup')) { tryMove(0, -1); moved=true; }
+        else if(keys.has('s') || keys.has('arrowdown')) { tryMove(0, 1); moved=true; }
+        else if(keys.has('a') || keys.has('arrowleft')) { tryMove(-1, 0); moved=true; }
+        else if(keys.has('d') || keys.has('arrowright')) { tryMove(1, 0); moved=true; }
+
+        if(moved) {
+            // Pequeño delay para evitar deslizamiento infinito si mantienes tecla
+            // En este modelo simple, solo se mueve si cambia la tecla o hay cooldown
+            // Para simplificar: permitimos movimiento continuo pero lento
         }
 
-        // Actualizar Cámara (Centrar jugador)
-        // La cámara muestra el tile central alrededor del jugador
-        cameraOffset.x = (playerPos.x * TILE_SIZE) - (VIEWPORT_W / 2) + (TILE_SIZE / 2);
-        cameraOffset.y = (playerPos.y * TILE_SIZE) - (VIEWPORT_H / 2) + (TILE_SIZE / 2);
+        // 3. Spawning de Comida
+        spawnTimer += dt;
+        if(spawnTimer > FOODY_CONFIG.SPAWN_RATE_MS) {
+            spawnFoodItem();
+            spawnTimer = 0;
+        }
+
+        // 4. Timer del Juego
+        timeLeft -= dt / 1000;
+        if(timeLeft <= 0) {
+            endGame();
+        }
         
-        // Clampear cámara a bordes del mapa
-        const mapPxW = currentMap.grid[0].length * TILE_SIZE;
-        const mapPxH = currentMap.grid.length * TILE_SIZE;
-        
-        if(cameraOffset.x < 0) cameraOffset.x = 0;
-        if(cameraOffset.y < 0) cameraOffset.y = 0;
-        if(cameraOffset.x > mapPxW - VIEWPORT_W) cameraOffset.x = Math.max(0, mapPxW - VIEWPORT_W);
-        if(cameraOffset.y > mapPxH - VIEWPORT_H) cameraOffset.y = Math.max(0, mapPxH - VIEWPORT_H);
+        updateHUD();
     }
 
-    function isWalkable(x, y) {
-        if (y < 0 || y >= currentMap.grid.length) return false;
-        if (x < 0 || x >= currentMap.grid[0].length) return false;
+    function tryMove(dx, dy) {
+        const nx = player.x + dx;
+        const ny = player.y + dy;
+
+        // Verificar límites
+        if(nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) return;
+
+        const tileType = mapGrid[ny][nx];
         
-        const tileType = currentMap.grid[y][x];
-        // Solo vacíos o salidas son transitables (las estanterías bloquean pero son interactivas)
-        return tileType === TILES.EMPTY || tileType === TILES.EXIT_DOOR;
+        // Solo moverse si es piso (0) o salida (9)
+        if(tileType === 0) {
+            player.x = nx;
+            player.y = ny;
+        }
+        // Si es pared (1) o estante (2,3,4), NO nos movemos encima, pero podemos interactuar si estamos adyacentes
     }
 
-    function checkInteraction() {
-        // Mirar hacia dónde está mirando el jugador? 
-        // Simplificación: Interactuar con adyacentes si hay tecla E presionada recientemente
-        // Por ahora, mostraremos opciones si estamos JUNTO a una estantería
-        
-        const adjacentTiles = [
-            {x: playerPos.x+1, y: playerPos.y},
-            {x: playerPos.x-1, y: playerPos.y},
-            {x: playerPos.x, y: playerPos.y+1},
-            {x: playerPos.x, y: playerPos.y-1}
-        ];
-
+    function interactWithAdjacentShelf() {
+        // Buscar estantes adyacentes
+        const dirs = [[0,-1], [0,1], [-1,0], [1,0]];
         let foundShelf = null;
-        for(const pos of adjacentTiles) {
-            if(pos.y >= 0 && pos.y < currentMap.grid.length && pos.x >= 0 && pos.x < currentMap.grid[0].length) {
-                const t = currentMap.grid[pos.y][pos.x];
-                if(t >= 2 && t <= 4) { // Es estantería
-                    foundShelf = { x: pos.x, y: pos.y, type: t };
-                    break;
+        let shelfType = 0;
+
+        for(let d of dirs) {
+            const tx = player.x + d[0];
+            const ty = player.y + d[1];
+            
+            if(tx>=0 && tx<MAP_WIDTH && ty>=0 && ty<MAP_HEIGHT) {
+                const t = mapGrid[ty][tx];
+                if(t >= 2 && t <= 4) {
+                    foundShelf = {x: tx, y: ty};
+                    shelfType = t;
+                    break; // Tomamos el primero que encontremos
                 }
             }
         }
 
         if(foundShelf) {
-            showContextMenu(foundShelf);
-        } else {
-            hideContextMenu();
+            openInteractionMenu(shelfType);
         }
     }
 
-    // --- RENDERIZADO CANVAS ---
-    function draw() {
-        if(!ctx || !currentMap) return;
-        
-        ctx.clearRect(0, 0, VIEWPORT_W, VIEWPORT_H);
-        
-        // Calcular rango de tiles visibles
-        const startX = Math.floor(cameraOffset.x / TILE_SIZE);
-        const startY = Math.floor(cameraOffset.y / TILE_SIZE);
-        const endX = Math.ceil((cameraOffset.x + VIEWPORT_W) / TILE_SIZE);
-        const endY = Math.ceil((cameraOffset.y + VIEWPORT_H) / TILE_SIZE);
+    function spawnFoodItem() {
+        if(activeItems.length >= FOODY_CONFIG.MAX_ITEMS_ON_SCREEN) return;
 
-        // Dibujar Grid
-        for(let y = startY; y <= endY; y++) {
-            for(let x = startX; x <= endX; x++) {
-                if(y < 0 || y >= currentMap.grid.length || x < 0 || x >= currentMap.grid[0].length) continue;
-                
-                const tileType = currentMap.grid[y][x];
-                const screenX = (x * TILE_SIZE) - cameraOffset.x;
-                const screenY = (y * TILE_SIZE) - cameraOffset.y;
-
-                drawTile(ctx, screenX, screenY, tileType, x, y);
+        // Elegir tipo aleatorio basado en qué estantes hay cerca? 
+        // Por ahora, spawn global en cualquier celda vacía lejana al jugador
+        const emptyCells = [];
+        for(let y=1; y<MAP_HEIGHT-1; y++){
+            for(let x=1; x<MAP_WIDTH-1; x++){
+                if(mapGrid[y][x] === 0) {
+                    // Evitar spawn muy cerca del jugador
+                    const dist = Math.abs(x-player.x) + Math.abs(y-player.y);
+                    if(dist > 2) emptyCells.push({x,y});
+                }
             }
         }
 
-        // Dibujar Jugador (Líder del equipo)
-        const pScreenX = (playerPos.x * TILE_SIZE) - cameraOffset.x;
-        const pScreenY = (playerPos.y * TILE_SIZE) - cameraOffset.y;
+        if(emptyCells.length === 0) return;
+
+        const cell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
         
+        // Elegir item aleatorio
+        const itemData = FOOD_ITEMS[Math.floor(Math.random() * FOOD_ITEMS.length)];
+        
+        activeItems.push({
+            ...itemData,
+            gridX: cell.x,
+            gridY: cell.y,
+            visualX: cell.x * FOODY_CONFIG.TILE_SIZE,
+            visualY: cell.y * FOODY_CONFIG.TILE_SIZE,
+            collected: false
+        });
+    }
+
+    // --- RENDERIZADO ---
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 1. Dibujar Mapa
+        for(let y=0; y<MAP_HEIGHT; y++) {
+            for(let x=0; x<MAP_WIDTH; x++) {
+                const t = mapGrid[y][x];
+                const px = x * FOODY_CONFIG.TILE_SIZE;
+                const py = y * FOODY_CONFIG.TILE_SIZE;
+
+                if(t === 1) { // Pared
+                    ctx.fillStyle = '#2c3e50';
+                    ctx.fillRect(px, py, FOODY_CONFIG.TILE_SIZE, FOODY_CONFIG.TILE_SIZE);
+                } else if(t >= 2 && t <= 4) { // Estante
+                    drawShelf(ctx, px, py, t);
+                } else { // Piso
+                    ctx.fillStyle = (x+y)%2===0 ? '#1e272e' : '#2d3436';
+                    ctx.fillRect(px, py, FOODY_CONFIG.TILE_SIZE, FOODY_CONFIG.TILE_SIZE);
+                }
+            }
+        }
+
+        // 2. Dibujar Items
+        activeItems.forEach(item => {
+            if(item.collected) return;
+            ctx.font = "24px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(item.emoji, item.visualX + 20, item.visualY + 20);
+        });
+
+        // 3. Dibujar Jugador
         ctx.fillStyle = "#fff";
         ctx.beginPath();
-        ctx.arc(pScreenX + TILE_SIZE/2, pScreenY + TILE_SIZE/2, TILE_SIZE/3, 0, Math.PI*2);
+        ctx.arc(player.visualX + 20, player.visualY + 20, 15, 0, Math.PI*2);
         ctx.fill();
         ctx.strokeStyle = "#000";
         ctx.lineWidth = 2;
         ctx.stroke();
         
-        // Indicador de "Comiendo" si tiene carga alta
-        if(teamStats.length > 0) {
-             const avgLoad = teamStats.reduce((acc, s) => acc + (s.currentLoad/s.maxCapacity), 0) / teamStats.length;
-             if(avgLoad > 0.8) {
-                 ctx.fillStyle = "red";
-                 ctx.font = "10px Arial";
-                 ctx.fillText("😵", pScreenX + 5, pScreenY - 5);
-             }
-        }
+        // Indicador de dirección simple
+        ctx.fillStyle = "yellow";
+        ctx.beginPath();
+        ctx.arc(player.visualX + 20, player.visualY + 20, 5, 0, Math.PI*2);
+        ctx.fill();
     }
 
-    function drawTile(c, sx, sy, type, gx, gy) {
-        // Fondo suelo
-        c.fillStyle = (gx + gy) % 2 === 0 ? "#2a2d42" : "#222538";
-        c.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
-
-        switch(type) {
-            case TILES.WALL:
-                c.fillStyle = "#111";
-                c.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
-                c.strokeStyle = "#333";
-                c.strokeRect(sx, sy, TILE_SIZE, TILE_SIZE);
-                break;
-            case TILES.SHELF_SNACK:
-                drawShelf(c, sx, sy, "🍿", "#ffcc80");
-                break;
-            case TILES.SHELF_DRINK:
-                drawShelf(c, sx, sy, "🥤", "#82b1ff");
-                break;
-            case TILES.SHELF_FRESH:
-                drawShelf(c, sx, sy, "🍎", "#69f0ae");
-                break;
-            case TILES.EXIT_DOOR:
-                c.fillStyle = "#ffd700";
-                c.fillRect(sx + 5, sy + 5, TILE_SIZE - 10, TILE_SIZE - 10);
-                c.fillStyle = "#000";
-                c.font = "bold 12px Arial";
-                c.textAlign = "center";
-                c.fillText("EXIT", sx + TILE_SIZE/2, sy + TILE_SIZE/2 + 4);
-                break;
-        }
-    }
-
-    function drawShelf(c, sx, sy, emoji, color) {
-        c.fillStyle = color;
-        c.globalAlpha = 0.3;
-        c.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
-        c.globalAlpha = 1.0;
+    function drawShelf(c, x, y, type) {
+        c.fillStyle = "#34495e";
+        c.fillRect(x, y, FOODY_CONFIG.TILE_SIZE, FOODY_CONFIG.TILE_SIZE);
+        c.strokeStyle = "#7f8c8d";
+        c.strokeRect(x+2, y+2, FOODY_CONFIG.TILE_SIZE-4, FOODY_CONFIG.TILE_SIZE-4);
         
-        c.font = "20px Arial";
+        c.font = "16px Arial";
         c.textAlign = "center";
         c.textBaseline = "middle";
-        c.fillText(emoji, sx + TILE_SIZE/2, sy + TILE_SIZE/2);
-        
-        c.strokeStyle = "#fff";
-        c.lineWidth = 1;
-        c.strokeRect(sx+2, sy+2, TILE_SIZE-4, TILE_SIZE-4);
+        let icon = "?";
+        if(type === 2) icon = "🍿"; // Snack
+        if(type === 3) icon = "🥤"; // Drink
+        if(type === 4) icon = "🍎"; // Fresh
+        c.fillText(icon, x + 20, y + 20);
     }
 
-    // --- UI CONTEXTUAL (HTML Overlay) ---
-    function showContextMenu(shelfInfo) {
-        if(!uiContainer) return;
-        
-        // Determinar contenido según tipo de estantería
-        let items = [];
-        if(shelfInfo.type === TILES.SHELF_SNACK) items = [{name:"Chips", weight: 0.5, val: 10}, {name:"Galletas", weight: 0.3, val: 15}];
-        if(shelfInfo.type === TILES.SHELF_DRINK) items = [{name:"Agua", weight: 1.0, val: 5}, {name:"Refresco", weight: 0.8, val: 20}];
-        if(shelfInfo.type === TILES.SHELF_FRESH) items = [{name:"Manzana", weight: 0.2, val: 25}, {name:"Pollo", weight: 1.5, val: 50}];
+    // --- UI & MENÚS ---
+    function openInteractionMenu(shelfType) {
+        // Filtrar items por tipo de estante
+        let availableItems = [];
+        if(shelfType === 2) availableItems = FOOD_ITEMS.filter(i => i.type === 'snack');
+        if(shelfType === 3) availableItems = FOOD_ITEMS.filter(i => i.type === 'drink');
+        if(shelfType === 4) availableItems = FOOD_ITEMS.filter(i => i.type === 'fresh' || i.type === 'dessert');
 
-        let html = `<div class="context-menu">
-            <h4>Estantería</h4>
-            <ul>`;
+        if(availableItems.length === 0) return;
+
+        // Crear overlay HTML temporal
+        const menu = document.createElement('div');
+        menu.className = 'foody-context-menu';
+        menu.style.position = 'absolute';
+        menu.style.bottom = '20px';
+        menu.style.left = '50%';
+        menu.style.transform = 'translateX(-50%)';
+        menu.style.background = 'rgba(0,0,0,0.9)';
+        menu.style.padding = '15px';
+        menu.style.borderRadius = '10px';
+        menu.style.color = 'white';
+        menu.style.zIndex = '1000';
+        menu.style.minWidth = '200px';
+
+        let html = `<h4 style="margin:0 0 10px 0; color:#ffd700;">¿Qué llevar?</h4><ul style="list-style:none;padding:0;margin:0;">`;
+        
+        availableItems.forEach(item => {
+            // Verificar si ALGUIEN del equipo tiene espacio
+            const canFit = teamMembers.some(m => (m.currentLoad + item.weight) <= m.capacity);
             
-        items.forEach(item => {
-            // Verificar si ALGÚN miembro del equipo tiene espacio
-            const canFit = teamStats.some(s => (s.currentLoad + item.weight) <= s.maxCapacity);
-            
-            html += `<li>
-                <span>${item.name} (${item.weight}kg)</span>
-                <button onclick="window.FoodyAPI.takeItem(${item.weight}, ${item.val})" ${!canFit ? 'disabled style="opacity:0.5"' : ''}>
-                    Llevar (+${item.val} pts)
-                </button>
-            </li>`;
+            html += `
+                <li style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid #333;">
+                    <span>${item.emoji} ${item.name} (${item.weight}kg)</span>
+                    <button onclick="window.FoodyAPI.pickUp('${item.id}', ${item.weight}, ${item.value})" 
+                            style="padding:2px 8px; font-size:0.8rem;" 
+                            ${!canFit ? 'disabled style="opacity:0.5"' : ''}>
+                        Llevar
+                    </button>
+                </li>
+            `;
         });
         
-        html += `</ul>
-        <button class="secondary" onclick="window.FoodyAPI.closeMenu()">Cerrar</button>
-        </div>`;
+        html += `</ul><button onclick="this.parentElement.remove()" style="margin-top:10px; width:100%; background:#e74c3c;">Cerrar</button>`;
         
-        uiContainer.innerHTML = html;
+        menu.innerHTML = html;
+        document.body.appendChild(menu);
+        
+        // Auto-cerrar si se mueve el jugador
+        setTimeout(() => {
+            if(menu.parentElement) menu.remove();
+        }, 5000);
     }
 
-    function hideContextMenu() {
-        if(uiContainer) uiContainer.innerHTML = '';
-    }
-
-    // --- API PARA BOTONES HTML ---
+    // API Global para botones HTML
     window.FoodyAPI = {
-        takeItem: (weight, value) => {
-            // Asignar peso al primer lobo con espacio disponible
-            let assigned = false;
-            for(let member of teamStats) {
-                if(member.currentLoad + weight <= member.maxCapacity) {
+        pickUp: (itemId, weight, value) => {
+            // Asignar al primer miembro con espacio
+            for(let member of teamMembers) {
+                if(member.currentLoad + weight <= member.capacity) {
                     member.currentLoad += weight;
-                    assigned = true;
-                    break;
+                    
+                    // Remover item del suelo si existe físicamente ahí (opcional, por ahora solo suma puntos/peso)
+                    // En esta versión simplificada, "llevar" consume stock virtual del estante
+                    
+                    alert(`¡${member.name} llevó ${itemId}! (+${value} pts potenciales)`);
+                    
+                    // Cerrar menú
+                    const menus = document.querySelectorAll('.foody-context-menu');
+                    menus.forEach(m => m.remove());
+                    
+                    updateHUD();
+                    return;
                 }
             }
-            
-            if(assigned) {
-                // Sumar puntos globales (simulación score)
-                // En un juego real, esto actualizaría un contador global
-                console.log(`Equipo llevó ${weight}kg. Ganancia: ${value}`);
-                hideContextMenu();
-                renderLoop(); // Refrescar visual
-                
-                // Feedback visual simple
-                const msg = document.createElement('div');
-                msg.textContent = `+${value} PTS`;
-                msg.style.position = 'absolute';
-                msg.style.left = '50%';
-                msg.style.top = '50%';
-                msg.style.color = '#ffd700';
-                msg.style.fontWeight = 'bold';
-                msg.style.transform = 'translate(-50%, -50%)';
-                msg.style.pointerEvents = 'none';
-                msg.style.animation = 'fadeUp 1s forwards';
-                document.body.appendChild(msg);
-                setTimeout(() => msg.remove(), 1000);
-            } else {
-                alert("¡Todo el equipo está lleno! No pueden llevar más.");
-            }
-        },
-        closeMenu: () => hideContextMenu(),
-        startGame: () => { isActive = true; lastTime = performance.now(); requestAnimationFrame(gameLoop); },
-        stopGame: () => { isActive = false; }
+            alert("¡Todo el equipo está lleno!");
+        }
     };
 
-    // --- LOOP PRINCIPAL ---
-    let lastTime = 0;
-    function gameLoop(timestamp) {
-        if(!isActive) return;
-        const dt = timestamp - lastTime;
-        lastTime = timestamp;
+    function updateHUD() {
+        // Actualizar barra lateral o inferior si existe
+        const hud = document.getElementById('foody-team-hud');
+        if(!hud) return;
         
-        update(dt);
-        draw();
-        
-        requestAnimationFrame(gameLoop);
-    }
-    
-    function renderLoop() {
-         // Solo dibujar un frame cuando algo cambia externamente (ej: menú cerrado)
-         draw();
+        hud.innerHTML = '';
+        teamMembers.forEach(m => {
+            const pct = Math.min(100, (m.currentLoad / m.capacity) * 100);
+            const barColor = pct > 90 ? '#e74c3c' : (pct > 70 ? '#f1c40f' : '#2ecc71');
+            
+            const div = document.createElement('div');
+            div.style.marginBottom = '5px';
+            div.innerHTML = `
+                <div style="font-size:0.8em; display:flex; justify-content:space-between;">
+                    <span>${m.name}</span>
+                    <span>${m.currentLoad.toFixed(1)} / ${m.capacity} kg</span>
+                </div>
+                <div style="height:6px; background:#333; border-radius:3px; overflow:hidden;">
+                    <div style="width:${pct}%; height:100%; background:${barColor}; transition:width 0.3s;"></div>
+                </div>
+            `;
+            hud.appendChild(div);
+        });
     }
 
-    // --- INPUT LISTENERS ---
-    function setupInputListeners() {
-        window.addEventListener('keydown', (e) => {
-            keysPressed.add(e.key.toLowerCase());
+    function endGame() {
+        isActive = false;
+        
+        // Calcular recompensas
+        let totalValue = 0;
+        teamMembers.forEach(m => {
+            // Simplificación: El valor es proporcional a lo cargado
+            // Idealmente deberíamos rastrear qué items específicos tomó cada uno
+            totalValue += m.currentLoad * 10; // 10 puntos por kg cargado
         });
-        window.addEventListener('keyup', (e) => {
-            keysPressed.delete(e.key.toLowerCase());
-        });
+
+        const earnedCoins = Math.floor(totalValue / 10);
+        
+        // Mostrar resultados
+        const resBox = document.getElementById('fd-results');
+        if(resBox) {
+            resBox.classList.remove('hidden');
+            resBox.innerHTML = `
+                <h3>¡Tiempo Agotado!</h3>
+                <p>Carga Total: <b>${teamMembers.reduce((a,b)=>a+b.currentLoad,0).toFixed(1)} kg</b></p>
+                <p>Recompensa: <b>+${earnedCoins} 🪙 Monedas Foody</b></p>
+                <button onclick="document.getElementById('fd-results').classList.add('hidden')">Aceptar</button>
+            `;
+        }
+        
+        // Guardar progreso en localStorage específico de Foody
+        const saveData = {
+            coins: (JSON.parse(localStorage.getItem('wolfy_foody_save')||'{}').coins || 0) + earnedCoins,
+            highScore: Math.max((JSON.parse(localStorage.getItem('wolfy_foody_save')||'{}').highScore || 0), totalValue)
+        };
+        localStorage.setItem('wolfy_foody_save', JSON.stringify(saveData));
     }
 
     return { init };
