@@ -1,5 +1,5 @@
 /**
- * WOLFY WORLD - GAME STATE MANAGER v7
+ * WOLFY WORLD - GAME STATE MANAGER v7 (FIXED)
  * Lógica pura: Catálogo Real, Potencias Acumuladas, Feed System + ESTADÍSTICAS FOODY.
  */
 
@@ -47,36 +47,72 @@ const CHARACTERS = [
     { id: "flautista", name: "Lobita Flautista", role: "inst" }
 ];
 
-// --- TEMAS DISPONIBLES ---
-const THEMES_GENERAL = ["Themeless", "Curiosity", "Playtime", "Party O'Clock", "[FX] Orange-White Blooded"];
-const THEME_PUPPY_EXCLUSIVE = "We're the new kids";
-const THEME_LOBITO_VOCAL_EXCLUSIVE = "Sharpened Vocals";
-const THEME_LOBITO_INST_EXCLUSIVE = "Focused Practice";
+// --- TEMAS DISPONIBLES (OBJETOS ESTRUCTURADOS) ---
+// IMPORTANTE: Ahora son objetos con .name, .icon, .color para evitar errores de undefined
+const THEMES_GENERAL = [
+    { name: "Themeless", color: "#9aa4b2", icon: "⚪", synergy: null },
+    { name: "Curiosity", color: "#3498db", icon: "🔍", synergy: null },
+    { name: "Playtime", color: "#f1c40f", icon: "🎈", synergy: null },
+    { name: "Party O'Clock", color: "#e67e22", icon: "🎉", synergy: null },
+    { name: "[FX] Orange-White Blooded", color: "#ff5722", icon: "", synergy: null },
+    
+    // Ejemplo de sinergia SOS
+    { 
+        name: "Where is the love?", 
+        color: "#ff69b4", 
+        icon: "❤️‍🔥", 
+        synergy: { songId: 'sos_seventeen', multiplier: 1.55 } 
+    }
+];
+
+const THEME_PUPPY_EXCLUSIVE = { 
+    name: "We're the new kids", 
+    color: "#2ecc71", 
+    icon: "🐶", 
+    synergy: null 
+};
+
+const THEME_LOBITO_VOCAL_EXCLUSIVE = { 
+    name: "Sharpened Vocals", 
+    color: "#9b59b6", 
+    icon: "🎤", 
+    synergy: null 
+};
+
+const THEME_LOBITO_INST_EXCLUSIVE = { 
+    name: "Focused Practice", 
+    color: "#1abc9c", 
+    icon: "🎼", 
+    synergy: null 
+};
+
+// Helper para generar IDs seguros a partir del nombre del tema
+function getSafeThemeId(themeName) {
+    return themeName.replace(/\s+/g, '_').toLowerCase().replace(/[^\w]/g, '');
+}
 
 // --- ARQUETIPOS DE ESTADÍSTICAS FOODY ---
-// Define los valores BASE para cada tipo de personaje en el modo tienda.
-// Estos valores se escalan con el Nivel y Rango de la carta.
 const FOODY_ARCHETYPES = {
-    'TANK': { // Lobito Clásico
+    'TANK': { 
         baseCap: 100, baseSpd: 2, baseStr: 20, baseHp: 100,
         desc: "Equilibrio perfecto entre resistencia y fuerza."
     },
-    'SCOUT': { // Cachorrito
+    'SCOUT': { 
         baseCap: 80, baseSpd: 4, baseStr: 5, baseHp: 50,
         desc: "Rápido y ágil, ideal para recoger ítems pequeños antes de que desaparezcan."
     },
-    'BRUISER': { // Lobito Guitarrero/Baterista (Instrumental Fuerte)
+    'BRUISER': { 
         baseCap: 120, baseSpd: 1.5, baseStr: 35, baseHp: 120,
         desc: "Tanque pesado. Puede cargar cajas enormes y defenderse de invasores."
     },
-    'HEALER': { // Lobita Pianista/Vocaloid (Soporte)
+    'HEALER': { 
         baseCap: 90, baseSpd: 2.5, baseStr: 10, baseHp: 80,
-        special: 'regen', // Regenera HP lentamente mientras camina
+        special: 'regen', 
         desc: "Mantiene al equipo vivo. Recupera salud pasivamente."
     },
-    'HOARDER': { // Cachorrito Acelerado/Breakdancer (Danza Puppy)
+    'HOARDER': { 
         baseCap: 150, baseSpd: 3, baseStr: 8, baseHp: 60,
-        special: 'double_pickup', // Tiene probabilidad de llevar 2x peso sin penalización extra
+        special: 'double_pickup', 
         desc: "El almacén ambulante. Prioriza cantidad sobre calidad."
     }
 };
@@ -104,14 +140,17 @@ function getArchetype(charId, role) {
     return 'TANK'; // Fallback
 }
 
-// Fábrica de Catálogo
+// Fábrica de Catálogo CORREGIDA
 function generateCardCatalog() {
     const catalog = [];
     
     CHARACTERS.forEach(char => {
+        // 1. Temas Generales
         THEMES_GENERAL.forEach(themeObj => {
+            const idSuffix = getSafeThemeId(themeObj.name);
+            
             catalog.push({
-                id: `${char.id}_${themeObj.name.replace(/\s+/g, '_').toLowerCase().replace(/[^\w]/g, '')}`,
+                id: `${char.id}_${idSuffix}`,
                 charId: char.id,
                 theme: themeObj.name,
                 displayName: `${char.name} [${themeObj.icon} ${themeObj.name}]`,
@@ -119,49 +158,54 @@ function generateCardCatalog() {
                 visualColor: themeObj.color,
                 visualIcon: themeObj.icon,
                 synergy: themeObj.synergy || null,
-                archetype: getArchetype(char.id, char.role) // ⭐ NUEVO CAMPO
+                archetype: getArchetype(char.id, char.role)
             });
         });
 
-        // ... (resto de exclusivas igual, añadiendo archetype: ...)
-         if (char.role.startsWith('puppy')) {
+        // 2. Tema Exclusivo Cachorros
+        if (char.role.startsWith('puppy')) {
+            const idSuffix = getSafeThemeId(THEME_PUPPY_EXCLUSIVE.name);
             catalog.push({
-                id: `${char.id}_new_kids`,
+                id: `${char.id}_${idSuffix}`,
                 charId: char.id,
                 theme: THEME_PUPPY_EXCLUSIVE.name,
                 displayName: `${char.name} [${THEME_PUPPY_EXCLUSIVE.icon} New Kids]`,
                 rarityBase: 'rare',
                 visualColor: THEME_PUPPY_EXCLUSIVE.color,
                 visualIcon: THEME_PUPPY_EXCLUSIVE.icon,
-                synergy: null,
+                synergy: THEME_PUPPY_EXCLUSIVE.synergy || null,
                 archetype: getArchetype(char.id, char.role)
             });
         }
 
+        // 3. Tema Exclusivo Vocal/Danza Lobito/a
         if ((char.role === 'vocal' || char.role === 'dance') && !char.role.startsWith('puppy')) {
-             catalog.push({
-                id: `${char.id}_sharpened`,
+            const idSuffix = getSafeThemeId(THEME_LOBITO_VOCAL_EXCLUSIVE.name);
+            catalog.push({
+                id: `${char.id}_${idSuffix}`,
                 charId: char.id,
                 theme: THEME_LOBITO_VOCAL_EXCLUSIVE.name,
                 displayName: `${char.name} [${THEME_LOBITO_VOCAL_EXCLUSIVE.icon} Sharpened]`,
                 rarityBase: 'epic',
                 visualColor: THEME_LOBITO_VOCAL_EXCLUSIVE.color,
                 visualIcon: THEME_LOBITO_VOCAL_EXCLUSIVE.icon,
-                synergy: null,
+                synergy: THEME_LOBITO_VOCAL_EXCLUSIVE.synergy || null,
                 archetype: getArchetype(char.id, char.role)
             });
         }
 
+        // 4. Tema Exclusivo Instrumental Lobito/a
         if (char.role === 'inst' && !char.role.startsWith('puppy')) {
+            const idSuffix = getSafeThemeId(THEME_LOBITO_INST_EXCLUSIVE.name);
             catalog.push({
-                id: `${char.id}_focused`,
+                id: `${char.id}_${idSuffix}`,
                 charId: char.id,
                 theme: THEME_LOBITO_INST_EXCLUSIVE.name,
                 displayName: `${char.name} [${THEME_LOBITO_INST_EXCLUSIVE.icon} Focused]`,
                 rarityBase: 'epic',
                 visualColor: THEME_LOBITO_INST_EXCLUSIVE.color,
                 visualIcon: THEME_LOBITO_INST_EXCLUSIVE.icon,
-                synergy: null,
+                synergy: THEME_LOBITO_INST_EXCLUSIVE.synergy || null,
                 archetype: getArchetype(char.id, char.role)
             });
         }
@@ -298,7 +342,6 @@ class GameState {
 
     /**
      * ⭐ NUEVA FUNCIÓN: CALCULAR STATS FÍSICAS PARA FOODY CHAOS ⭐
-     * Escala los stats base del arquetipo según el nivel y rango de la carta.
      */
     getFoodyStats(cardId) {
         const record = this.getCardRecord(cardId);
@@ -308,17 +351,13 @@ class GameState {
         const archKey = catalogEntry.archetype || 'TANK';
         const archData = FOODY_ARCHETYPES[archKey] || FOODY_ARCHETYPES['TANK'];
 
-        // Factores de escala
-        // Nivel: Cada nivel añade +5% a todo
-        // Rango: Cada salto de rango multiplica el stat base por 1.2x
-        
         const lvlMult = 1 + (record.level * 0.05);
         const rankIdx = RANK_ORDER.indexOf(record.rank);
         const rankMult = Math.pow(1.2, rankIdx);
 
         return {
             capacity: Math.round(archData.baseCap * lvlMult * rankMult),
-            speed: +(archData.baseSpd * (1 + (record.level * 0.02))).toFixed(2), // Velocidad escala menos
+            speed: +(archData.baseSpd * (1 + (record.level * 0.02))).toFixed(2), 
             strength: Math.round(archData.baseStr * lvlMult * rankMult),
             hp: Math.round(archData.baseHp * lvlMult * rankMult),
             special: archData.special || null,
@@ -357,6 +396,7 @@ class GameState {
         const isPremium = type === 'premium';
         const costCurrency = isPremium ? 'shards' : 'tokens';
         const costAmount = isPremium ? 50 : 10; 
+        
         if (this[costCurrency] < costAmount) return null;
         this[costCurrency] -= costAmount;
 
@@ -365,24 +405,29 @@ class GameState {
 
         for (let i = 0; i < count; i++) {
             const randomChar = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)];
-            let possibleThemes = [...THEMES_GENERAL.map(t => t.name)];
-            if (randomChar.role.startsWith('puppy')) possibleThemes.push(THEME_PUPPY_EXCLUSIVE.name);
-            if ((randomChar.role === 'vocal' || randomChar.role === 'dance') && !randomChar.role.startsWith('puppy')) possibleThemes.push(THEME_LOBITO_VOCAL_EXCLUSIVE.name);
-            if (randomChar.role === 'inst' && !randomChar.role.startsWith('puppy')) possibleThemes.push(THEME_LOBITO_INST_EXCLUSIVE.name);
             
-            const randomThemeName = possibleThemes[Math.floor(Math.random() * possibleThemes.length)];
-            // Buscar el objeto tema completo para obtener icon/color
-            const fullThemeObj = THEMES_GENERAL.find(t => t.name === randomThemeName) || 
-                                 (randomThemeName === THEME_PUPPY_EXCLUSIVE.name ? THEME_PUPPY_EXCLUSIVE : null) ||
-                                 (randomThemeName === THEME_LOBITO_VOCAL_EXCLUSIVE.name ? THEME_LOBITO_VOCAL_EXCLUSIVE : null) ||
-                                 (randomThemeName === THEME_LOBITO_INST_EXCLUSIVE.name ? THEME_LOBITO_INST_EXCLUSIVE : null);
+            // Construir pool de temas posibles (ahora son OBJETOS)
+            let possibleThemesPool = [...THEMES_GENERAL];
             
-            if(!fullThemeObj) continue; // Safety check
-
-            const cardId = `${randomChar.id}_${randomThemeName.replace(/\s+/g, '_').toLowerCase().replace(/[^\w]/g, '')}`;
+            if (randomChar.role.startsWith('puppy')) {
+                possibleThemesPool.push(THEME_PUPPY_EXCLUSIVE);
+            }
+            if ((randomChar.role === 'vocal' || randomChar.role === 'dance') && !randomChar.role.startsWith('puppy')) {
+                possibleThemesPool.push(THEME_LOBITO_VOCAL_EXCLUSIVE);
+            }
+            if (randomChar.role === 'inst' && !randomChar.role.startsWith('puppy')) {
+                possibleThemesPool.push(THEME_LOBITO_INST_EXCLUSIVE);
+            }
+            
+            // Elegir uno al azar
+            const selectedTheme = possibleThemesPool[Math.floor(Math.random() * possibleThemesPool.length)];
+            
+            // Generar ID usando el helper
+            const cardId = `${randomChar.id}_${getSafeThemeId(selectedTheme.name)}`;
             
             let initialRank = 'B';
             const roll = Math.random();
+            
             if (isPremium) {
                 if (roll > 0.9) initialRank = 'UR';
                 else if (roll > 0.7) initialRank = 'XR';
@@ -406,7 +451,10 @@ class GameState {
             }
         }
 
-        return { packName: isPremium ? "Sobre Premium" : "Sobre Estándar", cards: drawnCards };
+        return {
+            packName: isPremium ? "Sobre Premium" : "Sobre Estándar",
+            cards: drawnCards
+        };
     }
 
     loadFromSave(save) {
