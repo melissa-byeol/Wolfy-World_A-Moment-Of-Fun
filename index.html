@@ -169,8 +169,15 @@
     <small>Demo v5 — Sistema RPG Completo.</small>
   </footer>
 
-  <script src="game-state.js" defer></script> <!-- Nuevo archivo lógico -->
-  <script src="main.js" defer></script>
-  <script src="rhythm-game.js" defer></script>
+<!-- 1. PRIMERO: Datos Estáticos (No dependen de nada) -->
+<script src="game-state.js" defer></script> 
+<script src="foody-data.js" defer></script>   <!-- ⭐ ESTE DEBE IR ANTES QUE EL ENGINE -->
+
+<!-- 2. SEGUNDO: Motores de Juego (Dependen de los datos anteriores) -->
+<script src="rhythm-game.js" defer></script>
+<script src="foody-engine.js" defer></script> <!-- ⭐ ESTE USA FOODY_CONFIG, ASÍ QUE VA DESPUÉS -->
+
+<!-- 3. TERCERO: Controlador Principal (Une todo) -->
+<script src="main.js" defer></script>
 </body>
 </html>
