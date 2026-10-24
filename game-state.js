@@ -69,7 +69,7 @@ const THEMES_GENERAL = [
         name: "Ascending The Tower",
         color: "linear-gradient(to bottom, #87CEEB 0%, #E0F7FA 50%, #FFFFFF 100%)",
         icon: "",
-        synergy: [ { songId: 'top', multiplier: 1,55} ]
+        synergy: [ { songId: 'top', multiplier: 1.55} ]
     }
 ];
 
