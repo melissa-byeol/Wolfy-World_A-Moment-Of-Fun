@@ -1,4 +1,4 @@
-// rhythm-game.js - Motor Rítmico v8 (Con Soporte HOLDS)
+// rhythm-game.js - Motor Rítmico v9 (Soporte Dinámico 4/6 Carriles)
 
 const RhythmEngine = (function(){
   const canvas = document.getElementById('rhythm-canvas');
@@ -26,7 +26,7 @@ const RhythmEngine = (function(){
   // Estado runtime
   let running = false;
   let startTime = 0;
-  let notes = []; // Array mixto: Tap Notes y Hold Notes
+  let notes = []; 
   let currentSongId = "";
 
   // Stats
@@ -39,13 +39,60 @@ const RhythmEngine = (function(){
   let totalPower = 1;
   let multiplier = 1;
 
-  // Key mapping & colors
-  const KEYS = {
-    'd': 0, 'f': 1, 'j': 2, 'k': 3,
-    'arrowleft': 0, 'arrowdown': 1, 'arrowup': 2, 'arrowright': 3
-  };
-  const COLORS = ['#ff0055', '#ffffff', '#333333', '#aa0033'];
+  // --- CONFIGURACIÓN DINÁMICA DE CARRILES ---
+  let LANE_COUNT = 4;
+  let KEY_MAP = {};
+  let LANE_COLORS = [];
+  let KEY_LABELS = [];
+
+  function loadKeyConfig() {
+      // Leer de Settings si existe, sino default a 4
+      const count = (window.Settings && window.Settings.current.laneCount) || 4;
+      LANE_COUNT = count;
+
+      if (count === 4) {
+          // Clásico: D F J K
+          KEY_MAP = { 'd': 0, 'f': 1, 'j': 2, 'k': 3, 'arrowleft': 0, 'arrowup': 1, 'arrowdown': 2, 'arrowright': 3 };
+          LANE_COLORS = ['#ff0055', '#ffffff', '#333333', '#aa0033'];
+          KEY_LABELS = ['D','F','J','K'];
+      } else if (count === 6) {
+          // Experto: D F G H J K
+          KEY_MAP = { 
+              'd': 0, 'f': 1, 'g': 2, 
+              'h': 3, 'j': 4, 'k': 5,
+              // Opcional: Mapear flechas también si quieres, pero puede confundir en modo 6
+              // 'arrowleft': 0, ... 
+          };
+          // Colores distintivos para 6 carriles
+          LANE_COLORS = [
+              '#ff0055', // D (Rojo)
+              '#ffffff', // F (Blanco)
+              '#ffd700', // G (Oro)
+              '#bc13fe', // H (Púrpura Neón)
+              '#333333', // J (Gris Oscuro/Negro suave)
+              '#aa0033'  // K (Rosa Oscuro)
+          ];
+          KEY_LABELS = ['D','F','G','H','J','K'];
+      }
+      
+      // Recalcular velocidad/ancho visualmente no es necesario aquí, 
+      // pero sí asegurarnos de que activeKeys esté limpio
+      activeKeys.clear();
+  }
+
+  // Ejecutar al cargar
+  loadKeyConfig();
   
+  // Función pública para recargar config si cambia desde UI
+  function updateSettings() {
+      loadKeyConfig();
+      console.log(`⚙️ Motor actualizado a ${LANE_COUNT} carriles.`);
+      // Si el juego ya corre, forzamos un redraw inmediato
+      if(running) {
+           draw((performance.now() - startTime)/1000);
+      }
+  }
+
   // Track active keys for Hold detection
   const activeKeys = new Set(); 
 
@@ -104,9 +151,9 @@ const RhythmEngine = (function(){
   function touchToLane(clientX) {
     const rect = canvas.getBoundingClientRect();
     const x = clientX - rect.left;
-    const laneWidth = W / 4;
+    const laneWidth = W / LANE_COUNT; // ⭐ DINÁMICO
     let lane = Math.floor(x / laneWidth);
-    lane = Math.max(0, Math.min(3, lane));
+    lane = Math.max(0, Math.min(LANE_COUNT - 1, lane)); // ⭐ DINÁMICO
     return lane;
   }
   
@@ -128,19 +175,21 @@ const RhythmEngine = (function(){
 
   canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
   canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+  
+  // Mouse click support (opcional, útil para testing)
   canvas.addEventListener('mousedown', (e) => {
       if(!running) return;
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
-      const lane = Math.floor((x / rect.width) * 4);
-      if(lane >=0 && lane < 4) activateLane(lane);
+      const lane = Math.floor((x / rect.width) * LANE_COUNT); // ⭐ DINÁMICO
+      if(lane >= 0 && lane < LANE_COUNT) activateLane(lane);
   });
   canvas.addEventListener('mouseup', (e) => {
       if(!running) return;
        const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
-      const lane = Math.floor((x / rect.width) * 4);
-      if(lane >=0 && lane < 4) deactivateLane(lane);
+      const lane = Math.floor((x / rect.width) * LANE_COUNT); // ⭐ DINÁMICO
+      if(lane >= 0 && lane < LANE_COUNT) deactivateLane(lane);
   });
 
 
@@ -161,21 +210,20 @@ const RhythmEngine = (function(){
               endTime: isHold ? ((n.time || 0) + n.duration + offsetSeconds) : null,
               lane: (typeof n.lane === 'number') ? n.lane : 0,
               
-              // State flags
-              judgedHead: false, // ¿Se golpeó el inicio?
-              holdingBody: false, // ¿Se está sosteniendo ahora mismo?
-              bodyBroken: false, // ¿Se soltó antes de tiempo?
-              judgedTail: false, // ¿Se completó el final?
+              judgedHead: false,
+              holdingBody: false,
+              bodyBroken: false,
+              judgedTail: false,
               
-              hit: false, // Éxito total
-              missed: false, // Fallo total
+              hit: false,
+              missed: false,
               y: -100,
-              tailY: -100 // Posición Y del final de la barra
+              tailY: -100
           };
       }).sort((a,b) => a.time - b.time);
 
       prevElapsed = 0;
-      activeKeys.clear(); // Resetear teclas presionadas
+      activeKeys.clear();
       return true;
     } catch (e) {
       console.error("Error cargando chart:", e);
@@ -186,6 +234,10 @@ const RhythmEngine = (function(){
   // --- Start/Stop/Loop ---
   function start(songData, difficulty) {
     if (running) return;
+    
+    // Asegurar que la config esté cargada antes de empezar
+    loadKeyConfig(); 
+    
     score = 0; combo = 0; maxCombo = 0; hits = 0; misses = 0;
     running = true;
     startTime = performance.now();
@@ -249,7 +301,6 @@ const RhythmEngine = (function(){
   function update(elapsed) {
     for (const note of notes) {
         
-        // Calculate Positions
         const spawnTime = note.time - LEAD_TIME;
         let progressHead = (elapsed - spawnTime) / Math.max(0.0001, LEAD_TIME);
         if (progressHead < -0.5) progressHead = -0.5;
@@ -263,22 +314,18 @@ const RhythmEngine = (function(){
              if (progressTail > 1.5) progressTail = 1.5;
              note.tailY = TOP_MARGIN + progressTail * TRAVEL;
              
-             // Check Body Status
-             // If head was hit AND we are currently between head and tail time
              if (note.judgedHead && !note.bodyBroken && !note.judgedTail) {
                  if (elapsed >= note.time && elapsed <= note.endTime) {
-                     // Is the key still pressed?
                      if (!activeKeys.has(note.lane)) {
-                         note.bodyBroken = true; // FAIL! Released too early
+                         note.bodyBroken = true;
                          note.missed = true;
                          misses++;
                          combo = 0;
                          try { AppAPI.setCombo(combo); } catch(e){}
                      } else {
-                         note.holdingBody = true; // Visual feedback that it's being held
+                         note.holdingBody = true;
                      }
                  } else if (elapsed > note.endTime) {
-                     // Time passed without breaking? Success!
                      if (!note.bodyBroken) {
                          note.judgedTail = true;
                          note.hit = true;
@@ -286,7 +333,6 @@ const RhythmEngine = (function(){
                          combo++;
                          if (combo > maxCombo) maxCombo = combo;
                          
-                         // Award points for successful hold completion
                          const pts = Math.round((50 + totalPower) * (multiplier || 1));
                          score += pts;
                          try {
@@ -299,14 +345,10 @@ const RhythmEngine = (function(){
              }
         }
 
-        // Auto-Miss Head (for both tap and hold starts)
         if (!note.judgedHead && elapsed > note.time + MISS_WIN) {
             note.judgedHead = true;
             if (shields > 0) {
                 shields--;
-                note.judgedHead = true; // Mark as handled by shield
-                // For holds, if shield takes the head, does it auto-complete body? 
-                // Usually yes in casual games. Let's say YES for simplicity.
                 if(note.type === 'hold') {
                     note.hit = true;
                     note.judgedTail = true;
@@ -318,21 +360,18 @@ const RhythmEngine = (function(){
                 note.missed = true;
                 misses++;
                 combo = 0;
-                if(note.type === 'hold') note.bodyBroken = true; // Ensure body doesn't trigger later
+                if(note.type === 'hold') note.bodyBroken = true;
             }
             try { AppAPI.setCombo(combo); } catch(e){}
         }
         
-        // Autoplay Logic for Heads
         if (autoplay && !note.judgedHead) {
              if (note.time > prevElapsed && note.time <= elapsed) {
-                 // Simulate pressing the key
                  activateLane(note.lane);
-                 // Schedule release for holds after duration
                  if(note.type === 'hold') {
                      setTimeout(() => {
                          if(running) deactivateLane(note.lane);
-                     }, note.endTime * 1000 - elapsed * 1000);
+                     }, (note.endTime - elapsed) * 1000);
                  } else {
                       deactivateLane(note.lane);
                  }
@@ -350,11 +389,12 @@ const RhythmEngine = (function(){
     ctx.fillStyle = `rgba(5, 6, 10, ${pulse})`;
     ctx.fillRect(0, 0, W, H);
 
-    const laneW = W / 4;
+    // ⭐ ANCHO DE CARRIL DINÁMICO ⭐
+    const laneW = W / LANE_COUNT;
 
     ctx.strokeStyle = "rgba(255,255,255,0.08)";
     ctx.lineWidth = 1;
-    for (let i=0; i<=4; i++) {
+    for (let i=0; i<=LANE_COUNT; i++) { // ⭐ BUCLE DINÁMICO
       ctx.beginPath();
       ctx.moveTo(i*laneW, 0);
       ctx.lineTo(i*laneW, H);
@@ -375,20 +415,18 @@ const RhythmEngine = (function(){
 
     // Draw Notes
     for (const note of notes) {
-        if (note.y < -100 || note.y > H + 100) continue; // Optimization
+        if (note.y < -100 || note.y > H + 100) continue;
         
         const cx = note.lane * laneW + laneW/2;
         const r = Math.max(10, Math.round(18 * (W / LOGICAL_W)));
-        const color = COLORS[note.lane % COLORS.length];
+        // Usar color dinámico basado en índice de carril
+        const color = LANE_COLORS[note.lane % LANE_COLORS.length]; 
 
         if (note.type === 'hold') {
-            // Draw Body (Rectangle connecting Head and Tail)
             if (note.judgedHead && !note.missed) {
-                // Only draw body if head is hit
                 const topY = note.y;
                 const bottomY = note.tailY;
                 
-                // Clamp drawing to screen
                 const drawTop = Math.max(topY, 0);
                 const drawBottom = Math.min(bottomY, H);
                 
@@ -396,7 +434,6 @@ const RhythmEngine = (function(){
                     ctx.fillStyle = note.holdingBody ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.1)";
                     ctx.fillRect(cx - r, drawTop, r*2, drawBottom - drawTop);
                     
-                    // Glow effect if holding correctly
                     if(note.holdingBody) {
                          ctx.shadowBlur = 10;
                          ctx.shadowColor = color;
@@ -408,7 +445,6 @@ const RhythmEngine = (function(){
                 }
             }
 
-            // Draw Head Circle
             if (!note.judgedHead || !note.hit) {
                  ctx.fillStyle = color;
                  ctx.beginPath();
@@ -418,7 +454,6 @@ const RhythmEngine = (function(){
                  ctx.lineWidth = 2;
                  ctx.stroke();
             } else if (note.hit) {
-                 // Explosion/Fade out on complete success
                  const alpha = Math.max(0, 1 - (elapsed - note.endTime)*2);
                  if(alpha > 0) {
                      ctx.globalAlpha = alpha;
@@ -430,7 +465,6 @@ const RhythmEngine = (function(){
                  }
             }
             
-            // Draw Tail Cap (Optional visual cue)
             if (!note.judgedTail && !note.missed && note.tailY > 0 && note.tailY < H) {
                  ctx.fillStyle = "rgba(255,255,255,0.5)";
                  ctx.beginPath();
@@ -439,7 +473,6 @@ const RhythmEngine = (function(){
             }
 
         } else {
-            // Standard Tap Note
             if (!note.judgedHead || !note.hit) {
                 ctx.fillStyle = color;
                 ctx.save();
@@ -473,35 +506,33 @@ const RhythmEngine = (function(){
     }
     
     // Keys Indicator
-    const keys = ['D','F','J','K'];
     ctx.font = `${Math.max(12, Math.round(16 * (W / LOGICAL_W)))}px monospace`;
     ctx.textAlign = "center";
-    for (let i=0; i<4; i++) {
+    for (let i=0; i<LANE_COUNT; i++) { // ⭐ BUCLE DINÁMICO
       const cx = i*laneW + laneW/2;
       ctx.fillStyle = activeKeys.has(i) ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.45)";
       ctx.fillRect(cx-15, HIT_LINE_Y+10, 30, 25);
       ctx.fillStyle = activeKeys.has(i) ? "#fff" : "#ddd";
-      ctx.fillText(keys[i], cx, HIT_LINE_Y+28);
+      ctx.fillText(KEY_LABELS[i], cx, HIT_LINE_Y+28); // ⭐ ETIQUETA DINÁMICA
     }
   }
 
   // --- Input Handling Helpers ---
   function activateLane(lane) {
-      if(activeKeys.has(lane)) return; // Already down
+      if(activeKeys.has(lane)) return;
       activeKeys.add(lane);
       inputHit(lane, {autoplay:false});
   }
   
   function deactivateLane(lane) {
       activeKeys.delete(lane);
-      // No need to call inputHit here, logic is in update() checking activeKeys
   }
 
   window.addEventListener('keydown', (e) => {
     const target = e.target;
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
     if (e.ctrlKey || e.altKey || e.metaKey) return;
-    if (e.repeat) return; // Ignore key repeats
+    if (e.repeat) return;
 
     const key = (e.key || '').toLowerCase();
 
@@ -510,7 +541,8 @@ const RhythmEngine = (function(){
       return;
     }
     
-    const lane = KEYS[key];
+    // Usar KEY_MAP dinámico
+    const lane = KEY_MAP[key];
     if (lane !== undefined) {
       e.preventDefault();
       activateLane(lane);
@@ -519,7 +551,7 @@ const RhythmEngine = (function(){
 
   window.addEventListener('keyup', (e) => {
      const key = (e.key || '').toLowerCase();
-     const lane = KEYS[key];
+     const lane = KEY_MAP[key];
      if (lane !== undefined) {
          deactivateLane(lane);
      }
@@ -529,12 +561,10 @@ const RhythmEngine = (function(){
     if (!running) return;
     const elapsed = (performance.now() - startTime) / 1000;
 
-    // Find best TAP or HOLD HEAD candidate
     let bestNote = null;
     let minDelta = Infinity;
     
     for (const note of notes) {
-        // Skip if already judged head OR if it's a hold body part (we only judge heads initially)
         if (note.judgedHead) continue; 
         if (note.lane !== lane) continue;
         
@@ -549,16 +579,14 @@ const RhythmEngine = (function(){
         bestNote.judgedHead = true;
         
         if (autoplay && helperMode) {
-            // Just mark visually, no points
             bestNote.hit = true; 
             return;
         }
 
-        // Determine Score based on precision
         let basePts = 0;
         if (minDelta <= PERFECT_WIN) basePts = 100;
         else if (minDelta <= GOOD_WIN) basePts = 50;
-        else basePts = 10; // Bad but counts as hit
+        else basePts = 10;
         
         hits++;
         combo++;
@@ -574,11 +602,9 @@ const RhythmEngine = (function(){
             AppAPI.setAcc(hits / Math.max(1, (hits + misses)));
         } catch(e){}
         
-        // If it's a tap note, it's fully done now.
         if(bestNote.type === 'tap') {
             bestNote.hit = true;
         }
-        // If it's a hold, waiting for update() to check body/tail
     }
   }
 
@@ -642,12 +668,13 @@ const RhythmEngine = (function(){
   }
 
   const _debug = {
-    getConfig: () => ({ W, H, HIT_LINE_Y, TOP_MARGIN, TRAVEL, LEAD_TIME, NOTE_SPEED, PERFECT_WIN, GOOD_WIN, MISS_WIN, autoplay, helperMode, running, startTime }),
+    getConfig: () => ({ W, H, HIT_LINE_Y, TOP_MARGIN, TRAVEL, LEAD_TIME, NOTE_SPEED, PERFECT_WIN, GOOD_WIN, MISS_WIN, autoplay, helperMode, running, startTime, LANE_COUNT }),
     notesSample: () => notes.slice(0, 12),
     getState: () => ({ running, score, combo, hits, misses, shields })
   };
 
-  const api = { start, stop, loadChart, setAutoplay, setHelperMode, _debug };
+  // ⭐ EXPONER updateSettings EN LA API PÚBLICA ⭐
+  const api = { start, stop, loadChart, setAutoplay, setHelperMode, _debug, updateSettings };
   return api;
 })();
 
