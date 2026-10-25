@@ -45,6 +45,18 @@ const RhythmEngine = (function(){
   let LANE_COLORS = [];
   let KEY_LABELS = [];
 
+    // --- CONFIGURACIÓN DINÁMICA DE CARRILES ---
+  
+  // --- CONFIGURACIÓN DINÁMICA DE CARRILES ---
+  
+  // ⭐ 1. DECLARAR ACTIVEKEYS PRIMERO (Antes de cualquier función que lo use) ⭐
+  const activeKeys = new Set(); 
+
+  let LANE_COUNT = 4;
+  let KEY_MAP = {};
+  let LANE_COLORS = [];
+  let KEY_LABELS = [];
+
   function loadKeyConfig() {
       // Leer de Settings si existe, sino default a 4
       const count = (window.Settings && window.Settings.current.laneCount) || 4;
@@ -59,9 +71,7 @@ const RhythmEngine = (function(){
           // Experto: D F G H J K
           KEY_MAP = { 
               'd': 0, 'f': 1, 'g': 2, 
-              'h': 3, 'j': 4, 'k': 5,
-              // Opcional: Mapear flechas también si quieres, pero puede confundir en modo 6
-              // 'arrowleft': 0, ... 
+              'h': 3, 'j': 4, 'k': 5
           };
           // Colores distintivos para 6 carriles
           LANE_COLORS = [
@@ -75,8 +85,7 @@ const RhythmEngine = (function(){
           KEY_LABELS = ['D','F','G','H','J','K'];
       }
       
-      // Recalcular velocidad/ancho visualmente no es necesario aquí, 
-      // pero sí asegurarnos de que activeKeys esté limpio
+      // Limpiar teclas presionadas al cambiar configuración
       activeKeys.clear();
   }
 
@@ -87,14 +96,45 @@ const RhythmEngine = (function(){
   function updateSettings() {
       loadKeyConfig();
       console.log(`⚙️ Motor actualizado a ${LANE_COUNT} carriles.`);
-      // Si el juego ya corre, forzamos un redraw inmediato
-      if(running) {
-           draw((performance.now() - startTime)/1000);
+      
+      // Si el juego NO está corriendo, forzamos un redraw manual para previsualización
+      if (!running) {
+          ctx.clearRect(0, 0, W, H);
+          
+          const laneW = W / LANE_COUNT;
+          
+          // Dibujar líneas guía
+          ctx.strokeStyle = "rgba(255,255,255,0.15)";
+          ctx.lineWidth = 1;
+          for (let i=0; i<=LANE_COUNT; i++) {
+            ctx.beginPath();
+            ctx.moveTo(i*laneW, 0);
+            ctx.lineTo(i*laneW, H);
+            ctx.stroke();
+          }
+          
+          // Hit line preview
+          ctx.save();
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = "#f1c40f";
+          ctx.strokeStyle = "#f1c40f";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(0, HIT_LINE_Y);
+          ctx.lineTo(W, HIT_LINE_Y);
+          ctx.stroke();
+          ctx.restore();
+
+          // Etiquetas de teclas preview
+          ctx.font = `${Math.max(12, Math.round(16 * (W / LOGICAL_W)))}px monospace`;
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#888";
+          for (let i=0; i<LANE_COUNT; i++) {
+              const cx = i*laneW + laneW/2;
+              ctx.fillText(KEY_LABELS[i], cx, HIT_LINE_Y + 25);
+          }
       }
   }
-
-  // Track active keys for Hold detection
-  const activeKeys = new Set(); 
 
   // Autoplay / helper state
   let autoplay = false;
