@@ -1,11 +1,3 @@
-<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Wolfy World — A Moment Of Fun</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
 <body>
   <header>
     <h1>🐺 Wolfy World — A Moment Of Fun</h1>
@@ -40,7 +32,7 @@
         </div>
       </div>
       
-      <!-- NUEVO: GESTIÓN DE CARTAS -->
+      <!-- GESTIÓN DE CARTAS -->
       <div class="card-panel">
         <h2>Gestión de Cartas</h2>
         <p class="small">Equipadas: <b id="equip-count">0</b>/5 | Potencia Total: <b id="total-power-display">0</b></p>
@@ -66,50 +58,54 @@
       </div>
 
      <div class="card-panel game-area">
-    <h2>Rhythm Stage</h2>
-    
-    <!-- El contenedor del juego -->
-    <div id="rhythm-root">
-        <canvas id="rhythm-canvas" width="800" height="450"></canvas>
+        <h2>Rhythm Stage</h2>
+        
+        <!-- El contenedor del juego -->
+        <div id="rhythm-root">
+            <canvas id="rhythm-canvas" width="800" height="450"></canvas>
+        </div>
+        
+       <!-- Controles -->
+        <div class="rg-controls">
+            <button id="wolfy-helper-btn" class="secondary">🐺 Wolfy Helper</button>
+            <button id="rg-start">▶️ Iniciar</button>
+            <button id="rg-stop" disabled>⏹ Detener</button>
+        </div>
+        
+        <div class="stats-row">
+            <div>Score: <span id="rg-score">0</span></div>
+            <div>Combo: <span id="rg-combo">0</span></div>
+            <div>Acc: <span id="rg-acc">0%</span></div>
+            <div>Power: <span id="rg-power">x1</span></div>
+        </div>
+        
+        <p class="hint" id="key-hint-text">Teclas: D / F / J / K</p>
     </div>
-    
-   <!-- Dentro de <div class="card-panel game-area"> -->
-<div class="rg-controls">
-    <!-- BOTÓN WOLFY HELPER EXPLÍCITO -->
-    <button id="wolfy-helper-btn" class="secondary">🐺 Wolfy Helper</button>
-    
-    <button id="rg-start">▶️ Iniciar</button>
-    <button id="rg-stop" disabled>⏹ Detener</button>
-</div>
-    
-    <div class="stats-row">
-        <div>Score: <span id="rg-score">0</span></div>
-        <div>Combo: <span id="rg-combo">0</span></div>
-        <div>Acc: <span id="rg-acc">0%</span></div>
-        <div>Power: <span id="rg-power">x1</span></div>
-    </div>
-    
-    <p class="hint">Teclas: D / F / J / K</p>
-</div>
         
         <div id="moon-results" class="results-box hidden"></div>
       </div>
     </section>
 
-    <!-- COLUMNA DERECHA: LOGS Y CREACIÓN -->
+    <!-- COLUMNA DERECHA: CONFIGURACIÓN Y LOGS -->
     <aside id="right-col">
+      
+      <!-- ⭐ NUEVO PANEL DE CONFIGURACIÓN ⭐ -->
+      <div class="card-panel">
+        <h2>⚙️ Configuración</h2>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+            <label for="cfg-lanes" style="font-weight:bold; font-size:0.9rem;">Modo de Juego:</label>
+            <select id="cfg-lanes">
+                <option value="4">Clásico (4 Carriles)</option>
+                <option value="6">Experto (6 Carriles)</option>
+            </select>
+            <p class="small text-muted" id="cfg-desc">Usa D-F-J-K para jugar.</p>
+        </div>
+      </div>
+
       <div class="card-panel">
         <h2>Crear / Eliminar Cuenta</h2>
         <div id="create-ui"></div>
       </div>
-
-    <div class="controls-row">
-        <button id="fd-start" class="success-btn">▶️ Iniciar Partida</button>
-        <button id="fd-stop" disabled>⏹ Detener</button>
-    </div>
-    
-    <div id="fd-results" class="results-box hidden"></div>
-</div>
 
       <div class="card-panel">
         <h2>Pack Log</h2>
@@ -133,11 +129,8 @@
     </div>
   </div>
 
-  <!-- Script del nuevo motor -->
-<script src="foody-engine.js" defer></script>
-
-<!-- Contenedor Modal para Foody -->
-<div id="foody-modal" class="modal-overlay hidden" style="z-index: 9999;">
+  <!-- MODAL FOODY CHAOS -->
+  <div id="foody-modal" class="modal-overlay hidden" style="z-index: 9999;">
     <div class="modal-content" style="width: 90vw; max-width: 800px; height: 80vh; display:flex; flex-direction:column; padding:0; overflow:hidden; background:#1a1a2e;">
         
         <!-- Header del Mini-Juego -->
@@ -151,33 +144,27 @@
 
         <!-- Área de Juego -->
         <div style="flex-grow:1; position:relative; background:#000; display:flex; justify-content:center; align-items:center;">
-            <!-- El canvas se inyectará aquí vía JS -->
             <div id="foody-game-container"></div>
             
             <!-- HUD de Equipo Superpuesto -->
             <div id="foody-team-hud" style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.7); padding:10px; border-radius:8px; min-width:200px; pointer-events:none;">
-                <!-- Se llena dinámicamente -->
             </div>
         </div>
 
         <!-- Resultados -->
         <div id="fd-results" class="results-box hidden" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); z-index:10;"></div>
     </div>
-</div>
+  </div>
   
   <footer>
-    <small>Demo v5 — Sistema RPG Completo.</small>
+    <small>Demo v9 — Sistema RPG & Multi-Lane Ready.</small>
   </footer>
 
-<!-- 1. PRIMERO: Datos Estáticos (No dependen de nada) -->
-<script src="game-state.js" defer></script> 
-<script src="foody-data.js" defer></script>   <!-- ⭐ ESTE DEBE IR ANTES QUE EL ENGINE -->
-
-<!-- 2. SEGUNDO: Motores de Juego (Dependen de los datos anteriores) -->
-<script src="rhythm-game.js" defer></script>
-<script src="foody-engine.js" defer></script> <!-- ⭐ ESTE USA FOODY_CONFIG, ASÍ QUE VA DESPUÉS -->
-
-<!-- 3. TERCERO: Controlador Principal (Une todo) -->
-<script src="main.js" defer></script>
+  <!-- ORDEN CRÍTICO DE SCRIPTS -->
+  <script src="game-state.js" defer></script> 
+  <script src="settings.js" defer></script>   <!-- ⭐ NUEVO: ANTES DE MAIN -->
+  <script src="foody-data.js" defer></script>   
+  <script src="rhythm-game.js" defer></script>
+  <script src="foody-engine.js" defer></script> 
+  <script src="main.js" defer></script>
 </body>
-</html>
