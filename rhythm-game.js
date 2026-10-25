@@ -38,14 +38,6 @@ const RhythmEngine = (function(){
   let shields = 0;
   let totalPower = 1;
   let multiplier = 1;
-
-  // --- CONFIGURACIÓN DINÁMICA DE CARRILES ---
-  let LANE_COUNT = 4;
-  let KEY_MAP = {};
-  let LANE_COLORS = [];
-  let KEY_LABELS = [];
-
-    // --- CONFIGURACIÓN DINÁMICA DE CARRILES ---
   
   // --- CONFIGURACIÓN DINÁMICA DE CARRILES ---
   
