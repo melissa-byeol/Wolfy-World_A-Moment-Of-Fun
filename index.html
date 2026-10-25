@@ -1,17 +1,24 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Wolfy World — A Moment Of Fun</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
 <body>
   <header>
-    <h1>🐺 Wolfy World — A Moment Of Fun</h1>
+    <h1> Wolfy World — A Moment Of Fun</h1>
     <div id="account-area"></div>
   </header>
 
   <main id="app">
-    <!-- COLUMNA IZQUIERDA: CUENTA Y TIENDA -->
+    <!-- COLUMNA IZQUIERDA -->
     <section id="left-col">
       <div class="card-panel">
         <h2>Cuenta</h2>
         <div id="account-ui"></div>
       </div>
-
       <div class="card-panel">
         <h2>Monedas</h2>
         <div class="balances">
@@ -19,7 +26,6 @@
           <div>Rhythm Shards: <span id="shards">0</span></div>
         </div>
       </div>
-
       <div class="card-panel">
         <h2>Abrir Paquetes</h2>
         <div class="pack-controls">
@@ -31,8 +37,6 @@
           <div id="last-draw" class="small"></div>
         </div>
       </div>
-      
-      <!-- GESTIÓN DE CARTAS -->
       <div class="card-panel">
         <h2>Gestión de Cartas</h2>
         <p class="small">Equipadas: <b id="equip-count">0</b>/5 | Potencia Total: <b id="total-power-display">0</b></p>
@@ -40,7 +44,7 @@
       </div>
     </section>
 
-    <!-- COLUMNA CENTRAL: JUEGO RÍTMICO -->
+    <!-- COLUMNA CENTRAL -->
     <section id="center-col">
       <div class="card-panel">
         <h2>Selector de Canciones</h2>
@@ -57,19 +61,16 @@
         </div>
       </div>
 
-     <div class="card-panel game-area">
+      <div class="card-panel game-area">
         <h2>Rhythm Stage</h2>
-        
-        <!-- El contenedor del juego -->
         <div id="rhythm-root">
             <canvas id="rhythm-canvas" width="800" height="450"></canvas>
         </div>
         
-       <!-- Controles -->
         <div class="rg-controls">
-            <button id="wolfy-helper-btn" class="secondary">🐺 Wolfy Helper</button>
+            <button id="wolfy-helper-btn" class="secondary"> Wolfy Helper</button>
             <button id="rg-start">▶️ Iniciar</button>
-            <button id="rg-stop" disabled>⏹ Detener</button>
+            <button id="rg-stop" disabled> Detener</button>
         </div>
         
         <div class="stats-row">
@@ -80,16 +81,14 @@
         </div>
         
         <p class="hint" id="key-hint-text">Teclas: D / F / J / K</p>
-    </div>
-        
-        <div id="moon-results" class="results-box hidden"></div>
       </div>
+      
+      <div id="moon-results" class="results-box hidden"></div>
     </section>
 
-    <!-- COLUMNA DERECHA: CONFIGURACIÓN Y LOGS -->
+    <!-- COLUMNA DERECHA -->
     <aside id="right-col">
-      
-      <!-- ⭐ NUEVO PANEL DE CONFIGURACIÓN ⭐ -->
+      <!-- ⭐ PANEL DE CONFIGURACIÓN INTEGRADO AQUÍ ⭐ -->
       <div class="card-panel">
         <h2>⚙️ Configuración</h2>
         <div style="display:flex; flex-direction:column; gap:10px;">
@@ -114,14 +113,12 @@
     </aside>
   </main>
 
-  <!-- MODAL DE ALIMENTACIÓN (FEED) -->
+  <!-- MODAL FEED -->
   <div id="feed-modal" class="modal-overlay hidden">
     <div class="modal-content">
-      <h3>🍽️ Alimentar Carta</h3>
+      <h3>️ Alimentar Carta</h3>
       <p>Selecciona cartas duplicadas o débiles para subir nivel a <b id="feed-target-name">...</b>.</p>
-      
       <div id="food-selection-list" class="item-list-scrollable"></div>
-
       <div class="modal-actions">
         <button id="btn-feed-confirm" class="primary-btn">Confirmar</button>
         <button id="btn-feed-cancel" class="secondary">Cancelar</button>
@@ -132,8 +129,6 @@
   <!-- MODAL FOODY CHAOS -->
   <div id="foody-modal" class="modal-overlay hidden" style="z-index: 9999;">
     <div class="modal-content" style="width: 90vw; max-width: 800px; height: 80vh; display:flex; flex-direction:column; padding:0; overflow:hidden; background:#1a1a2e;">
-        
-        <!-- Header del Mini-Juego -->
         <header style="background:#27293d; padding:10px 20px; display:flex; justify-content:space-between; align-items:center;">
             <h2 style="margin:0; color:#ffd700;">🍕 Foody Chaos</h2>
             <div>
@@ -141,17 +136,10 @@
                 <button id="fd-close-btn" class="danger-btn">Salir</button>
             </div>
         </header>
-
-        <!-- Área de Juego -->
         <div style="flex-grow:1; position:relative; background:#000; display:flex; justify-content:center; align-items:center;">
             <div id="foody-game-container"></div>
-            
-            <!-- HUD de Equipo Superpuesto -->
-            <div id="foody-team-hud" style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.7); padding:10px; border-radius:8px; min-width:200px; pointer-events:none;">
-            </div>
+            <div id="foody-team-hud" style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.7); padding:10px; border-radius:8px; min-width:200px; pointer-events:none;"></div>
         </div>
-
-        <!-- Resultados -->
         <div id="fd-results" class="results-box hidden" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); z-index:10;"></div>
     </div>
   </div>
@@ -162,9 +150,10 @@
 
   <!-- ORDEN CRÍTICO DE SCRIPTS -->
   <script src="game-state.js" defer></script> 
-  <script src="settings.js" defer></script>   <!-- ⭐ NUEVO: ANTES DE MAIN -->
+  <script src="settings.js" defer></script>   
   <script src="foody-data.js" defer></script>   
   <script src="rhythm-game.js" defer></script>
   <script src="foody-engine.js" defer></script> 
   <script src="main.js" defer></script>
 </body>
+</html>
