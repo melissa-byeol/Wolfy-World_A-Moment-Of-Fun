@@ -1,7 +1,7 @@
-// main.js - Controlador Principal v7 (Estable & Robusto)
+// main.js - Controlador Principal v8 (Multi-Lane Support)
 
 // Instancia global del estado
-let GS = null; // Se inicializará después de cargar GameStateClass
+let GS = null; 
 
 // --- DATOS DE CANCIONES ---
 const SONG_LIST = [
@@ -18,16 +18,23 @@ const SONG_LIST = [
 
 // --- INICIALIZACIÓN SEGURA ---
 function init() {
-    // 1. Verificar que GameStateClass exista (cargado desde game-state.js)
+    // 1. Verificar dependencias críticas
     if (typeof window.GameStateClass === 'undefined') {
-        console.error("ERROR CRÍTICO: GameStateClass no encontrado. ¿game-state.js cargó bien?");
+        console.error("ERROR CRÍTICO: GameStateClass no encontrado.");
+        return;
+    }
+    if (typeof window.Settings === 'undefined') {
+        console.error("ERROR CRÍTICO: Settings no encontrado. ¿Cargaste settings.js?");
         return;
     }
 
-    // 2. Crear instancia
+    // 2. Inicializar Configuración PRIMERO
+    window.Settings.init();
+
+    // 3. Crear instancia de Estado
     GS = new window.GameStateClass();
 
-    // 3. Cargar Guardado
+    // 4. Cargar Guardado
     const saved = localStorage.getItem('wolfy_world_save_v6');
     if (saved) {
         try {
@@ -37,15 +44,17 @@ function init() {
             console.error("Error cargando save", e); 
         }
     } else {
-        // Primer arranque: dar monedas iniciales para probar
         GS.initUser("Invitado", 100, 10);
     }
 
-    // 4. Renderizar UI
+    // 5. Renderizar UI
     renderAccountUI();
     renderSongs();
     setupBindings();
     updateMenuUI();
+    
+    // 6. Aplicar configuración visual inicial
+    applyVisualSettings();
 }
 
 // --- GUARDADO AUTOMÁTICO ---
@@ -59,7 +68,6 @@ function el(id){ return document.getElementById(id); }
 
 function showToast(msg, type="info") {
     console.log(`[${type.toUpperCase()}] ${msg}`);
-    // Opcional: Alerta visual simple si no hay toast container
     if(type === 'error') alert(msg);
 }
 
@@ -96,7 +104,7 @@ function renderBalances() {
     if(sEl) sEl.textContent = GS.shards;
 }
 
-// --- COLECCIÓN DE CARTAS (GESTIÓN ROBUSTA) ---
+// --- COLECCIÓN DE CARTAS ---
 function renderCollection() {
     const grid = el('collection');
     if(!grid) return;
@@ -148,8 +156,7 @@ function renderCollection() {
     if(ecEl) ecEl.innerText = GS.equippedCards.length;
 }
 
-// Delegación de eventos en la colección (UNA SOLA VEZ, EN EL PADRE)
-// Esto evita problemas si renderCollection limpia el innerHTML frecuentemente
+// Delegación de eventos en la colección
 if (el('collection')) {
     el('collection').addEventListener('click', (e) => {
         const btn = e.target.closest('button[data-action]');
@@ -243,7 +250,6 @@ function openFeedModal(targetId) {
     if(modal) modal.classList.remove('hidden');
 }
 
-// Conectar botones del modal (verificando existencia)
 const cancelBtn = el('btn-feed-cancel');
 if(cancelBtn) {
     cancelBtn.onclick = () => {
@@ -303,7 +309,7 @@ function renderSongs() {
     }
 }
 
-// --- BINDINGS FINALES (CONEXIÓN DIRECTA Y SEGURA) ---
+// --- BINDINGS FINALES ---
 function setupBindings() {
     // Pack Button
     const packBtn = el('open-pack');
@@ -323,7 +329,6 @@ function setupBindings() {
 
             const chartPath = `charts/${song.id}.json`;
             
-            // Intentar cargar chart
             const loaded = await window.RhythmEngine.loadChart(chartPath);
             
             if(!loaded) {
@@ -333,7 +338,6 @@ function setupBindings() {
 
             window.RhythmEngine.start(song, getDifficulty());
             
-            // Actualizar UI botones
             const stopBtn = el('rg-stop');
             if(stopBtn) stopBtn.disabled = false;
             startBtn.disabled = true;
@@ -350,13 +354,11 @@ function setupBindings() {
         };
     }
 
-    // ⭐ WOLFY HELPER BUTTON (LA CORRECCIÓN CLAVE) ⭐
+    // Wolfy Helper
     const helperBtn = el('wolfy-helper-btn');
     if(helperBtn) {
-        // Estado inicial
         let isHelperOn = false;
         
-        // Función para actualizar texto/clase
         const updateHelperUI = () => {
             if(isHelperOn) {
                 helperBtn.textContent = "🐺 Helper: ON";
@@ -369,62 +371,60 @@ function setupBindings() {
             }
         };
 
-        // Click Handler
         helperBtn.onclick = () => {
             isHelperOn = !isHelperOn;
-            
-            // Llamar a la API del motor
             if(window.RhythmEngine && typeof window.RhythmEngine.setHelperMode === 'function') {
                 window.RhythmEngine.setHelperMode(isHelperOn);
-            } else {
-                console.warn("RhythmEngine no listo aún.");
             }
-            
             updateHelperUI();
         };
         
-        // Asegurar UI correcta al inicio
         updateHelperUI();
-    } else {
-        console.error("ERROR: No se encontró #wolfy-helper-btn en el HTML.");
     }
 
-        // ... código existente ...
+    // ⭐ CONFIGURACIÓN DE CARRILES ⭐
+    const cfgLanesSelect = el('cfg-lanes');
+    const cfgDesc = el('cfg-desc');
+    const keyHintText = el('key-hint-text');
 
-// Dentro de setupBindings() o donde manejes la navegación
-document.querySelectorAll(".menu-card").forEach(btn => {
-    btn.addEventListener("click", () => {
-        const module = btn.dataset.module;
-        
-        // ... tus otros casos (dig, shop, etc) ...
+    if(cfgLanesSelect) {
+        // Establecer valor inicial desde Settings
+        cfgLanesSelect.value = window.Settings.current.laneCount;
+        updateConfigDescription(parseInt(cfgLanesSelect.value), cfgDesc, keyHintText);
 
-        if (module === "foody") {
-            openFoodyModal();
+        cfgLanesSelect.onchange = () => {
+            const val = parseInt(cfgLanesSelect.value);
+            window.Settings.setLaneCount(val);
+            updateConfigDescription(val, cfgDesc, keyHintText);
+            showToast(`Modo ${val} carriles activado`, "info");
+        };
+    }
+}
+
+// Función auxiliar para actualizar textos descriptivos
+function updateConfigDescription(count, descEl, hintEl) {
+    if(descEl) {
+        if(count === 4) {
+            descEl.textContent = "Usa D-F-J-K para jugar.";
+        } else {
+            descEl.textContent = "Usa D-F-G-H-J-K para jugar.";
         }
-    });
-});
-
-// Función auxiliar para abrir Foody
-function openFoodyModal() {
-    const modal = document.getElementById('foody-modal');
-    if(modal) {
-        modal.classList.remove('hidden');
-        
-        // Inicializar motor pasando la instancia GS global
-        if(window.FoodyEngine && GS) {
-            window.FoodyEngine.init('foody-game-container', GS);
+    }
+    if(hintEl) {
+        if(count === 4) {
+            hintEl.textContent = "Teclas: D / F / J / K";
+        } else {
+            hintEl.textContent = "Teclas: D / F / G / H / J / K";
         }
     }
 }
 
-// Listener para cerrar
-const closeBtn = document.getElementById('fd-close-btn');
-if(closeBtn) {
-    closeBtn.onclick = () => {
-        document.getElementById('foody-modal').classList.add('hidden');
-        // Detener motor implícitamente al ocultar o recargar
-    };
-}
+// Aplicar cambios visuales al cargar página
+function applyVisualSettings() {
+    const count = window.Settings.current.laneCount;
+    const cfgDesc = el('cfg-desc');
+    const keyHintText = el('key-hint-text');
+    updateConfigDescription(count, cfgDesc, keyHintText);
 }
 
 function getCurrentSongData() {
@@ -453,12 +453,6 @@ function renderFoodyHUD() {
     if(!hudList) return;
     hudList.innerHTML = '';
     
-    // Acceder a los stats internos del motor (hack temporal para demo)
-    // Idealmente, FoodyEngine debería exponer getTeamStats()
-    // Como es IIFE cerrada, simulamos leyendo desde GS directamente para el HUD statico
-    // Nota: Esto no refleja el "currentLoad" en tiempo real sin reescribir el getter, 
-    // pero sirve para mostrar quiénes están en el equipo.
-    
     if(!GS) return;
     
     GS.equippedCards.forEach(id => {
@@ -468,7 +462,7 @@ function renderFoodyHUD() {
         
         const div = document.createElement('div');
         div.className = 'team-member-card';
-        div.style.borderLeftColor = getRankColor(rec.rank); // Usa la func local o repítela
+        div.style.borderLeftColor = getRankColor(rec.rank); 
         
         div.innerHTML = `
             <strong style="font-size:0.8em">${cat ? cat.displayName.split('[')[0] : id}</strong>
@@ -479,7 +473,6 @@ function renderFoodyHUD() {
     });
 }
 
-// Helper duplicado local para evitar scope issues rápidos
 function getRankColor(rank) {
     const colors = { 'B':'#9fb8ff', 'A':'#7fffb1', 'S':'#ffd57f', 'R':'#ff9fb2', 'XR':'#c97fff', 'UR':'#ffad4a', 'MR':'#ffd700' };
     return colors[rank] || '#fff';
