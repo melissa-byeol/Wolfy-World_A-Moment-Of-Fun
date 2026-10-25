@@ -13,7 +13,7 @@ const SONG_LIST = [
     { id: 'curious', title: 'Curious', src: 'assets/curious.mp3', bpm: 129 },
     { id: 'sos', title: 'SOS (Prod. By Marshmello)', src: 'assets/sos.mp3', bpm: 152},
     { id: 'scream', title: 'Scream', src: 'assets/scream.mp3', bpm: 154},
-    { id: 'top', title: 'TOP (Tower Of God OP)', src: 'assets/top.mp3', bpm: 154}
+    { id: 'top', title: 'TOP (Tower Of God OP)', src: 'assets/top.mp3', bpm: 196}
 ];
 
 // --- INICIALIZACIÓN SEGURA ---
