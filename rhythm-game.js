@@ -18,25 +18,33 @@ const RhythmEngine = (function(){
   let TRAVEL = Math.max(80, HIT_LINE_Y - TOP_MARGIN);
   let NOTE_SPEED = TRAVEL / Math.max(0.001, LEAD_TIME);
 
-  // Ventanas de juicio (se ajustan segun la dificultad seleccionada)
-  const DIFFICULTY_PRESETS = {
-      easy:   { perfectWin: 0.10, goodWin: 0.18, missWin: 0.26, leadTime: 2.2, scoreMult: 0.75 },
-      normal: { perfectWin: 0.06, goodWin: 0.12, missWin: 0.18, leadTime: 1.8, scoreMult: 1.0  },
-      hard:   { perfectWin: 0.045, goodWin: 0.09, missWin: 0.14, leadTime: 1.4, scoreMult: 1.3 },
-      expert: { perfectWin: 0.03, goodWin: 0.06, missWin: 0.10, leadTime: 1.05, scoreMult: 1.6 }
-  };
-  let currentDifficulty = 'normal';
+  // Ventanas de juicio BASE del motor. La dificultad ya no las recorta de forma
+  // exagerada: cada dificultad tiene su propio chart JSON
+  // (charts/<cancion>_<dificultad>.json) con sus propias notas y velocidad.
+  const BASE_PERFECT_WIN = 0.06;
+  const BASE_GOOD_WIN    = 0.12;
+  const BASE_MISS_WIN    = 0.18;
+  const DEFAULT_LEAD_TIME = 1.8;
 
-  let PERFECT_WIN = DIFFICULTY_PRESETS.normal.perfectWin;
-  let GOOD_WIN    = DIFFICULTY_PRESETS.normal.goodWin;
-  let MISS_WIN    = DIFFICULTY_PRESETS.normal.missWin;
-  let SCORE_MULT  = DIFFICULTY_PRESETS.normal.scoreMult;
+  const DIFFICULTY_KEYS = ['easy', 'normal', 'hard', 'expert'];
+
+  let currentDifficulty = 'normal';
+  let judgingScale = 1.0;  // leve holgura extra en fácil / algo más exigente en experto
+  let scoreMult    = 1.0;  // multiplicador declarado por el chart de la dificultad
+
+  let PERFECT_WIN = BASE_PERFECT_WIN;
+  let GOOD_WIN    = BASE_GOOD_WIN;
+  let MISS_WIN    = BASE_MISS_WIN;
+  let SCORE_MULT  = scoreMult;
 
   // Estado runtime
   let running = false;
   let startTime = 0;
-  let notes = []; 
+  let notes = [];
   let currentSongId = "";
+  let currentChartMeta = null; // metadatos del chart cargado (difficulty, forceLanes, ...)
+  let forcedLanes = null;      // carriles exigidos por el chart cargado (si los declara)
+  let lastChartUrl = null;     // URL base del último chart pedido (para recargar otra dificultad)
 
   // Stats
   let score = 0;
@@ -175,9 +183,16 @@ const RhythmEngine = (function(){
     recomputeNoteSpeed();
 
     const mobileFactor = (W <= 420) ? 1.35 : 1.0;
-    PERFECT_WIN = 0.06 * mobileFactor;
-    GOOD_WIN    = 0.12 * mobileFactor;
-    MISS_WIN    = 0.18 * mobileFactor;
+    // Las ventanas dependen de la dificultad cargada (chart JSON), no son fijas
+    applyJudgingWindows(mobileFactor);
+  }
+
+  function applyJudgingWindows(mobileFactor) {
+    const mf = mobileFactor || 1;
+    PERFECT_WIN = BASE_PERFECT_WIN * judgingScale * mf;
+    GOOD_WIN    = BASE_GOOD_WIN    * judgingScale * mf;
+    MISS_WIN    = BASE_MISS_WIN    * judgingScale * mf;
+    SCORE_MULT  = scoreMult;
   }
 
   function recomputeNoteSpeed() {
@@ -240,70 +255,137 @@ const RhythmEngine = (function(){
   });
 
 
-  // --- Chart loader (Updated for Holds) ---
-  async function loadChart(url) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      const data = await res.json();
+  // --- Chart loader (por dificultad: 1 JSON por dificultad) ---
+  // loadChart(url, difficulty) intenta primero charts/<id>_<dificultad>.json y,
+  // si ese archivo no existe, cae al chart base para no romper canciones antiguas.
+  async function loadChart(url, difficulty) {
+    const diff = normalizeDifficulty(difficulty !== undefined ? difficulty : currentDifficulty);
+    lastChartUrl = cleanUrl(url);
 
-      const offsetSeconds = (data.offsetMs || 0) / 1000;
-      
-      notes = (data.notes || []).map(n => {
-          const isHold = typeof n.duration === 'number' && n.duration > 0;
-          return {
-              type: isHold ? 'hold' : 'tap',
-              time: (n.time || 0) + offsetSeconds,
-              endTime: isHold ? ((n.time || 0) + n.duration + offsetSeconds) : null,
-              lane: (typeof n.lane === 'number') ? n.lane : 0,
-              
-              judgedHead: false,
-              holdingBody: false,
-              bodyBroken: false,
-              judgedTail: false,
-              
-              hit: false,
-              missed: false,
-              y: -100,
-              tailY: -100
-          };
-      }).sort((a,b) => a.time - b.time);
+    const candidates = [];
+    if (diff !== 'normal') candidates.push(variantUrl(url, diff));
+    candidates.push(variantUrl(url, 'normal'));
+    candidates.push(cleanUrl(url)); // chart base como último recurso
 
-      prevElapsed = 0;
-      activeKeys.clear();
-      return true;
-    } catch (e) {
-      console.error("Error cargando chart:", e);
-      return false;
+    let lastError = null;
+    for (const candidate of candidates) {
+      try {
+        const res = await fetch(candidate, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status + ' en ' + candidate);
+        const data = await res.json();
+        if (!data || !Array.isArray(data.notes)) throw new Error('Chart sin "notes": ' + candidate);
+
+        applyChartConfig(data, diff);
+        buildNotes(data);
+        console.log('🎵 Chart cargado: ' + candidate + ' (' + notes.length + ' notas, dificultad ' + currentDifficulty + ')');
+        return true;
+      } catch (e) {
+        lastError = e;
+      }
     }
+
+    console.error("Error cargando chart:", lastError);
+    return false;
   }
 
-  // --- Dificultad: aplicar preset al motor ---
-  function applyDifficulty(difficulty) {
+  function cleanUrl(url) {
+    return String(url).replace(/[?#].*$/, '');
+  }
+
+  // charts/demo1.json -> charts/demo1_hard.json
+  function variantUrl(url, diff) {
+    const base = cleanUrl(url);
+    const m = base.match(/^(.*\/)?([^/]+?)\.json$/i);
+    if (!m) return base;
+    const dir = m[1] || '';
+    let name = m[2];
+    if (!name.endsWith('_' + diff)) {
+      name = name.replace(/_(easy|normal|hard|expert)$/i, '') + '_' + diff;
+    }
+    return dir + name + '.json';
+  }
+
+  function buildNotes(data) {
+    const offsetSeconds = (data.offsetMs || 0) / 1000;
+
+    notes = (data.notes || []).map(n => {
+        const isHold = typeof n.duration === 'number' && n.duration > 0;
+        return {
+            type: isHold ? 'hold' : 'tap',
+            time: (n.time || 0) + offsetSeconds,
+            endTime: isHold ? ((n.time || 0) + n.duration + offsetSeconds) : null,
+            lane: (typeof n.lane === 'number') ? n.lane : 0,
+
+            judgedHead: false,
+            holdingBody: false,
+            bodyBroken: false,
+            judgedTail: false,
+
+            hit: false,
+            missed: false,
+            y: -100,
+            tailY: -100
+        };
+    }).sort((a,b) => a.time - b.time);
+
+    prevElapsed = 0;
+    activeKeys.clear();
+  }
+
+  // --- Dificultad: la configuración vive en el JSON del chart, no en presets del motor ---
+  function normalizeDifficulty(difficulty) {
     const key = (typeof difficulty === 'string') ? difficulty.toLowerCase() : '';
-    const preset = DIFFICULTY_PRESETS[key] || DIFFICULTY_PRESETS.normal;
-    currentDifficulty = DIFFICULTY_PRESETS[key] ? key : 'normal';
+    return DIFFICULTY_KEYS.indexOf(key) !== -1 ? key : 'normal';
+  }
 
-    PERFECT_WIN = preset.perfectWin;
-    GOOD_WIN    = preset.goodWin;
-    MISS_WIN    = preset.missWin;
-    SCORE_MULT  = preset.scoreMult;
+  // Aplica los metadatos del chart recién cargado (leadTime, judgingScale, scoreMult...)
+  function applyChartConfig(data, requestedDiff) {
+    currentChartMeta = data || null;
+    currentDifficulty = normalizeDifficulty(data.difficulty || requestedDiff);
 
-    // La dificultad tambien afecta la velocidad de caida (lead time)
-    LEAD_TIME   = preset.leadTime;
-    TRAVEL      = Math.max(80, HIT_LINE_Y - TOP_MARGIN);
-    NOTE_SPEED  = TRAVEL / Math.max(0.001, LEAD_TIME);
+    // Velocidad de caída declarada por el chart (si no, el valor por defecto del motor)
+    LEAD_TIME = (typeof data.leadTime === 'number' && data.leadTime > 0)
+      ? data.leadTime
+      : DEFAULT_LEAD_TIME;
+    recomputeNoteSpeed();
 
-    console.log('Dificultad: ' + currentDifficulty + ' (ventanas P/G/M: ' + PERFECT_WIN + '/' + GOOD_WIN + '/' + MISS_WIN + 's, mult x' + SCORE_MULT + ')');
+    // Ventanas: escala definida por el chart (1.0 = ventanas base del motor).
+    // Se usa solo para pequeños matices; la dificultad real viene de las notas del JSON.
+    judgingScale = (typeof data.judgingScale === 'number' && data.judgingScale > 0)
+      ? data.judgingScale
+      : 1.0;
+    scoreMult = (typeof data.scoreMult === 'number' && data.scoreMult > 0)
+      ? data.scoreMult
+      : 1.0;
+
+    applyJudgingWindows((W <= 420) ? 1.35 : 1.0);
+
+    // El chart puede declarar cuántos carriles necesita (ej. charts de 6 carriles)
+    forcedLanes = (typeof data.forceLanes === 'number') ? data.forceLanes : null;
+
+    console.log('Dificultad: ' + currentDifficulty +
+      ' (leadTime ' + LEAD_TIME + 's, scale x' + judgingScale + ', mult x' + SCORE_MULT + ')');
+  }
+
+  // Cargar un objeto chart ya parseado (sin fetch). Útil para tests / charts dinámicos.
+  function setChart(data, difficulty) {
+    if (!data || !Array.isArray(data.notes)) return false;
+    const diff = normalizeDifficulty(difficulty !== undefined ? difficulty : data.difficulty);
+    applyChartConfig(data, diff);
+    buildNotes(data);
+    return true;
   }
 
   // --- Start/Stop/Loop ---
   function start(songData, difficulty) {
     if (running) return;
 
-    // Aplicar la dificultad seleccionada antes de empezar
-    applyDifficulty(difficulty);
-    
+    // La dificultad debe coincidir con el chart JSON cargado (loadChart la aplica)
+    const wanted = normalizeDifficulty(difficulty);
+    if (wanted !== currentDifficulty) {
+      console.warn('⚠️ Chart cargado para "' + currentDifficulty + '", se ignora "' + wanted + '". Recarga el chart.');
+    }
+
     // Asegurar que la config esté cargada antes de empezar
     loadKeyConfig(); 
     
@@ -738,18 +820,57 @@ const RhythmEngine = (function(){
 
   const _debug = {
     getConfig: () => ({ W, H, HIT_LINE_Y, TOP_MARGIN, TRAVEL, LEAD_TIME, NOTE_SPEED, PERFECT_WIN, GOOD_WIN, MISS_WIN, currentDifficulty, autoplay, helperMode, running, startTime, LANE_COUNT }),
+    chartInfo: () => ({
+      url: lastChartUrl,
+      difficulty: currentDifficulty,
+      noteCount: notes.length,
+      leadTime: LEAD_TIME,
+      judgingScale,
+      scoreMult: SCORE_MULT,
+      forcedLanes,
+      title: currentChartMeta ? currentChartMeta.title : null
+    }),
     notesSample: () => notes.slice(0, 12),
     getState: () => ({ running, score, combo, hits, misses, shields })
   };
 
   // ⭐ EXPONER updateSettings EN LA API PÚBLICA ⭐
-  function setDifficulty(difficulty) {
-    // No cambiar presets mientras una partida esta corriendo
-    if (running) return;
-    applyDifficulty(difficulty);
+
+  // Cambiar de dificultad = recargar el JSON de esa dificultad.
+  // Devuelve true si el chart existe y se pudo cargar (o si no hay URL en memoria).
+  async function setDifficulty(difficulty) {
+    const wanted = normalizeDifficulty(difficulty);
+    if (running) {
+      console.warn('⚠️ No se puede cambiar la dificultad a mitad de partida.');
+      return false;
+    }
+    if (!lastChartUrl) {
+      currentDifficulty = wanted;
+      return true;
+    }
+    return await loadChart(lastChartUrl, wanted);
   }
 
-  const api = { start, stop, loadChart, setAutoplay, setHelperMode, setDifficulty, _debug, updateSettings };
+  // Dificultades disponibles para un chart: <id>_easy/normal/hard/expert.json
+  async function listAvailableDifficulties(url) {
+    const base = cleanUrl(url);
+    const found = [];
+    for (const d of DIFFICULTY_KEYS) {
+      try {
+        const res = await fetch(variantUrl(base, d), { method: 'GET', cache: 'no-store' });
+        if (res.ok) found.push(d);
+      } catch (e) { /* ignorar */ }
+    }
+    if (found.length === 0) {
+      try {
+        const res = await fetch(base, { method: 'GET', cache: 'no-store' });
+        if (res.ok) found.push('normal');
+      } catch (e) { /* ignorar */ }
+    }
+    return found;
+  }
+
+  const api = { start, stop, loadChart, setChart, setAutoplay, setHelperMode, setDifficulty, listAvailableDifficulties, getForcedLanes: () => forcedLanes, _debug, updateSettings };
   return api;
 })();
 

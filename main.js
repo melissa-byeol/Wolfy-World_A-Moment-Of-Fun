@@ -29,6 +29,27 @@ function getCurrentSongData() {
     return SONG_LIST.find(s => s.id === id) || SONG_LIST[0];
 }
 
+// Ruta del chart base de una canción (el motor añade el sufijo de dificultad)
+function getChartPath(song) {
+    return `charts/${song.id}.json`;
+}
+
+// Fuerza los carriles que declara el chart de la dificultad cargada
+function applyChartLaneMode(showMsg) {
+    const engine = window.RhythmEngine;
+    if (!engine || typeof engine.getForcedLanes !== 'function') return false;
+    const val = engine.getForcedLanes();
+    if (!val) return false;
+    if (window.Settings && window.Settings.current.laneCount !== val) {
+        window.Settings.setLaneCount(val);
+    }
+    const cfgLanesSelect = el('cfg-lanes');
+    if (cfgLanesSelect) cfgLanesSelect.value = String(val);
+    updateConfigDescription(val, el('cfg-desc'), el('key-hint-text'));
+    if (showMsg) showToast(`🎹 El chart fuerza modo ${val} carriles`, "info");
+    return true;
+}
+
 // --- AUTO-LANES: aplica song.forceLanes (ej. Boom Boom Boom → 6 carriles) ---
 function applySongLaneMode(showMsg) {
     const song = getCurrentSongData();
@@ -362,14 +383,18 @@ function setupBindings() {
             // ⭐ Auto-carriles: asegurar forceLanes (ej. Boom Boom Boom → 6) antes de cargar el chart
             applySongLaneMode(false);
 
-            const chartPath = `charts/${song.id}.json`;
-            
-            const loaded = await window.RhythmEngine.loadChart(chartPath);
-            
+            const chartPath = getChartPath(song);
+
+            // Cada dificultad tiene su propio JSON: charts/<id>_<dificultad>.json
+            const loaded = await window.RhythmEngine.loadChart(chartPath, getDifficulty());
+
             if(!loaded) {
                 showToast("No se encontró chart. Usa demo1 o crea el JSON.", "error");
-                return; 
+                return;
             }
+
+            // El chart puede exigir 6 carriles aunque la canción no lo declare
+            applyChartLaneMode(false);
 
             window.RhythmEngine.start(song, getDifficulty());
             
@@ -438,13 +463,23 @@ function setupBindings() {
     // ⭐ SELECTOR DE DIFICULTAD ⭐
     const difficultySelect = el('difficulty');
     if(difficultySelect) {
-        // Aplicar la dificultad seleccionada al motor (solo si no hay partida corriendo)
-        difficultySelect.onchange = () => {
+        // Cambiar dificultad = cargar el JSON propio de esa dificultad
+        difficultySelect.onchange = async () => {
             const diff = getDifficulty();
+            const label = DIFFICULTY_LABELS[diff] || diff;
+
             if (window.RhythmEngine && typeof window.RhythmEngine.setDifficulty === 'function') {
-                window.RhythmEngine.setDifficulty(diff);
+                const ok = await window.RhythmEngine.setDifficulty(diff);
+                if (ok === false) {
+                    showToast(`Sin chart para "${label}". Se mantiene la dificultad actual.`, "error");
+                    return;
+                }
+                applyChartLaneMode(false);
+                const info = window.RhythmEngine._debug?.chartInfo?.();
+                showToast(`Dificultad: ${label}${info ? ` (${info.noteCount} notas)` : ''}`, "info");
+            } else {
+                showToast(`Dificultad: ${label}`, "info");
             }
-            showToast(`Dificultad: ${DIFFICULTY_LABELS[diff] || diff}`, "info");
         };
     }
 }
