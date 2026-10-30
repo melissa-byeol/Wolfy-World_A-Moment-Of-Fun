@@ -18,10 +18,19 @@ const RhythmEngine = (function(){
   let TRAVEL = Math.max(80, HIT_LINE_Y - TOP_MARGIN);
   let NOTE_SPEED = TRAVEL / Math.max(0.001, LEAD_TIME);
 
-  // Ventanas de juicio
-  let PERFECT_WIN = 0.06;
-  let GOOD_WIN    = 0.12;
-  let MISS_WIN    = 0.18;
+  // Ventanas de juicio (se ajustan segun la dificultad seleccionada)
+  const DIFFICULTY_PRESETS = {
+      easy:   { perfectWin: 0.10, goodWin: 0.18, missWin: 0.26, leadTime: 2.2, scoreMult: 0.75 },
+      normal: { perfectWin: 0.06, goodWin: 0.12, missWin: 0.18, leadTime: 1.8, scoreMult: 1.0  },
+      hard:   { perfectWin: 0.045, goodWin: 0.09, missWin: 0.14, leadTime: 1.4, scoreMult: 1.3 },
+      expert: { perfectWin: 0.03, goodWin: 0.06, missWin: 0.10, leadTime: 1.05, scoreMult: 1.6 }
+  };
+  let currentDifficulty = 'normal';
+
+  let PERFECT_WIN = DIFFICULTY_PRESETS.normal.perfectWin;
+  let GOOD_WIN    = DIFFICULTY_PRESETS.normal.goodWin;
+  let MISS_WIN    = DIFFICULTY_PRESETS.normal.missWin;
+  let SCORE_MULT  = DIFFICULTY_PRESETS.normal.scoreMult;
 
   // Estado runtime
   let running = false;
@@ -269,9 +278,31 @@ const RhythmEngine = (function(){
     }
   }
 
+  // --- Dificultad: aplicar preset al motor ---
+  function applyDifficulty(difficulty) {
+    const key = (typeof difficulty === 'string') ? difficulty.toLowerCase() : '';
+    const preset = DIFFICULTY_PRESETS[key] || DIFFICULTY_PRESETS.normal;
+    currentDifficulty = DIFFICULTY_PRESETS[key] ? key : 'normal';
+
+    PERFECT_WIN = preset.perfectWin;
+    GOOD_WIN    = preset.goodWin;
+    MISS_WIN    = preset.missWin;
+    SCORE_MULT  = preset.scoreMult;
+
+    // La dificultad tambien afecta la velocidad de caida (lead time)
+    LEAD_TIME   = preset.leadTime;
+    TRAVEL      = Math.max(80, HIT_LINE_Y - TOP_MARGIN);
+    NOTE_SPEED  = TRAVEL / Math.max(0.001, LEAD_TIME);
+
+    console.log('Dificultad: ' + currentDifficulty + ' (ventanas P/G/M: ' + PERFECT_WIN + '/' + GOOD_WIN + '/' + MISS_WIN + 's, mult x' + SCORE_MULT + ')');
+  }
+
   // --- Start/Stop/Loop ---
   function start(songData, difficulty) {
     if (running) return;
+
+    // Aplicar la dificultad seleccionada antes de empezar
+    applyDifficulty(difficulty);
     
     // Asegurar que la config esté cargada antes de empezar
     loadKeyConfig(); 
@@ -631,7 +662,7 @@ const RhythmEngine = (function(){
         if (combo > maxCombo) maxCombo = combo;
 
         const comboBonus = 1 + (Math.min(combo, 100) / 200);
-        const pts = Math.round((basePts + totalPower) * (multiplier || 1) * comboBonus);
+        const pts = Math.round((basePts + totalPower) * (multiplier || 1) * comboBonus * (SCORE_MULT || 1));
         score += pts;
 
         try {
@@ -706,13 +737,19 @@ const RhythmEngine = (function(){
   }
 
   const _debug = {
-    getConfig: () => ({ W, H, HIT_LINE_Y, TOP_MARGIN, TRAVEL, LEAD_TIME, NOTE_SPEED, PERFECT_WIN, GOOD_WIN, MISS_WIN, autoplay, helperMode, running, startTime, LANE_COUNT }),
+    getConfig: () => ({ W, H, HIT_LINE_Y, TOP_MARGIN, TRAVEL, LEAD_TIME, NOTE_SPEED, PERFECT_WIN, GOOD_WIN, MISS_WIN, currentDifficulty, autoplay, helperMode, running, startTime, LANE_COUNT }),
     notesSample: () => notes.slice(0, 12),
     getState: () => ({ running, score, combo, hits, misses, shields })
   };
 
   // ⭐ EXPONER updateSettings EN LA API PÚBLICA ⭐
-  const api = { start, stop, loadChart, setAutoplay, setHelperMode, _debug, updateSettings };
+  function setDifficulty(difficulty) {
+    // No cambiar presets mientras una partida esta corriendo
+    if (running) return;
+    applyDifficulty(difficulty);
+  }
+
+  const api = { start, stop, loadChart, setAutoplay, setHelperMode, setDifficulty, _debug, updateSettings };
   return api;
 })();
 

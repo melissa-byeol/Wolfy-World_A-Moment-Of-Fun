@@ -434,7 +434,28 @@ function setupBindings() {
             showToast(`Modo ${val} carriles activado`, "info");
         };
     }
+
+    // ⭐ SELECTOR DE DIFICULTAD ⭐
+    const difficultySelect = el('difficulty');
+    if(difficultySelect) {
+        // Aplicar la dificultad seleccionada al motor (solo si no hay partida corriendo)
+        difficultySelect.onchange = () => {
+            const diff = getDifficulty();
+            if (window.RhythmEngine && typeof window.RhythmEngine.setDifficulty === 'function') {
+                window.RhythmEngine.setDifficulty(diff);
+            }
+            showToast(`Dificultad: ${DIFFICULTY_LABELS[diff] || diff}`, "info");
+        };
+    }
 }
+
+// Etiquetas legibles para las dificultades
+const DIFFICULTY_LABELS = {
+    easy: 'Fácil',
+    normal: 'Normal',
+    hard: 'Difícil',
+    expert: 'Experto'
+};
 
 // Función auxiliar para actualizar textos descriptivos
 function updateConfigDescription(count, descEl, hintEl) {
