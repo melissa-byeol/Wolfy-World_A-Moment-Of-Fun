@@ -9,7 +9,7 @@
   "offsetMs": 0,
   "leadTime": 1.5,
   "judgingScale": 1.0,
-  "scoreMult": 1.3,
+  "scoreMult": 1.0,
   "notes": [
     {
       "time": 0.2,
