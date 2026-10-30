@@ -13,7 +13,10 @@ const SONG_LIST = [
     { id: 'curious', title: 'Curious', src: 'assets/curious.mp3', bpm: 129 },
     { id: 'sos', title: 'SOS (Prod. By Marshmello)', src: 'assets/sos.mp3', bpm: 152},
     { id: 'scream', title: 'Scream', src: 'assets/scream.mp3', bpm: 154},
-    { id: 'top', title: 'TOP (Tower Of God OP)', src: 'assets/top.mp3', bpm: 196}
+    { id: 'top', title: 'TOP (Tower Of God OP)', src: 'assets/top.mp3', bpm: 196},
+    // BOYNEXTDOOR — "But Sometimes (Korean Ver.)" (será "One and Only" en inglés). BPM real: 105.
+    // ⚠️ Falta el MP3: descarga la canción y guárdala como assets/but-sometimes.mp3
+    { id: 'one_day', title: 'But Sometimes — BOYNEXTDOOR', src: 'assets/but-sometimes.mp3', bpm: 105}
 ];
 
 // --- INICIALIZACIÓN SEGURA ---
