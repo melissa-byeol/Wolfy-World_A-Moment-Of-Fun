@@ -1,0 +1,36 @@
+{
+  "id": "scream_expert",
+  "parentChartId": "scream",
+  "title": "Scream",
+  "artist": "Enhypen",
+  "difficulty": "expert",
+  "bpm": 154,
+  "duration": 187,
+  "offsetMs": 0,
+  "leadTime": 1.2,
+  "judgingScale": 0.9,
+  "scoreMult": 1.6,
+  "notes": [
+    {
+      "time": 0.15,
+      "lane": 1,
+      "duration": 1.05
+    },
+    {
+      "time": 0.712,
+      "lane": 0
+    },
+    {
+      "time": 0.825,
+      "lane": 0
+    },
+    {
+      "time": 0.938,
+      "lane": 0
+    },
+    {
+      "time": 1.05,
+      "lane": 0
+    }
+  ]
+}

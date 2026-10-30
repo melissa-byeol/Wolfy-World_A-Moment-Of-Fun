@@ -1,0 +1,36 @@
+{
+  "id": "scream_hard",
+  "parentChartId": "scream",
+  "title": "Scream",
+  "artist": "Enhypen",
+  "difficulty": "hard",
+  "bpm": 154,
+  "duration": 187,
+  "offsetMs": 0,
+  "leadTime": 1.5,
+  "judgingScale": 1.0,
+  "scoreMult": 1.3,
+  "notes": [
+    {
+      "time": 0.2,
+      "lane": 1,
+      "duration": 1.4
+    },
+    {
+      "time": 0.95,
+      "lane": 0
+    },
+    {
+      "time": 1.1,
+      "lane": 0
+    },
+    {
+      "time": 1.25,
+      "lane": 0
+    },
+    {
+      "time": 1.4,
+      "lane": 0
+    }
+  ]
+}
