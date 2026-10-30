@@ -16,8 +16,34 @@ const SONG_LIST = [
     { id: 'top', title: 'TOP (Tower Of God OP)', src: 'assets/top.mp3', bpm: 196},
     // BOYNEXTDOOR — "But Sometimes (Korean Ver.)" (será "One and Only" en inglés). BPM real: 105.
     // ⚠️ Falta el MP3: descarga la canción y guárdala como assets/but-sometimes.mp3
-    { id: 'one_day', title: 'But Sometimes — BOYNEXTDOOR', src: 'assets/but-sometimes.mp3', bpm: 105}
+    { id: 'one_day', title: 'But Sometimes — BOYNEXTDOOR', src: 'assets/but-sometimes.mp3', bpm: 105},
+    // BOYNEXTDOOR — "BOYNEXTDOOR 2nd Single Album「Boom Boom Boom」" (Japón, 2025; editado antes del
+    // deluxe de HOME). BPM aprox.: 128. forceLanes: se pone automáticamente en 6 carriles al jugarla.
+    // PLACEHOLDER: coloca el MP3 oficial en assets/boom-boom-boom.mp3
+    { id: 'boom_boom_boom', title: 'Boom Boom Boom — BOYNEXTDOOR', src: 'assets/boom-boom-boom.mp3', bpm: 128, forceLanes: 6}
 ];
+
+// --- Helper: obtener los datos de la canción seleccionada ---
+function getCurrentSongData() {
+    const id = el('song-select')?.value;
+    return SONG_LIST.find(s => s.id === id) || SONG_LIST[0];
+}
+
+// --- AUTO-LANES: aplica song.forceLanes (ej. Boom Boom Boom → 6 carriles) ---
+function applySongLaneMode(showMsg) {
+    const song = getCurrentSongData();
+    if (!song || !song.forceLanes) return false;
+    const val = parseInt(song.forceLanes);
+    if (window.Settings && window.Settings.current.laneCount !== val) {
+        window.Settings.setLaneCount(val); // notifica a RhythmEngine.updateSettings()
+    }
+    // Sincronizar el selector de configuración con el valor forzado
+    const cfgLanesSelect = el('cfg-lanes');
+    if (cfgLanesSelect) cfgLanesSelect.value = String(val);
+    updateConfigDescription(val, el('cfg-desc'), el('key-hint-text'));
+    if (showMsg) showToast(`🎵 "${song.title}" fuerza modo ${val} carriles`, "info");
+    return true;
+}
 
 // --- INICIALIZACIÓN SEGURA ---
 function init() {
@@ -304,6 +330,8 @@ function renderSongs() {
                 audio.src = song.src;
                 audio.load();
             }
+            // Auto-carriles: si la canción define forceLanes, se aplica al seleccionarla
+            applySongLaneMode(true);
         }
     };
     
@@ -330,6 +358,9 @@ function setupBindings() {
         startBtn.onclick = async () => {
             const song = getCurrentSongData();
             if(!song) return;
+
+            // ⭐ Auto-carriles: asegurar forceLanes (ej. Boom Boom Boom → 6) antes de cargar el chart
+            applySongLaneMode(false);
 
             const chartPath = `charts/${song.id}.json`;
             
@@ -431,10 +462,7 @@ function applyVisualSettings() {
     updateConfigDescription(count, cfgDesc, keyHintText);
 }
 
-function getCurrentSongData() {
-    const id = el('song-select')?.value;
-    return SONG_LIST.find(s => s.id === id) || SONG_LIST[0];
-}
+// getCurrentSongData() definido arriba, junto a applySongLaneMode()
 
 function getDifficulty() {
     return el('difficulty')?.value || 'normal';
