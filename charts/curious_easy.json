@@ -7,81 +7,44 @@
   "bpm": 129,
   "duration": 178,
   "offsetMs": 0,
-  "leadTime": 2.2,
+  "leadTime": 1.5,
   "judgingScale": 1.6,
   "scoreMult": 0.75,
   "notes": [
+     {
+      "time": 4.2,
+      "lane": 1,
+      "duration": 0.5
+    },
     {
-      "time": 0.3,
+      "time": 4.9,
+      "lane": 2,
+      "duration": 0.5
+    },
+    {
+      "time": 5.9,
       "lane": 0
     },
     {
-      "time": 0.9,
+      "time": 6.25,
+      "lane": 0
+    },
+    {
+      "time": 6.35,
+      "lane": 2,
+      "duration": 0.25
+    },
+    {
+      "time": 7.1,
+      "lane": 3
+    },
+    {
+      "time": 7.3,
+      "lane": 2
+    },
+    {
+      "time": 7.5,
       "lane": 1
-    },
-    {
-      "time": 1.5,
-      "lane": 1
-    },
-    {
-      "time": 2.25,
-      "lane": 0
-    },
-    {
-      "time": 3.225,
-      "lane": 0
-    },
-    {
-      "time": 4.125,
-      "lane": 0
-    },
-    {
-      "time": 4.65,
-      "lane": 1
-    },
-    {
-      "time": 5.4,
-      "lane": 0
-    },
-    {
-      "time": 5.55,
-      "lane": 1
-    },
-    {
-      "time": 7.05,
-      "lane": 0
-    },
-    {
-      "time": 7.35,
-      "lane": 0
-    },
-    {
-      "time": 8.1,
-      "lane": 1
-    },
-    {
-      "time": 8.85,
-      "lane": 0
-    },
-    {
-      "time": 9.375,
-      "lane": 0
-    },
-    {
-      "time": 9.9,
-      "lane": 0
-    },
-    {
-      "time": 10.65,
-      "lane": 1
-    },
-    {
-      "time": 11.25,
-      "lane": 0
-    },
-    {
-      "time": 11.25,
-      "lane": 0
     }
   ]
 }
