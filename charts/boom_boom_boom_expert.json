@@ -6,7 +6,7 @@
   "difficulty": "expert",
   "bpm": 128.0,
   "duration": 185.0,
-  "offsetMs": 0,
+  "offsetMs": 250,
   "leadTime": 1.5,
   "judgingScale": 1.0,
   "scoreMult": 1.0,
