@@ -1,0 +1,151 @@
+{
+  "id": "curious_normal",
+  "parentChartId": "curious",
+  "title": "Curious",
+  "artist": "AND2BLE",
+  "difficulty": "normal",
+  "bpm": 129,
+  "duration": 178,
+  "offsetMs": 0,
+  "leadTime": 1.8,
+  "judgingScale": 1.3,
+  "scoreMult": 1.0,
+  "notes": [
+    {
+      "time": 0.25,
+      "lane": 0
+    },
+    {
+      "time": 0.5,
+      "lane": 0
+    },
+    {
+      "time": 0.75,
+      "lane": 2
+    },
+    {
+      "time": 1.0,
+      "lane": 2
+    },
+    {
+      "time": 1.25,
+      "lane": 2
+    },
+    {
+      "time": 1.5,
+      "lane": 1
+    },
+    {
+      "time": 1.875,
+      "lane": 0
+    },
+    {
+      "time": 2.438,
+      "lane": 0
+    },
+    {
+      "time": 2.688,
+      "lane": 1
+    },
+    {
+      "time": 2.875,
+      "lane": 0
+    },
+    {
+      "time": 3.438,
+      "lane": 0
+    },
+    {
+      "time": 3.688,
+      "lane": 1
+    },
+    {
+      "time": 3.875,
+      "lane": 2
+    },
+    {
+      "time": 4.438,
+      "lane": 0
+    },
+    {
+      "time": 4.5,
+      "lane": 1
+    },
+    {
+      "time": 4.562,
+      "lane": 2
+    },
+    {
+      "time": 4.625,
+      "lane": 3
+    },
+    {
+      "time": 5.25,
+      "lane": 1
+    },
+    {
+      "time": 5.875,
+      "lane": 0
+    },
+    {
+      "time": 5.875,
+      "lane": 2
+    },
+    {
+      "time": 6.125,
+      "lane": 1
+    },
+    {
+      "time": 6.75,
+      "lane": 0
+    },
+    {
+      "time": 6.75,
+      "lane": 2
+    },
+    {
+      "time": 7.375,
+      "lane": 0
+    },
+    {
+      "time": 7.375,
+      "lane": 1
+    },
+    {
+      "time": 7.812,
+      "lane": 0
+    },
+    {
+      "time": 7.812,
+      "lane": 1
+    },
+    {
+      "time": 7.938,
+      "lane": 2
+    },
+    {
+      "time": 8.25,
+      "lane": 0
+    },
+    {
+      "time": 8.25,
+      "lane": 1
+    },
+    {
+      "time": 8.875,
+      "lane": 3
+    },
+    {
+      "time": 9.125,
+      "lane": 2
+    },
+    {
+      "time": 9.375,
+      "lane": 0
+    },
+    {
+      "time": 9.375,
+      "lane": 1
+    }
+  ]
+}
