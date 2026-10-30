@@ -1,6 +1,6 @@
 // main.js - Controlador Principal v8 (Multi-Lane Support)
 
-// Instancia global del estado
+// Instancia global del estado (window.GS para que RhythmEngine/FoodyEngine puedan leerla)
 let GS = null; 
 
 // --- DATOS DE CANCIONES ---
@@ -33,6 +33,7 @@ function init() {
 
     // 3. Crear instancia de Estado
     GS = new window.GameStateClass();
+    window.GS = GS; // FIX: exponer la instancia; antes rhythm-game.js leía window.GS y siempre estaba vacío (power=1, sin escudos ni sinergias)
 
     // 4. Cargar Guardado
     const saved = localStorage.getItem('wolfy_world_save_v6');

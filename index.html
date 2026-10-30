@@ -149,10 +149,11 @@
   </footer>
 
   <!-- ORDEN CRÍTICO DE SCRIPTS -->
-  <script src="game-state.js" defer></script> 
+  <script src="game-state.js"></script> 
   <script src="settings.js" defer></script>   
   <script src="foody-data.js" defer></script>   
-  <script src="rhythm-game.js" defer></script>
+  <!-- FIX: rhythm-game NO debe ser defer: su IIFE se ejecutaba antes de Settings.init() (defer) y leía laneCount=undefined -->
+  <script src="rhythm-game.js"></script>
   <script src="foody-engine.js" defer></script> 
   <script src="main.js" defer></script>
 </body>
