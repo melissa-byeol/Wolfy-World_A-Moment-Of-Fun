@@ -53,7 +53,7 @@ const THEMES_GENERAL = [
     { name: "Themeless", color: "#9aa4b2", icon: "⚪", synergy: [ { songId: 'exotic', multiplier: 1.55 } ] },
     { name: "Curiosity", color: "#3498db", icon: "🔍", synergy: [ { songId: 'curious', multiplier: 1.55 } ] },
     { name: "Playtime", color: "#f1c40f", icon: "🎈", synergy: null },
-    { name: "Stillness In The Thorns", icon: "🌹", synergy: [ { songId: 'bed_of_thorns', multiplier: 1.55 }, { songId: 'stick_with_you', multiplier: 1.55 } ] }, 
+    { name: "Stillness In The Thorns", color: "#e74c3c", icon: "🌹", synergy: [ { songId: 'bed_of_thorns', multiplier: 1.55 }, { songId: 'stick_with_you', multiplier: 1.55 } ] }, 
     { name: "Party O'Clock", color: "#e67e22", icon: "🎉", synergy: null },
     { name: "[FX] Orange-White Blooded", color: "#ff5722", icon: "", synergy: null },
     
@@ -369,7 +369,9 @@ class GameState {
             strength: Math.round(archData.baseStr * lvlMult * rankMult),
             hp: Math.round(archData.baseHp * lvlMult * rankMult),
             special: archData.special || null,
-            roleName: archKey
+            roleName: archKey,
+            rank: record.rank, // FIX: necesario para el color de rango en FoodyEngine
+            level: record.level
         };
     }
 
@@ -394,8 +396,10 @@ class GameState {
             if (record.rank === 'MR') startCombo += 10;
 
             // 3. ⭐ LÓGICA DE MÚLTIPLES SINERGIAS ⭐
-            if (catalogEntry.synergies && Array.isArray(catalogEntry.synergies)) {
-                catalogEntry.synergies.forEach(syn => {
+            // FIX: las cartas se generan con la clave "synergy" (no "synergies")
+            const synList = catalogEntry.synergy || catalogEntry.synergies;
+            if (synList && Array.isArray(synList)) {
+                synList.forEach(syn => {
                     if (syn.songId === songId) {
                         // Opción A: Multiplicar la potencia INDIVIDUAL de la carta
                         cardEffectivePower *= syn.multiplier;

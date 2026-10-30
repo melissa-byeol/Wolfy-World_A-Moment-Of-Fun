@@ -54,12 +54,7 @@ const RhythmEngine = (function(){
       const count = (window.Settings && window.Settings.current.laneCount) || 4;
       LANE_COUNT = count;
 
-      if (count === 4) {
-          // Clásico: D F J K
-          KEY_MAP = { 'd': 0, 'f': 1, 'j': 2, 'k': 3, 'arrowleft': 0, 'arrowup': 1, 'arrowdown': 2, 'arrowright': 3 };
-          LANE_COLORS = ['#ff0055', '#ffffff', '#333333', '#aa0033'];
-          KEY_LABELS = ['D','F','J','K'];
-      } else if (count === 6) {
+      if (count === 6) {
           // Experto: D F G H J K
           KEY_MAP = { 
               'd': 0, 'f': 1, 'g': 2, 
@@ -75,7 +70,18 @@ const RhythmEngine = (function(){
               '#aa0033'  // K (Rosa Oscuro)
           ];
           KEY_LABELS = ['D','F','G','H','J','K'];
+      } else {
+          // Clásico (default): D F J K — FIX: antes "else if (count === 4)" dejaba
+          // KEY_MAP vacío si laneCount tenía un valor inesperado
+          KEY_MAP = { 'd': 0, 'f': 1, 'j': 2, 'k': 3, 'arrowleft': 0, 'arrowup': 1, 'arrowdown': 2, 'arrowright': 3 };
+          LANE_COLORS = ['#ff0055', '#ffffff', '#333333', '#aa0033'];
+          KEY_LABELS = ['D','F','J','K'];
       }
+      
+      // Sanear notas del chart cuyos carriles queden fuera de rango (evita dibujar/fallar fuera de pantalla)
+      notes.forEach(n => {
+        if (n.lane < 0 || n.lane >= LANE_COUNT) n.lane = Math.max(0, Math.min(LANE_COUNT - 1, n.lane | 0));
+      });
       
       // Limpiar teclas presionadas al cambiar configuración
       activeKeys.clear();
