@@ -297,16 +297,36 @@ function openFeedModal(targetId) {
         list.appendChild(label);
     });
 
+    // FIX: si la carta ya está al máximo de nivel, no abrir el menú (evita un modal sin acción posible)
+    const rec = GS.getCardRecord(targetId);
+    const cfg = RANK_CONFIG[rec.rank];
+    if (cfg && rec.level >= cfg.maxLvl) {
+        showToast(`"${targetCatalog?.displayName || targetId}" ya está a nivel máximo (${cfg.maxLvl}). Sube su rango para seguir mejorando.`, "info");
+        return;
+    }
+
     const modal = el('feed-modal');
     if(modal) modal.classList.remove('hidden');
 }
 
+function closeFeedModal() {
+    const modal = el('feed-modal');
+    if(modal) modal.classList.add('hidden');
+    feedTargetId = null;
+    selectedFoodIds.clear();
+}
+
 const cancelBtn = el('btn-feed-cancel');
 if(cancelBtn) {
-    cancelBtn.onclick = () => {
-        el('feed-modal').classList.add('hidden');
-        feedTargetId = null;
-    };
+    cancelBtn.onclick = () => closeFeedModal();
+}
+
+// FIX: cerrar también haciendo clic en el fondo del overlay
+const feedOverlay = el('feed-modal');
+if(feedOverlay) {
+    feedOverlay.addEventListener('click', (e) => {
+        if(e.target === feedOverlay) closeFeedModal();
+    });
 }
 
 const confirmBtn = el('btn-feed-confirm');
@@ -323,7 +343,20 @@ if(confirmBtn) {
             saveGame();
             renderCollection();
             showToast(`¡Alimentada! +${result.levelsUp} Niveles`, "success");
-            el('feed-modal').classList.add('hidden');
+
+            // FIX: si tras alimentar llega al máximo, cerrar SIEMPRE el menú
+            const rec = GS.getCardRecord(feedTargetId);
+            const cfg = RANK_CONFIG[rec.rank];
+            if (!cfg || rec.level >= cfg.maxLvl) {
+                closeFeedModal();
+            } else {
+                // Quedan niveles disponibles: refrescar lista y mantener abierto
+                openFeedModal(feedTargetId);
+            }
+        } else if (result && result.reason === 'max_level') {
+            // FIX: objetivo ya al máximo → cerrar el menú en vez de dejarlo abierto
+            showToast("La carta ya está a nivel máximo.", "info");
+            closeFeedModal();
         } else {
             showToast("Error al alimentar.", "error");
         }
@@ -442,7 +475,7 @@ function setupBindings() {
         updateHelperUI();
     }
 
-    // ⭐ CONFIGURACIÓN DE CARRILES ⭐
+    // ⭐ CONFIGURACIÓN DE MODO DE JUEGO (carriles + Foody Chaos) ⭐
     const cfgLanesSelect = el('cfg-lanes');
     const cfgDesc = el('cfg-desc');
     const keyHintText = el('key-hint-text');
@@ -453,11 +486,26 @@ function setupBindings() {
         updateConfigDescription(parseInt(cfgLanesSelect.value), cfgDesc, keyHintText);
 
         cfgLanesSelect.onchange = () => {
-            const val = parseInt(cfgLanesSelect.value);
+            const raw = cfgLanesSelect.value;
+            if (raw === 'foody') {
+                // FIX: seleccionar la pestana de Foody Chaos abre el minijuego
+                updateConfigDescription('foody', cfgDesc, keyHintText);
+                openFoodyChaos();
+                // Volver al ultimo modo de ritmo para que el select no quede en un estado inconsistente
+                cfgLanesSelect.value = String(window.Settings.current.laneCount || 4);
+                return;
+            }
+            const val = parseInt(raw);
             window.Settings.setLaneCount(val);
             updateConfigDescription(val, cfgDesc, keyHintText);
             showToast(`Modo ${val} carriles activado`, "info");
         };
+    }
+
+    // ⭐ BOTON FOODY CHAOS ⭐
+    const foodyBtn = el('btn-foody-chaos');
+    if(foodyBtn) {
+        foodyBtn.onclick = () => openFoodyChaos();
     }
 
     // ⭐ SELECTOR DE DIFICULTAD ⭐
@@ -495,7 +543,9 @@ const DIFFICULTY_LABELS = {
 // Función auxiliar para actualizar textos descriptivos
 function updateConfigDescription(count, descEl, hintEl) {
     if(descEl) {
-        if(count === 4) {
+        if(count === 'foody') {
+            descEl.textContent = "Minijuego de tienda: muevete con WASD/flechas y recoge pedidos con ESPACIO.";
+        } else if(count === 4) {
             descEl.textContent = "Usa D-F-J-K para jugar.";
         } else {
             descEl.textContent = "Usa D-F-G-H-J-K para jugar.";
@@ -565,6 +615,54 @@ function getRankColor(rank) {
     const colors = { 'B':'#9fb8ff', 'A':'#7fffb1', 'S':'#ffd57f', 'R':'#ff9fb2', 'XR':'#c97fff', 'UR':'#ffad4a', 'MR':'#ffd700' };
     return colors[rank] || '#fff';
 }
+
+// --- FOODY CHAOS: abrir/cerrar pestaña ---
+function openFoodyChaos() {
+    const modal = el('foody-modal');
+    if(!modal) return;
+    modal.classList.remove('hidden');
+
+    if(window.FoodyEngine && typeof window.FoodyEngine.init === 'function') {
+        // init() regenera mapa, equipo (desde cartas equipadas) y reinicia el timer
+        window.FoodyEngine.init('foody-game-container', GS);
+        startFoodyTimerDisplay();
+        showToast("🍕 Foody Chaos iniciado. WASD/flechas para moverte, ESPACIO para interactuar.", "info");
+    } else {
+        showToast("Motor Foody no cargado.", "error");
+    }
+}
+
+function closeFoodyChaos() {
+    const modal = el('foody-modal');
+    if(modal) modal.classList.add('hidden');
+    if(window.FoodyEngine && typeof window.FoodyEngine.stop === 'function') {
+        window.FoodyEngine.stop();
+    }
+    stopFoodyTimerDisplay();
+}
+
+// Mostrar cuenta regresiva en la cabecera del modal
+let _fdTimerInterval = null;
+function startFoodyTimerDisplay() {
+    stopFoodyTimerDisplay();
+    const disp = el('fd-timer-display');
+    if(!disp) return;
+    _fdTimerInterval = setInterval(() => {
+        if(window.FoodyEngine && typeof window.FoodyEngine.getRemainingTime === 'function') {
+            disp.textContent = `⏱️ ${window.FoodyEngine.getRemainingTime()}s`;
+        } else if(window.FOODY_CONFIG) {
+            disp.textContent = `${window.FOODY_CONFIG.GAME_DURATION_SECONDS}s`;
+        }
+    }, 250);
+}
+function stopFoodyTimerDisplay() {
+    if(_fdTimerInterval) { clearInterval(_fdTimerInterval); _fdTimerInterval = null; }
+}
+
+// Boton "Salir" del modal de Foody (delegacion global: funciona aunque re-renderice)
+document.addEventListener('click', (e) => {
+    if(e.target && e.target.id === 'fd-close-btn') closeFoodyChaos();
+});
 
 // --- EXPOSE API FOR RHYTHM ENGINE ---
 window.AppAPI = {
