@@ -34,6 +34,13 @@ const FoodyEngine = (function() {
     let timeLeft = 0;
     let spawnTimer = 0;
 
+    // FIX: referencias a listeners globales para poder quitarlos al salir
+    // (antes se acumulaban en cada partida)
+    let boundKeyDown = null;
+    let boundKeyUp = null;
+    let boundInteract = null;
+    let menuAutoCloseTimer = null;
+
     // UI References
     let uiElements = {};
 
@@ -72,6 +79,9 @@ const FoodyEngine = (function() {
         
         // Bindings de Input
         setupInput();
+
+        // FIX: lastTime = 0 para que el primer frame calcule un dt valido
+        lastTime = 0;
         
         // Iniciar Loop
         requestAnimationFrame(gameLoop);
@@ -149,22 +159,42 @@ const FoodyEngine = (function() {
     // --- INPUT HANDLING ---
     const keys = new Set();
     function setupInput() {
-        window.addEventListener('keydown', e => keys.add(e.key.toLowerCase()));
-        window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
-        
-        // Interacción con ESPACIO o ENTER
-        window.addEventListener('keydown', e => {
+        // FIX: evitar listeners duplicados si init() se llama varias veces
+        teardownInput();
+
+        boundKeyDown = e => keys.add(e.key.toLowerCase());
+        boundKeyUp = e => keys.delete(e.key.toLowerCase());
+        boundInteract = e => {
+            // FIX: evitar scroll con flechas/espacio mientras el minijuego esta activo
+            if(isActive && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+            // Interaccion con ESPACIO o ENTER
             if((e.code === 'Space' || e.code === 'Enter') && isActive) {
                 interactWithAdjacentShelf();
             }
-        });
+        };
+
+        window.addEventListener('keydown', boundKeyDown);
+        window.addEventListener('keyup', boundKeyUp);
+        window.addEventListener('keydown', boundInteract);
+    }
+
+    function teardownInput() {
+        if(boundKeyDown) window.removeEventListener('keydown', boundKeyDown);
+        if(boundKeyUp) window.removeEventListener('keyup', boundKeyUp);
+        if(boundInteract) window.removeEventListener('keydown', boundInteract);
+        boundKeyDown = boundKeyUp = boundInteract = null;
+        keys.clear();
     }
 
     // --- LÓGICA PRINCIPAL ---
     function gameLoop(timestamp) {
         if(!isActive) return;
-        
-        const dt = timestamp - lastTime;
+
+        // FIX: primer frame -> inicializar lastTime; limitar dt para que
+        // cambiar de pestana no devore el temporizador de golpe.
+        if(!lastTime) lastTime = timestamp;
+        let dt = timestamp - lastTime;
+        if(dt > 100) dt = 100;
         lastTime = timestamp;
 
         update(dt);
@@ -392,14 +422,15 @@ const FoodyEngine = (function() {
             `;
         });
         
-        html += `</ul><button onclick="this.parentElement.remove()" style="margin-top:10px; width:100%; background:#e74c3c;">Cerrar</button>`;
-        
+        html += `</ul><button onclick="window.FoodyAPI.closeMenu()" style="margin-top:10px; width:100%; background:#e74c3c;">Cancelar</button>`;
+
         menu.innerHTML = html;
         document.body.appendChild(menu);
-        
-        // Auto-cerrar si se mueve el jugador
-        setTimeout(() => {
-            if(menu.parentElement) menu.remove();
+
+        // FIX: guardar el timeout para poder cancelarlo (evita menus fantasmas)
+        if(menuAutoCloseTimer) clearTimeout(menuAutoCloseTimer);
+        menuAutoCloseTimer = setTimeout(() => {
+            closeContextMenu();
         }, 5000);
     }
 
@@ -414,19 +445,31 @@ const FoodyEngine = (function() {
                     // Remover item del suelo si existe físicamente ahí (opcional, por ahora solo suma puntos/peso)
                     // En esta versión simplificada, "llevar" consume stock virtual del estante
                     
-                    alert(`¡${member.name} llevó ${itemId}! (+${value} pts potenciales)`);
-                    
-                    // Cerrar menú
-                    const menus = document.querySelectorAll('.foody-context-menu');
-                    menus.forEach(m => m.remove());
-                    
+                    showToastFoody(`${member.name} llevó ${itemId} (+${value} pts)`, 'success');
+
+                    // FIX: cerrar el menu tras coger un item (antes podia quedar tapando)
+                    closeContextMenu();
+
                     updateHUD();
                     return;
                 }
             }
-            alert("¡Todo el equipo está lleno!");
-        }
+            showToastFoody("¡Todo el equipo está lleno!", 'error');
+            closeContextMenu();
+        },
+        closeMenu: () => closeContextMenu()
     };
+
+    // FIX: notificacion sin alert() (alert bloqueaba el hilo del juego)
+    function showToastFoody(msg, type) {
+        if(typeof window.showToast === 'function') { window.showToast(msg, type); }
+        else { console.log(`[FOODY][${type}] ${msg}`); }
+    }
+
+    function closeContextMenu() {
+        if(menuAutoCloseTimer) { clearTimeout(menuAutoCloseTimer); menuAutoCloseTimer = null; }
+        document.querySelectorAll('.foody-context-menu').forEach(m => m.remove());
+    }
 
     function updateHUD() {
         // Actualizar barra lateral o inferior si existe
@@ -455,6 +498,7 @@ const FoodyEngine = (function() {
 
     function endGame() {
         isActive = false;
+        closeContextMenu(); // FIX: retirar menu contextual si seguia abierto
         
         // Calcular recompensas
         let totalValue = 0;
@@ -486,7 +530,20 @@ const FoodyEngine = (function() {
         localStorage.setItem('wolfy_foody_save', JSON.stringify(saveData));
     }
 
-    return { init };
+    // FIX: API publica para cerrar el minijuego desde el menu principal
+    function stop() {
+        isActive = false;
+        teardownInput();
+        closeContextMenu();
+        const resBox = document.getElementById('fd-results');
+        if(resBox) resBox.classList.add('hidden');
+    }
+
+    function getRemainingTime() {
+        return Math.max(0, Math.ceil(timeLeft));
+    }
+
+    return { init, stop, getRemainingTime };
 })();
 
 window.FoodyEngine = FoodyEngine;

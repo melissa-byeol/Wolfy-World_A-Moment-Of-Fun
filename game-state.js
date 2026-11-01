@@ -304,13 +304,17 @@ class GameState {
         return true;
     }
 
-    toggleEquipCard(cardId) {
+    // Límite global duro de slots equipables (el límite real por canción lo da song.members)
+    MAX_EQUIP_SLOTS = 13;
+
+    toggleEquipCard(cardId, maxSlots) {
+        const limit = Math.max(1, Math.min(this.MAX_EQUIP_SLOTS, parseInt(maxSlots) || 5));
         const index = this.equippedCards.indexOf(cardId);
         if (index >= 0) {
             this.equippedCards.splice(index, 1);
             return true;
         }
-        if (this.equippedCards.length >= 5) return false;
+        if (this.equippedCards.length >= limit) return false;
         this.equippedCards.push(cardId);
         return true;
     }
@@ -373,6 +377,25 @@ class GameState {
             rank: record.rank, // FIX: necesario para el color de rango en FoodyEngine
             level: record.level
         };
+    }
+
+    // Potencia INDIVIDUAL de una carta equipada para una canción concreta,
+    // incluyendo sus sinergias (misma lógica que getRhythmStats pero por carta).
+    // Devuelve null si la carta no está equipada o no existe en el catálogo.
+    getCardPowerForSong(cardId, songId) {
+        const index = this.equippedCards.indexOf(cardId);
+        if (index < 0) return null;
+        const catalogEntry = CARD_MAP[cardId];
+        if (!catalogEntry) return null;
+
+        let cardEffectivePower = this.calculateCardPower(cardId);
+        const synList = catalogEntry.synergy || catalogEntry.synergies;
+        if (synList && Array.isArray(synList)) {
+            synList.forEach(syn => {
+                if (syn.songId === songId) cardEffectivePower *= syn.multiplier;
+            });
+        }
+        return { power: cardEffectivePower, slot: index + 1 };
     }
 
         getRhythmStats(songId) {

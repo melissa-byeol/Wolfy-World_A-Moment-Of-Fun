@@ -4,25 +4,34 @@
 let GS = null; 
 
 // --- DATOS DE CANCIONES ---
+// members: nº de miembros del grupo artista de la canción → determina el
+// límite de cartas que puedes equipar para esa canción (default: 5).
 const SONG_LIST = [
-    { id: 'demo1', title: 'Demo Track 1', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', bpm: 120 },
-    { id: 'bed_of_thorns', title: 'Bed of Thorns', src: 'assets/bed-of-thorns.mp3', bpm: 135 },
-    { id: 'sweet_venom_(seeb)', title: 'Sweet Venom (SeeB Remix)', src: 'assets/sweet-venom-(seeb-remix).mp3', bpm: 120 },
-    { id: 'new_kidz', title: 'New Kidz On The Block', src: 'assets/new-kidz-on-the-block.mp3', bpm: 110 },
-    { id: 'exotic', title: 'Exotic', src: 'assets/exotic.mp3', bpm: 140 },
-    { id: 'curious', title: 'Curious', src: 'assets/curious.mp3', bpm: 129 },
-    { id: 'sos', title: 'SOS (Prod. By Marshmello)', src: 'assets/sos.mp3', bpm: 152},
-    { id: 'scream', title: 'Scream', src: 'assets/scream.mp3', bpm: 154},
-    { id: 'top', title: 'TOP (Tower Of God OP)', src: 'assets/top.mp3', bpm: 196},
+    { id: 'demo1', title: 'Demo Track 1', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', bpm: 120, members: 5 },
+    { id: 'bed_of_thorns', title: 'Bed of Thorns', src: 'assets/bed-of-thorns.mp3', bpm: 135, members: 7 },
+    { id: 'sweet_venom_(seeb)', title: 'Sweet Venom (SeeB Remix)', src: 'assets/sweet-venom-(seeb-remix).mp3', bpm: 120, members: 2 },
+    { id: 'new_kidz', title: 'New Kidz On The Block', src: 'assets/new-kidz-on-the-block.mp3', bpm: 110, members: 7 },
+    { id: 'exotic', title: 'Exotic', src: 'assets/exotic.mp3', bpm: 140, members: 5 },
+    { id: 'curious', title: 'Curious', src: 'assets/curious.mp3', bpm: 129, members: 5 }, // AND2BLE: 5 miembros
+    { id: 'sos', title: 'SOS (Prod. By Marshmello)', src: 'assets/sos.mp3', bpm: 152, members: 13 },
+    { id: 'scream', title: 'Scream', src: 'assets/scream.mp3', bpm: 154, members: 8 },
+    { id: 'top', title: 'TOP (Tower Of God OP)', src: 'assets/top.mp3', bpm: 196, members: 8 },
     // BOYNEXTDOOR — "But Sometimes (Korean Ver.)" (será "One and Only" en inglés). BPM real: 105.
     // ⚠️ Falta el MP3: descarga la canción y guárdala como assets/but-sometimes.mp3
-    { id: 'one_day', title: 'But Sometimes — BOYNEXTDOOR', src: 'assets/but-sometimes.mp3', bpm: 105},
+    { id: 'one_day', title: 'But Sometimes — BOYNEXTDOOR', src: 'assets/but-sometimes.mp3', bpm: 105, members: 6},
     // BOYNEXTDOOR — "BOYNEXTDOOR 2nd Single Album「Boom Boom Boom」" (Japón, 2025; editado antes del
     // deluxe de HOME). BPM aprox.: 128. forceLanes: se pone automáticamente en 6 carriles al jugarla.
     // PLACEHOLDER: coloca el MP3 oficial en assets/boom-boom-boom.mp3
-    { id: 'boom_boom_boom', title: 'Boom Boom Boom — BOYNEXTDOOR', src: 'assets/boom-boom-boom.mp3', bpm: 128, forceLanes: 6},
-    { id: 'ride_or_die', title: 'Ride Or Die', src: 'assets/ride-or-die.mp3', bpm: 184, forceLanes: 6}
+    { id: 'boom_boom_boom', title: 'Boom Boom Boom — BOYNEXTDOOR', src: 'assets/boom-boom-boom.mp3', bpm: 128, forceLanes: 6, members: 6},
+    { id: 'ride_or_die', title: 'Ride Or Die', src: 'assets/ride-or-die.mp3', bpm: 184, forceLanes: 6, members: 1}
 ];
+
+// Límite de cartas equipables según la canción seleccionada (por sus miembros)
+// (getCurrentSongData se define justo debajo; el helper solo se usa en runtime)
+function getSongCardLimit() {
+    const song = getCurrentSongData();
+    return Math.max(1, parseInt(song && song.members) || 5);
+}
 
 // --- Helper: obtener los datos de la canción seleccionada ---
 function getCurrentSongData() {
@@ -204,8 +213,10 @@ function renderCollection() {
 
     const tpEl = el('total-power-display');
     const ecEl = el('equip-count');
+    const elEl = el('equip-limit');
     if(tpEl) tpEl.innerText = totalPower;
     if(ecEl) ecEl.innerText = GS.equippedCards.length;
+    if(elEl) elEl.innerText = getSongCardLimit();
 }
 
 // Delegación de eventos en la colección
@@ -218,11 +229,12 @@ if (el('collection')) {
         const id = btn.dataset.id;
 
         if(action === 'equip') {
-            if(GS.toggleEquipCard(id)) {
+            const limit = getSongCardLimit();
+            if(GS.toggleEquipCard(id, limit)) {
                 saveGame();
                 renderCollection();
             } else {
-                showToast("Máximo 5 cartas equipadas.", "error");
+                showToast(`Máximo ${limit} cartas equipadas (miembros de "${getCurrentSongData().title}"). Quita alguna primero.`, "error");
             }
         }
         if(action === 'feed') {
@@ -298,16 +310,36 @@ function openFeedModal(targetId) {
         list.appendChild(label);
     });
 
+    // FIX: si la carta ya está al máximo de nivel, no abrir el menú (evita un modal sin acción posible)
+    const rec = GS.getCardRecord(targetId);
+    const cfg = RANK_CONFIG[rec.rank];
+    if (cfg && rec.level >= cfg.maxLvl) {
+        showToast(`"${targetCatalog?.displayName || targetId}" ya está a nivel máximo (${cfg.maxLvl}). Sube su rango para seguir mejorando.`, "info");
+        return;
+    }
+
     const modal = el('feed-modal');
     if(modal) modal.classList.remove('hidden');
 }
 
+function closeFeedModal() {
+    const modal = el('feed-modal');
+    if(modal) modal.classList.add('hidden');
+    feedTargetId = null;
+    selectedFoodIds.clear();
+}
+
 const cancelBtn = el('btn-feed-cancel');
 if(cancelBtn) {
-    cancelBtn.onclick = () => {
-        el('feed-modal').classList.add('hidden');
-        feedTargetId = null;
-    };
+    cancelBtn.onclick = () => closeFeedModal();
+}
+
+// FIX: cerrar también haciendo clic en el fondo del overlay
+const feedOverlay = el('feed-modal');
+if(feedOverlay) {
+    feedOverlay.addEventListener('click', (e) => {
+        if(e.target === feedOverlay) closeFeedModal();
+    });
 }
 
 const confirmBtn = el('btn-feed-confirm');
@@ -324,7 +356,20 @@ if(confirmBtn) {
             saveGame();
             renderCollection();
             showToast(`¡Alimentada! +${result.levelsUp} Niveles`, "success");
-            el('feed-modal').classList.add('hidden');
+
+            // FIX: si tras alimentar llega al máximo, cerrar SIEMPRE el menú
+            const rec = GS.getCardRecord(feedTargetId);
+            const cfg = RANK_CONFIG[rec.rank];
+            if (!cfg || rec.level >= cfg.maxLvl) {
+                closeFeedModal();
+            } else {
+                // Quedan niveles disponibles: refrescar lista y mantener abierto
+                openFeedModal(feedTargetId);
+            }
+        } else if (result && result.reason === 'max_level') {
+            // FIX: objetivo ya al máximo → cerrar el menú en vez de dejarlo abierto
+            showToast("La carta ya está a nivel máximo.", "info");
+            closeFeedModal();
         } else {
             showToast("Error al alimentar.", "error");
         }
@@ -354,6 +399,8 @@ function renderSongs() {
             }
             // Auto-carriles: si la canción define forceLanes, se aplica al seleccionarla
             applySongLaneMode(true);
+            // El límite de cartas equipables depende de los miembros de la canción
+            renderCollection();
         }
     };
     
@@ -443,7 +490,7 @@ function setupBindings() {
         updateHelperUI();
     }
 
-    // ⭐ CONFIGURACIÓN DE CARRILES ⭐
+    // ⭐ CONFIGURACIÓN DE MODO DE JUEGO (carriles + Foody Chaos) ⭐
     const cfgLanesSelect = el('cfg-lanes');
     const cfgDesc = el('cfg-desc');
     const keyHintText = el('key-hint-text');
@@ -454,11 +501,26 @@ function setupBindings() {
         updateConfigDescription(parseInt(cfgLanesSelect.value), cfgDesc, keyHintText);
 
         cfgLanesSelect.onchange = () => {
-            const val = parseInt(cfgLanesSelect.value);
+            const raw = cfgLanesSelect.value;
+            if (raw === 'foody') {
+                // FIX: seleccionar la pestana de Foody Chaos abre el minijuego
+                updateConfigDescription('foody', cfgDesc, keyHintText);
+                openFoodyChaos();
+                // Volver al ultimo modo de ritmo para que el select no quede en un estado inconsistente
+                cfgLanesSelect.value = String(window.Settings.current.laneCount || 4);
+                return;
+            }
+            const val = parseInt(raw);
             window.Settings.setLaneCount(val);
             updateConfigDescription(val, cfgDesc, keyHintText);
             showToast(`Modo ${val} carriles activado`, "info");
         };
+    }
+
+    // ⭐ BOTON FOODY CHAOS ⭐
+    const foodyBtn = el('btn-foody-chaos');
+    if(foodyBtn) {
+        foodyBtn.onclick = () => openFoodyChaos();
     }
 
     // ⭐ SELECTOR DE DIFICULTAD ⭐
@@ -496,7 +558,9 @@ const DIFFICULTY_LABELS = {
 // Función auxiliar para actualizar textos descriptivos
 function updateConfigDescription(count, descEl, hintEl) {
     if(descEl) {
-        if(count === 4) {
+        if(count === 'foody') {
+            descEl.textContent = "Minijuego de tienda: muevete con WASD/flechas y recoge pedidos con ESPACIO.";
+        } else if(count === 4) {
             descEl.textContent = "Usa D-F-J-K para jugar.";
         } else {
             descEl.textContent = "Usa D-F-G-H-J-K para jugar.";
@@ -566,6 +630,54 @@ function getRankColor(rank) {
     const colors = { 'B':'#9fb8ff', 'A':'#7fffb1', 'S':'#ffd57f', 'R':'#ff9fb2', 'XR':'#c97fff', 'UR':'#ffad4a', 'MR':'#ffd700' };
     return colors[rank] || '#fff';
 }
+
+// --- FOODY CHAOS: abrir/cerrar pestaña ---
+function openFoodyChaos() {
+    const modal = el('foody-modal');
+    if(!modal) return;
+    modal.classList.remove('hidden');
+
+    if(window.FoodyEngine && typeof window.FoodyEngine.init === 'function') {
+        // init() regenera mapa, equipo (desde cartas equipadas) y reinicia el timer
+        window.FoodyEngine.init('foody-game-container', GS);
+        startFoodyTimerDisplay();
+        showToast("🍕 Foody Chaos iniciado. WASD/flechas para moverte, ESPACIO para interactuar.", "info");
+    } else {
+        showToast("Motor Foody no cargado.", "error");
+    }
+}
+
+function closeFoodyChaos() {
+    const modal = el('foody-modal');
+    if(modal) modal.classList.add('hidden');
+    if(window.FoodyEngine && typeof window.FoodyEngine.stop === 'function') {
+        window.FoodyEngine.stop();
+    }
+    stopFoodyTimerDisplay();
+}
+
+// Mostrar cuenta regresiva en la cabecera del modal
+let _fdTimerInterval = null;
+function startFoodyTimerDisplay() {
+    stopFoodyTimerDisplay();
+    const disp = el('fd-timer-display');
+    if(!disp) return;
+    _fdTimerInterval = setInterval(() => {
+        if(window.FoodyEngine && typeof window.FoodyEngine.getRemainingTime === 'function') {
+            disp.textContent = `⏱️ ${window.FoodyEngine.getRemainingTime()}s`;
+        } else if(window.FOODY_CONFIG) {
+            disp.textContent = `${window.FOODY_CONFIG.GAME_DURATION_SECONDS}s`;
+        }
+    }, 250);
+}
+function stopFoodyTimerDisplay() {
+    if(_fdTimerInterval) { clearInterval(_fdTimerInterval); _fdTimerInterval = null; }
+}
+
+// Boton "Salir" del modal de Foody (delegacion global: funciona aunque re-renderice)
+document.addEventListener('click', (e) => {
+    if(e.target && e.target.id === 'fd-close-btn') closeFoodyChaos();
+});
 
 // --- EXPOSE API FOR RHYTHM ENGINE ---
 window.AppAPI = {
