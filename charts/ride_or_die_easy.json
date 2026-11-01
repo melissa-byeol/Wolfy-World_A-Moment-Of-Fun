@@ -13,8 +13,19 @@
   "scoreMult": 0.75,
   "notes": [
     {
-      "time": 7.5,
-      "lane": 1
+      "time": 5.2,
+      "lane": 1,
+      "duration": 2.3
+    },
+    {
+      "time": 7.7,
+      "lane": 1,
+      "duration": 2.3
+    },
+    {
+      "time": 10.2,
+      "lane": 1,
+      "duration": 2.3
     }
   ]
 }
