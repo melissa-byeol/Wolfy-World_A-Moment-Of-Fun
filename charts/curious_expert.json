@@ -1,9 +1,9 @@
 {
-  "id": "curious_hard",
+  "id": "curious_expert",
   "parentChartId": "curious",
   "title": "Curious",
   "artist": "AND2BLE",
-  "difficulty": "hard",
+  "difficulty": "expert",
   "bpm": 129,
   "duration": 178,
   "offsetMs": 0,
