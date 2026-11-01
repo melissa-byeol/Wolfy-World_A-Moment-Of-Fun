@@ -22,7 +22,8 @@ const SONG_LIST = [
     // BOYNEXTDOOR — "BOYNEXTDOOR 2nd Single Album「Boom Boom Boom」" (Japón, 2025; editado antes del
     // deluxe de HOME). BPM aprox.: 128. forceLanes: se pone automáticamente en 6 carriles al jugarla.
     // PLACEHOLDER: coloca el MP3 oficial en assets/boom-boom-boom.mp3
-    { id: 'boom_boom_boom', title: 'Boom Boom Boom — BOYNEXTDOOR', src: 'assets/boom-boom-boom.mp3', bpm: 128, forceLanes: 6, members: 6}
+    { id: 'boom_boom_boom', title: 'Boom Boom Boom — BOYNEXTDOOR', src: 'assets/boom-boom-boom.mp3', bpm: 128, forceLanes: 6, members: 6},
+    { id: 'ride_or_die', title: 'Ride Or Die', src: 'assets/ride-or-die.mp3', bpm: 184, forceLanes: 6, members: 1}
 ];
 
 // Límite de cartas equipables según la canción seleccionada (por sus miembros)
