@@ -55,6 +55,96 @@ const RhythmEngine = (function(){
   let shields = 0;
   let totalPower = 1;
   let multiplier = 1;
+
+  // ⭐ SISTEMA DE TURNOS DE CARTAS (config basada en comandos del chart) ⭐
+  // El chart declara: activeCard ("all" | "averageAll" | nº de slot 1-based),
+  // singDuration (segundos que la carta puntúa en su turno) e isEcho (x2 score).
+  // Si no se especifica nada, el default es averageAll (comportamiento clásico).
+  const DEFAULT_SING_DURATION = 8; // segundos por turno si activeCard es un slot sin singDuration
+  let cardTurns = [];       // lista de slots (1-based) que pueden entrar en turno
+  let cardTurnIndex = 0;    // siguiente slot a activar (rotación circular)
+  let activeSlot = null;    // slot con turno activo (null = averageAll global)
+  let turnEndTime = -1;     // tiempo de canción en el que expira el turno
+  let turnPower = 1;        // potencia individual de la carta del turno activo
+  let singDurationPerTurn = DEFAULT_SING_DURATION; // duración declarada por el chart
+
+  // Lee los comandos de configuración de cartas del chart:
+  //   activeCard: "averageAll" (default) | "all" | nº de slot (1-based) | array de slots
+  //   singDuration: segundos de turno por carta (solo aplica si activeCard es slot(es))
+  function applyCardConfig(data, numEquipped) {
+    cardTurns = [];
+    cardTurnIndex = 0;
+    activeSlot = null;
+    turnEndTime = -1;
+    turnPower = 1;
+    singDurationPerTurn = (typeof data.singDuration === 'number' && data.singDuration > 0)
+      ? data.singDuration : DEFAULT_SING_DURATION;
+
+    const ac = data.activeCard;
+    if (Array.isArray(ac)) {
+      cardTurns = ac.map(s => parseInt(s)).filter(s => s >= 1);
+    } else if (typeof ac === 'number' && ac >= 1) {
+      cardTurns = [Math.round(ac)];
+    } else if (typeof ac === 'string' && /^all$/i.test(ac.trim())) {
+      // "all": cada carta equipada tiene su propio turno secuencial
+      for (let i = 1; i <= Math.max(1, numEquipped); i++) cardTurns.push(i);
+    }
+    // "averageAll" / undefined → cardTurns vacío = comportamiento clásico (potencia media global)
+  }
+
+  function getCardPowerBySlot(slot) {
+    // Devuelve la potencia de la carta equipada en el slot indicado (1-based)
+    if (!window.GS || typeof window.GS.getCardPowerForSong !== 'function') return null;
+    const id = GS.equippedCards[slot - 1];
+    if (!id) return null;
+    const info = GS.getCardPowerForSong(id, currentSongId);
+    return info ? info.power : null;
+  }
+
+  function startCardTurn(slot, durationSec, elapsed) {
+    const p = getCardPowerBySlot(slot);
+    if (p === null) {
+      // Slot sin carta equipada → turno vacío, pasa directamente al siguiente
+      activeSlot = null;
+      turnPower = 1;
+      turnEndTime = elapsed + Math.max(0.5, durationSec || DEFAULT_SING_DURATION);
+      return;
+    }
+    activeSlot = slot;
+    turnPower = p;
+    turnEndTime = elapsed + Math.max(0.5, durationSec || DEFAULT_SING_DURATION);
+    try { AppAPI.onCardTurn && AppAPI.onCardTurn(slot); } catch(e){}
+  }
+
+  // Avanza el reloj de turnos; debe llamarse cada frame con el elapsed actual
+  function updateCardTurns(elapsed) {
+    if (!cardTurns.length) return; // modo averageAll global: no hay turnos
+    if (activeSlot === null || elapsed >= turnEndTime) {
+      const slot = cardTurns[cardTurnIndex % cardTurns.length];
+      cardTurnIndex++;
+      startCardTurn(slot, singDurationPerTurn, elapsed);
+    }
+  }
+
+  // Potencia que puntúa en este momento (media de todas las equipadas o la del turno activo)
+  function getCurrentScorePower() {
+    if (!cardTurns.length || activeSlot === null) return totalPower;
+    return turnPower;
+  }
+
+  // Multiplicador x2 de "echo" (carta haciendo fondo Y main a la vez).
+  // Puede declararse por nota o por secciones con "sections" en el chart.
+  function getEchoMultiplier(note, elapsed) {
+    // 1) Flag directo en la nota
+    if (note && note.isEcho) return 2;
+    // 2) Secciones del chart: { start, end, isEcho }
+    const sections = currentChartMeta && Array.isArray(currentChartMeta.sections)
+      ? currentChartMeta.sections : [];
+    for (const s of sections) {
+      if (s && s.isEcho && elapsed >= (s.start || 0) && elapsed <= (s.end || 0)) return 2;
+    }
+    return 1;
+  }
   
   // --- CONFIGURACIÓN DINÁMICA DE CARRILES ---
   
@@ -404,6 +494,10 @@ const RhythmEngine = (function(){
     maxCombo = combo;
     multiplier = stats.multiplier || 1;
 
+    // ⭐ Turnos de cartas según comandos del chart (activeCard / singDuration)
+    const numEquipped = (window.GS && Array.isArray(GS.equippedCards)) ? GS.equippedCards.length : 0;
+    applyCardConfig(currentChartMeta || {}, numEquipped);
+
     if (audioEl) {
       try {
         audioEl.currentTime = 0;
@@ -450,6 +544,9 @@ const RhythmEngine = (function(){
 
   // --- Update Logic (Complex for Holds) ---
   function update(elapsed) {
+    // ⭐ Reloj de turnos de cartas (activeCard + singDuration del chart)
+    updateCardTurns(elapsed);
+
     for (const note of notes) {
         
         const spawnTime = note.time - LEAD_TIME;
@@ -484,7 +581,8 @@ const RhythmEngine = (function(){
                          combo++;
                          if (combo > maxCombo) maxCombo = combo;
                          
-                         const pts = Math.round((50 + totalPower) * (multiplier || 1));
+                         const echoMult = getEchoMultiplier(note, note.endTime);
+                         const pts = Math.round((50 + getCurrentScorePower()) * (multiplier || 1) * echoMult);
                          score += pts;
                          try {
                             AppAPI.addScore(score);
@@ -744,7 +842,10 @@ const RhythmEngine = (function(){
         if (combo > maxCombo) maxCombo = combo;
 
         const comboBonus = 1 + (Math.min(combo, 100) / 200);
-        const pts = Math.round((basePts + totalPower) * (multiplier || 1) * comboBonus * (SCORE_MULT || 1));
+        // ⭐ Potencia del turno activo (o media global si activeCard=averageAll)
+        //    y x2 de score si la nota/sección es "echo" (fondo Y main a la vez)
+        const echoMult = getEchoMultiplier(bestNote, elapsed);
+        const pts = Math.round((basePts + getCurrentScorePower()) * (multiplier || 1) * comboBonus * (SCORE_MULT || 1) * echoMult);
         score += pts;
 
         try {

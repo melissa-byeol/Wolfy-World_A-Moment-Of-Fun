@@ -4,24 +4,33 @@
 let GS = null; 
 
 // --- DATOS DE CANCIONES ---
+// members: nº de miembros del grupo artista de la canción → determina el
+// límite de cartas que puedes equipar para esa canción (default: 5).
 const SONG_LIST = [
-    { id: 'demo1', title: 'Demo Track 1', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', bpm: 120 },
-    { id: 'bed_of_thorns', title: 'Bed of Thorns', src: 'assets/bed-of-thorns.mp3', bpm: 135 },
-    { id: 'sweet_venom_(seeb)', title: 'Sweet Venom (SeeB Remix)', src: 'assets/sweet-venom-(seeb-remix).mp3', bpm: 120 },
-    { id: 'new_kidz', title: 'New Kidz On The Block', src: 'assets/new-kidz-on-the-block.mp3', bpm: 110 },
-    { id: 'exotic', title: 'Exotic', src: 'assets/exotic.mp3', bpm: 140 },
-    { id: 'curious', title: 'Curious', src: 'assets/curious.mp3', bpm: 129 },
-    { id: 'sos', title: 'SOS (Prod. By Marshmello)', src: 'assets/sos.mp3', bpm: 152},
-    { id: 'scream', title: 'Scream', src: 'assets/scream.mp3', bpm: 154},
-    { id: 'top', title: 'TOP (Tower Of God OP)', src: 'assets/top.mp3', bpm: 196},
+    { id: 'demo1', title: 'Demo Track 1', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', bpm: 120, members: 5 },
+    { id: 'bed_of_thorns', title: 'Bed of Thorns', src: 'assets/bed-of-thorns.mp3', bpm: 135, members: 7 },
+    { id: 'sweet_venom_(seeb)', title: 'Sweet Venom (SeeB Remix)', src: 'assets/sweet-venom-(seeb-remix).mp3', bpm: 120, members: 2 },
+    { id: 'new_kidz', title: 'New Kidz On The Block', src: 'assets/new-kidz-on-the-block.mp3', bpm: 110, members: 7 },
+    { id: 'exotic', title: 'Exotic', src: 'assets/exotic.mp3', bpm: 140, members: 5 },
+    { id: 'curious', title: 'Curious', src: 'assets/curious.mp3', bpm: 129, members: 5 }, // AND2BLE: 5 miembros
+    { id: 'sos', title: 'SOS (Prod. By Marshmello)', src: 'assets/sos.mp3', bpm: 152, members: 13 },
+    { id: 'scream', title: 'Scream', src: 'assets/scream.mp3', bpm: 154, members: 8 },
+    { id: 'top', title: 'TOP (Tower Of God OP)', src: 'assets/top.mp3', bpm: 196, members: 8 },
     // BOYNEXTDOOR — "But Sometimes (Korean Ver.)" (será "One and Only" en inglés). BPM real: 105.
     // ⚠️ Falta el MP3: descarga la canción y guárdala como assets/but-sometimes.mp3
-    { id: 'one_day', title: 'But Sometimes — BOYNEXTDOOR', src: 'assets/but-sometimes.mp3', bpm: 105},
+    { id: 'one_day', title: 'But Sometimes — BOYNEXTDOOR', src: 'assets/but-sometimes.mp3', bpm: 105, members: 6},
     // BOYNEXTDOOR — "BOYNEXTDOOR 2nd Single Album「Boom Boom Boom」" (Japón, 2025; editado antes del
     // deluxe de HOME). BPM aprox.: 128. forceLanes: se pone automáticamente en 6 carriles al jugarla.
     // PLACEHOLDER: coloca el MP3 oficial en assets/boom-boom-boom.mp3
-    { id: 'boom_boom_boom', title: 'Boom Boom Boom — BOYNEXTDOOR', src: 'assets/boom-boom-boom.mp3', bpm: 128, forceLanes: 6}
+    { id: 'boom_boom_boom', title: 'Boom Boom Boom — BOYNEXTDOOR', src: 'assets/boom-boom-boom.mp3', bpm: 128, forceLanes: 6, members: 6}
 ];
+
+// Límite de cartas equipables según la canción seleccionada (por sus miembros)
+// (getCurrentSongData se define justo debajo; el helper solo se usa en runtime)
+function getSongCardLimit() {
+    const song = getCurrentSongData();
+    return Math.max(1, parseInt(song && song.members) || 5);
+}
 
 // --- Helper: obtener los datos de la canción seleccionada ---
 function getCurrentSongData() {
@@ -203,8 +212,10 @@ function renderCollection() {
 
     const tpEl = el('total-power-display');
     const ecEl = el('equip-count');
+    const elEl = el('equip-limit');
     if(tpEl) tpEl.innerText = totalPower;
     if(ecEl) ecEl.innerText = GS.equippedCards.length;
+    if(elEl) elEl.innerText = getSongCardLimit();
 }
 
 // Delegación de eventos en la colección
@@ -217,11 +228,12 @@ if (el('collection')) {
         const id = btn.dataset.id;
 
         if(action === 'equip') {
-            if(GS.toggleEquipCard(id)) {
+            const limit = getSongCardLimit();
+            if(GS.toggleEquipCard(id, limit)) {
                 saveGame();
                 renderCollection();
             } else {
-                showToast("Máximo 5 cartas equipadas.", "error");
+                showToast(`Máximo ${limit} cartas equipadas (miembros de "${getCurrentSongData().title}"). Quita alguna primero.`, "error");
             }
         }
         if(action === 'feed') {
@@ -386,6 +398,8 @@ function renderSongs() {
             }
             // Auto-carriles: si la canción define forceLanes, se aplica al seleccionarla
             applySongLaneMode(true);
+            // El límite de cartas equipables depende de los miembros de la canción
+            renderCollection();
         }
     };
     
