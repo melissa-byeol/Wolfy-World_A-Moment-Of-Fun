@@ -12,35 +12,35 @@
   "scoreMult": 1.0,
   "notes": [
     {
-      "time": 0.7,
+      "time": 0.5,
       "lane": 2
     },
     {
-      "time": 1.2,
+      "time": 1.0,
       "lane": 2
     },
     {
-      "time": 1.7,
+      "time": 1.5,
       "lane": 4
     },
     {
-      "time": 2.2,
+      "time": 2.0,
       "lane": 4
     },
     {
-      "time": 2.7,
+      "time": 2.5,
       "lane": 1
     },
     {
-      "time": 3.2,
+      "time": 3.0,
       "lane": 1
     },
     {
-      "time": 3.7,
+      "time": 3.5,
       "lane": 3
     },
     {
-      "time": 4.2,
+      "time": 4.0,
       "lane": 3
     }
   ]
