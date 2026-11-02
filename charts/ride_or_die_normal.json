@@ -13,19 +13,19 @@
   "notes": [
     {
       "time": 1.2,
-      "lane": 2,
+      "lane": 2
     },
     {
       "time": 2.2,
-      "lane": 4,
+      "lane": 4
     },
     {
       "time": 3.2,
-      "lane": 1,
+      "lane": 1
     },
     {
       "time": 4.2,
-      "lane": 3,
+      "lane": 3
     }
   ]
 }
