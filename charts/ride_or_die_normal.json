@@ -12,15 +12,15 @@
   "scoreMult": 1.0,
   "notes": [
     {
-      "time": 1.5,
+      "time": 1.4,
       "lane": 2
     },
     {
-      "time": 3.0,
+      "time": 2.8,
       "lane": 4
     },
     {
-      "time": 4.5,
+      "time": 4.2,
       "lane": 1
     }
   ]
