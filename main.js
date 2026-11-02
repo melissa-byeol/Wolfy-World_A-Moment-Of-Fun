@@ -422,29 +422,45 @@ function setupBindings() {
     }
 
     // Rhythm Start
+        // Rhythm Start (NOMENCLATURA ESTRICTA CON SUFIJO)
     const startBtn = el('rg-start');
     if(startBtn) {
         startBtn.onclick = async () => {
             const song = getCurrentSongData();
+            const difficulty = getDifficulty(); // Obtiene 'easy', 'normal', 'hard', etc.
+            
             if(!song) return;
 
-            // ⭐ Auto-carriles: asegurar forceLanes (ej. Boom Boom Boom → 6) antes de cargar el chart
-            applySongLaneMode(false);
-
-            const chartPath = getChartPath(song);
-
-            // Cada dificultad tiene su propio JSON: charts/<id>_<dificultad>.json
-            const loaded = await window.RhythmEngine.loadChart(chartPath, getDifficulty());
-
+            // ⭐ SIEMPRE AÑADIR SUFIJO DE DIFICULTAD ⭐
+            // ride_or_die.json NUNCA se cargará directamente.
+            // Siempre será ride_or_die_normal.json, ride_or_die_hard.json, etc.
+            const chartPath = `charts/${song.id}_${difficulty}.json`;
+            
+            console.log(`🎵 Cargando chart EXPLÍCITO: ${chartPath}`);
+            
+            // Pasamos la dificultad al motor para que ajuste ventanas/juicio
+            const loaded = await window.RhythmEngine.loadChart(chartPath, difficulty);
+            
             if(!loaded) {
-                showToast("No se encontró chart. Usa demo1 o crea el JSON.", "error");
-                return;
+                // Fallback: Si no encuentra el específico, intenta con _normal como respaldo
+                if (difficulty !== 'normal') {
+                    console.warn(`❌ No existe: ${chartPath}. Intentando fallback a _normal...`);
+                    const fallbackPath = `charts/${song.id}_normal.json`;
+                    const fallbackLoaded = await window.RhythmEngine.loadChart(fallbackPath, 'normal');
+                    
+                    if(!fallbackLoaded) {
+                        showToast("No se encontró chart ni versión Normal.", "error");
+                        return; 
+                    } else {
+                        showToast("Cargando versión Normal como respaldo", "info");
+                    }
+                } else {
+                    showToast(`No se encontró: ${chartPath}`, "error");
+                    return; 
+                }
             }
 
-            // El chart puede exigir 6 carriles aunque la canción no lo declare
-            applyChartLaneMode(false);
-
-            window.RhythmEngine.start(song, getDifficulty());
+            window.RhythmEngine.start(song, difficulty);
             
             const stopBtn = el('rg-stop');
             if(stopBtn) stopBtn.disabled = false;
