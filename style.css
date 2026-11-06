@@ -517,3 +517,43 @@ input:focus, select:focus {
     from { transform: translate(-50%, 20px); opacity: 0; }
     to { transform: translate(-50%, 0); opacity: 1; }
 }
+
+/* --- EVENTO EXTREME SEMANAL --- */
+#extreme-event-banner {
+    background: linear-gradient(135deg, var(--accent-danger), #bc13fe, var(--accent-warning));
+    padding: 15px;
+    border-radius: 16px;
+    text-align: center;
+    margin-bottom: 20px;
+    border: 2px solid rgba(255,255,255,0.1);
+    animation: chaosPulse 3s infinite ease-in-out;
+}
+
+@keyframes chaosPulse {
+    0%, 100% { transform: scale(1); filter: brightness(1); }
+    50% { transform: scale(1.02); filter: brightness(1.2) hue-rotate(15deg); }
+}
+
+#btn-play-extreme {
+    background: white;
+    color: #ff0055;
+    font-weight: 800;
+    font-size: 1.1em;
+    margin-top: 10px;
+    animation: shake 0.8s infinite;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    25% { transform: translateX(-4px) rotate(-3deg); }
+    75% { transform: translateX(4px) rotate(3deg); }
+}
+
+body.extreme-party-mode {
+    animation: partyLights 2s infinite alternate;
+}
+
+@keyframes partyLights {
+    from { background-color: var(--bg-body); }
+    to { background-color: #1a0f1a; }
+}
