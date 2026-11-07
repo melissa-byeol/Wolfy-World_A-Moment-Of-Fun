@@ -17,6 +17,15 @@
     { "time": 2.55, "lane": 4 },
     { "time": 2.9, "lane": 3 },
     { "time": 2.9, "lane": 5 },
-    { "time": 3.1, "lane": 2, "duration": 0.5 }
+    { "time": 3.1, "lane": 2, "duration": 0.5 },
+    { "time": 3.6, "lane": 4 },
+    { "time": 3.85, "lane": 4 },
+    { "time": 4.3, "lane": 3 },
+    { "time": 4.3, "lane": 5 },
+    { "time": 32.4, "lane": 2 },
+    { "time": 32.4, "lane": 3 },
+    { "time": 32.6, "lane": 4 },
+    { "time": 33.2, "lane": 5 },
+    { "time": 33.2, "lane": 6 }
   ]
 }
