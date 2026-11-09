@@ -29,6 +29,19 @@
       "time": 7.6,
       "lane": 2,
       "duration": 1.15
+    },
+    {
+      "time": 9.85,
+      "lane": 0,
+      "duration": 1.15
+    },
+    { 
+      "time": 10.8,
+      "lane": 3
+    },
+    {
+      "time": 11.0,
+      "lane": 5
     }
   ]
 }
