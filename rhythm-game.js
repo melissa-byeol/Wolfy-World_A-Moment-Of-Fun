@@ -1,4 +1,4 @@
-// rhythm-game.js - Motor Rítmico v10 (Soporte Dinámico 4/6/9 Carriles + Extreme)
+// rhythm-game.js - Motor Rítmico v11 (Soporte Grab The Mic + 4/6/9 Carriles)
 
 const RhythmEngine = (function(){
   const canvas = document.getElementById('rhythm-canvas');
@@ -24,7 +24,6 @@ const RhythmEngine = (function(){
   const BASE_MISS_WIN    = 0.18;
   const DEFAULT_LEAD_TIME = 1.8;
 
-  // ⭐ DIFICULTADES INCLUYENDO EXTREME ⭐
   const DIFFICULTY_KEYS = ['easy', 'normal', 'hard', 'expert', 'extreme'];
 
   let currentDifficulty = 'normal';
@@ -55,6 +54,11 @@ const RhythmEngine = (function(){
   let totalPower = 1;
   let multiplier = 1;
 
+  // ⭐ SISTEMA GRAB THE MIC ⭐
+  let vocalDistribution = [];      
+  let currentVocalSlot = null;     
+  let nextDistIndex = 0;           
+
   // --- CONFIGURACIÓN DINÁMICA DE CARRILES (4, 6 Y 9) ---
   const activeKeys = new Set(); 
   let LANE_COUNT = 4;
@@ -67,33 +71,22 @@ const RhythmEngine = (function(){
       LANE_COUNT = count;
 
       if (count === 9) {
-          // ⭐ MODO EXTREME / CAOS: 9 CARRILES ⭐
-          KEY_MAP = { 
-              'q': 0, 'w': 1, 'e': 2, 'r': 3, 't': 4, 
-              'y': 5, 'u': 6, 'i': 7, 'o': 8 
-          };
-          LANE_COLORS = [
-              '#ff0055', '#ff5500', '#ffff00', '#55ff00', '#00ffff', 
-              '#0055ff', '#5500ff', '#ff00ff', '#ffffff'
-          ];
+          KEY_MAP = { 'q': 0, 'w': 1, 'e': 2, 'r': 3, 't': 4, 'y': 5, 'u': 6, 'i': 7, 'o': 8 };
+          LANE_COLORS = ['#ff0055', '#ff5500', '#ffff00', '#55ff00', '#00ffff', '#0055ff', '#5500ff', '#ff00ff', '#ffffff'];
           KEY_LABELS = ['Q','W','E','R','T','Y','U','I','O'];
-          
       } else if (count === 6) {
           KEY_MAP = { 'd': 0, 'f': 1, 'g': 2, 'h': 3, 'j': 4, 'k': 5 };
           LANE_COLORS = ['#ff0055', '#ffffff', '#ffd700', '#bc13fe', '#333333', '#aa0033'];
           KEY_LABELS = ['D','F','G','H','J','K'];
       } else {
-          // Default 4 carriles
           KEY_MAP = { 'd': 0, 'f': 1, 'j': 2, 'k': 3, 'arrowleft': 0, 'arrowup': 1, 'arrowdown': 2, 'arrowright': 3 };
           LANE_COLORS = ['#ff0055', '#ffffff', '#333333', '#aa0033'];
           KEY_LABELS = ['D','F','J','K'];
       }
       
-      // Sanear notas fuera de rango
       notes.forEach(n => {
         if (n.lane < 0 || n.lane >= LANE_COUNT) n.lane = Math.max(0, Math.min(LANE_COUNT - 1, n.lane | 0));
       });
-      
       activeKeys.clear();
   }
 
@@ -102,34 +95,20 @@ const RhythmEngine = (function(){
   function updateSettings() {
       loadKeyConfig();
       console.log(`⚙️ Motor actualizado a ${LANE_COUNT} carriles.`);
-      
       if (!running) {
           ctx.clearRect(0, 0, W, H);
           const laneW = W / LANE_COUNT;
-          
           ctx.strokeStyle = "rgba(255,255,255,0.15)";
           ctx.lineWidth = 1;
           for (let i=0; i<=LANE_COUNT; i++) {
-            ctx.beginPath();
-            ctx.moveTo(i*laneW, 0);
-            ctx.lineTo(i*laneW, H);
-            ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(i*laneW, 0); ctx.lineTo(i*laneW, H); ctx.stroke();
           }
-          
           ctx.save();
-          ctx.shadowBlur = 10;
-          ctx.shadowColor = "#f1c40f";
-          ctx.strokeStyle = "#f1c40f";
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.moveTo(0, HIT_LINE_Y);
-          ctx.lineTo(W, HIT_LINE_Y);
-          ctx.stroke();
+          ctx.shadowBlur = 10; ctx.shadowColor = "#f1c40f"; ctx.strokeStyle = "#f1c40f"; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.moveTo(0, HIT_LINE_Y); ctx.lineTo(W, HIT_LINE_Y); ctx.stroke();
           ctx.restore();
-
           ctx.font = `${Math.max(12, Math.round(16 * (W / LOGICAL_W)))}px monospace`;
-          ctx.textAlign = "center";
-          ctx.fillStyle = "#888";
+          ctx.textAlign = "center"; ctx.fillStyle = "#888";
           for (let i=0; i<LANE_COUNT; i++) {
               const cx = i*laneW + laneW/2;
               ctx.fillText(KEY_LABELS[i], cx, HIT_LINE_Y + 25);
@@ -137,7 +116,6 @@ const RhythmEngine = (function(){
       }
   }
 
-  // Autoplay / helper state
   let autoplay = false;
   let helperMode = false;          
   let helperOriginalVolume = null; 
@@ -148,24 +126,16 @@ const RhythmEngine = (function(){
     const parent = canvas.parentElement;
     let parentWidth = parent ? Math.min(parent.clientWidth, LOGICAL_W) : Math.min(window.innerWidth - 20, LOGICAL_W);
     if(parentWidth <= 0) parentWidth = Math.min(window.innerWidth - 20, LOGICAL_W);
-
     const aspect = LOGICAL_W / LOGICAL_H;
     const targetW = Math.round(parentWidth);
     const targetH = Math.round(targetW / aspect);
-
     const DPR = Math.max(1, window.devicePixelRatio || 1);
-
     canvas.style.width = targetW + 'px';
     canvas.style.height = targetH + 'px';
     canvas.width = Math.round(targetW * DPR);
     canvas.height = Math.round(targetH * DPR);
-
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-
-    W = targetW;
-    H = targetH;
-    HIT_LINE_Y = Math.round(H * 0.82);
-
+    W = targetW; H = targetH; HIT_LINE_Y = Math.round(H * 0.82);
     recomputeNoteSpeed();
     applyJudgingWindows((W <= 420) ? 1.35 : 1.0);
   }
@@ -200,18 +170,11 @@ const RhythmEngine = (function(){
     return lane;
   }
   
-  function handleTouchStart(e) {
-      e.preventDefault();
-      for(const t of Array.from(e.changedTouches)) activateLane(touchToLane(t.clientX));
-  }
-  function handleTouchEnd(e) {
-      e.preventDefault();
-      for(const t of Array.from(e.changedTouches)) deactivateLane(touchToLane(t.clientX));
-  }
+  function handleTouchStart(e) { e.preventDefault(); for(const t of Array.from(e.changedTouches)) activateLane(touchToLane(t.clientX)); }
+  function handleTouchEnd(e) { e.preventDefault(); for(const t of Array.from(e.changedTouches)) deactivateLane(touchToLane(t.clientX)); }
 
   canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
   canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
-  
   canvas.addEventListener('mousedown', (e) => {
       if(!running) return;
       const rect = canvas.getBoundingClientRect();
@@ -229,7 +192,6 @@ const RhythmEngine = (function(){
   async function loadChart(url, difficulty) {
     const diff = normalizeDifficulty(difficulty !== undefined ? difficulty : currentDifficulty);
     lastChartUrl = cleanUrl(url);
-
     const candidates = [];
     if (diff !== 'normal') candidates.push(variantUrl(url, diff));
     candidates.push(variantUrl(url, 'normal'));
@@ -242,20 +204,17 @@ const RhythmEngine = (function(){
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         if (!data || !Array.isArray(data.notes)) throw new Error('Chart sin notes');
-
         applyChartConfig(data, diff);
         buildNotes(data);
         console.log('🎵 Chart cargado: ' + candidate + ' (' + notes.length + ' notas, dificultad ' + currentDifficulty + ')');
         return true;
       } catch (e) { lastError = e; }
     }
-
     console.error("Error cargando chart:", lastError);
     return false;
   }
 
   function cleanUrl(url) { return String(url).replace(/[?#].*$/, ''); }
-
   function variantUrl(url, diff) {
     const base = cleanUrl(url);
     const m = base.match(/^(.*\/)?([^/]+?)\.json$/i);
@@ -288,6 +247,36 @@ const RhythmEngine = (function(){
     return DIFFICULTY_KEYS.indexOf(key) !== -1 ? key : 'normal';
   }
 
+  function getCardPowerBySlot(slot) {
+    if (!window.GS || typeof window.GS.getCardPowerForSong !== 'function') return null;
+    const id = GS.equippedCards[slot - 1];
+    if (!id) return null;
+    const info = GS.getCardPowerForSong(id, currentSongId);
+    return info ? info.power : null;
+  }
+
+  // ⭐ POTENCIA ACTUAL SEGÚN GRAB THE MIC ⭐
+  function getCurrentScorePower() {
+    // CASO 1: Spotlight individual
+    if (currentVocalSlot !== null && currentVocalSlot !== 'all' && currentVocalSlot !== 'averageAll') {
+        const power = getCardPowerBySlot(currentVocalSlot);
+        return power || totalPower;
+    }
+    // CASO 2: Todos cantan a la vez (Suma multiplicativa)
+    if (currentVocalSlot === 'all') {
+        let combinedPower = 0;
+        if(window.GS && Array.isArray(GS.equippedCards)) {
+            GS.equippedCards.forEach(id => {
+                const info = GS.getCardPowerForSong(id, currentSongId);
+                if (info) combinedPower += info.power;
+            });
+        }
+        return combinedPower > 0 ? combinedPower * 1.2 : totalPower; 
+    }
+    // CASO 3: Promedio grupal o fallback
+    return totalPower;
+  }
+
   function applyChartConfig(data, requestedDiff) {
     currentChartMeta = data || null;
     const declaredDiff = normalizeDifficulty(data.difficulty);
@@ -296,7 +285,6 @@ const RhythmEngine = (function(){
     LEAD_TIME = (typeof data.leadTime === 'number' && data.leadTime > 0) ? data.leadTime : DEFAULT_LEAD_TIME;
     recomputeNoteSpeed();
 
-    // ⭐ LÓGICA ESPECIAL PARA EXTREME ⭐
     if (currentDifficulty === 'extreme') {
         judgingScale = (typeof data.judgingScale === 'number' && data.judgingScale > 0) ? data.judgingScale : 0.5;
         scoreMult = (typeof data.scoreMult === 'number' && data.scoreMult > 0) ? data.scoreMult : 999;
@@ -307,6 +295,19 @@ const RhythmEngine = (function(){
 
     applyJudgingWindows((W <= 420) ? 1.35 : 1.0);
     forcedLanes = (typeof data.forceLanes === 'number') ? data.forceLanes : null;
+
+    // ⭐ PROCESAR DISTRIBUCIÓN VOCAL ⭐
+    if (data.distribution && Array.isArray(data.distribution)) {
+        vocalDistribution = data.distribution.map(d => ({
+            time: d.time || 0,
+            slot: d.slot, // Mantener como string o número según JSON
+            duration: d.duration || 1.0
+        })).sort((a, b) => a.time - b.time);
+    } else {
+        vocalDistribution = [];
+    }
+    currentVocalSlot = null;
+    nextDistIndex = 0;
   }
 
   function setChart(data, difficulty) {
@@ -372,7 +373,6 @@ const RhythmEngine = (function(){
     const elapsed = (now - startTime) / 1000;
     update(elapsed);
     draw(elapsed);
-
     const lastNoteTime = notes.length > 0 ? (notes[notes.length-1].endTime || notes[notes.length-1].time) : 0;
     if (elapsed > lastNoteTime + 2.5) stop();
     else requestAnimationFrame(loop);
@@ -380,6 +380,14 @@ const RhythmEngine = (function(){
 
   // --- Update Logic ---
   function update(elapsed) {
+    // ⭐ ACTUALIZAR DISTRIBUCIÓN VOCAL ⭐
+    while (nextDistIndex < vocalDistribution.length && elapsed >= vocalDistribution[nextDistIndex].time) {
+        const dist = vocalDistribution[nextDistIndex];
+        currentVocalSlot = dist.slot;
+        nextDistIndex++;
+        try { AppAPI.onMicChange && AppAPI.onMicChange(dist.slot); } catch(e){}
+    }
+
     for (const note of notes) {
         const spawnTime = note.time - LEAD_TIME;
         let progressHead = (elapsed - spawnTime) / Math.max(0.0001, LEAD_TIME);
@@ -404,7 +412,7 @@ const RhythmEngine = (function(){
                      if (!note.bodyBroken) {
                          note.judgedTail = true; note.hit = true; hits++; combo++;
                          if (combo > maxCombo) maxCombo = combo;
-                         const pts = Math.round((50 + totalPower) * (multiplier || 1) * (SCORE_MULT || 1));
+                         const pts = Math.round((50 + getCurrentScorePower()) * (multiplier || 1) * (SCORE_MULT || 1));
                          score += pts;
                          try { AppAPI.addScore(score); AppAPI.setCombo(combo); AppAPI.setAcc(hits / Math.max(1, (hits + misses))); } catch(e){}
                      }
@@ -452,6 +460,20 @@ const RhythmEngine = (function(){
     ctx.save();
     ctx.shadowBlur = 14; ctx.shadowColor = "#f1c40f"; ctx.strokeStyle = "#f1c40f"; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.moveTo(0, HIT_LINE_Y); ctx.lineTo(W, HIT_LINE_Y); ctx.stroke();
+    ctx.restore();
+
+    // ⭐ INDICADOR VISUAL DE GRAB THE MIC ⭐
+    ctx.save();
+    ctx.font = `${Math.max(14, Math.round(18 * (W / LOGICAL_W)))}px Nunito`;
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ffd700";
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = "#ffd700";
+    let modeText = "";
+    if (currentVocalSlot === 'all') modeText = "🎤 ALL ACTIVE! x1.2";
+    else if (currentVocalSlot === 'averageAll') modeText = "🎵 GROUP HARMONY";
+    else if (currentVocalSlot !== null) modeText = `⭐ SLOT ${currentVocalSlot} SOLO`;
+    if (modeText) ctx.fillText(modeText, W / 2, HIT_LINE_Y - 60);
     ctx.restore();
 
     for (const note of notes) {
@@ -555,7 +577,8 @@ const RhythmEngine = (function(){
         if (combo > maxCombo) maxCombo = combo;
 
         const comboBonus = 1 + (Math.min(combo, 100) / 200);
-        const pts = Math.round((basePts + totalPower) * (multiplier || 1) * comboBonus * (SCORE_MULT || 1));
+        // ⭐ USAR getCurrentScorePower() PARA SINERGIAS GRAB THE MIC ⭐
+        const pts = Math.round((basePts + getCurrentScorePower()) * (multiplier || 1) * comboBonus * (SCORE_MULT || 1));
         score += pts;
 
         try { AppAPI.addScore(score); AppAPI.setCombo(combo); AppAPI.setAcc(hits / Math.max(1, (hits + misses))); } catch(e){}
@@ -571,10 +594,8 @@ const RhythmEngine = (function(){
     else if (acc >= 0.90) rank = "A";
     else if (acc >= 0.80) rank = "B";
     else if (acc >= 0.70) rank = "C";
-
-    try {
-      AppAPI.onGameEnd({ songId: currentSongId, score, maxCombo, accuracy: acc, rank });
-    } catch (e) { console.warn("AppAPI.onGameEnd failed", e); }
+    try { AppAPI.onGameEnd({ songId: currentSongId, score, maxCombo, accuracy: acc, rank }); } 
+    catch (e) { console.warn("AppAPI.onGameEnd failed", e); }
   }
 
   function setAutoplay(enabled) {
