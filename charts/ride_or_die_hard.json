@@ -10,6 +10,9 @@
   "leadTime": 1.5,
   "judgingScale": 1.0,
   "scoreMult": 1.0,
+  "distribution": [
+    { "time": 0.0, "slot": "averageAll", "duration": 16.099} 
+  ],
   "notes": [
     {
       "time": 0.7,
