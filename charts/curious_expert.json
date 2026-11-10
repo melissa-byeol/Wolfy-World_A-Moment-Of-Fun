@@ -12,7 +12,8 @@
   "scoreMult": 1.0,
   "distribution": [
     {"time": 0.2, "slot": "all", "duration": 3.499},
-    {"time": 3.7, "slot": "averageAll", "duration": 7.4}
+    {"time": 3.7, "slot": "averageAll", "duration": 8.099},
+    { "time": 11.8, "slot": 1, "duration": 1.799}
   ],
   "notes": [
     {
