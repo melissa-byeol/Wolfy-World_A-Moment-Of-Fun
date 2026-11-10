@@ -150,6 +150,48 @@
     {
       "time": 7.5,
       "lane": 1
+    },
+    {
+      "time": 7.6,
+      "lane": 3
+    },
+    {
+      "time": 8.1,
+      "lane": 2,
+      "duration": 0.7 
+    },
+    {
+      "time": 8.1,
+      "lane": 1
+    },
+    {
+      "time": 8.3,
+      "lane": 1
+    },
+    {
+      "time": 8.8,
+      "lane": 1
+    },
+    {
+      "time": 9.3,
+      "lane": 3,
+      "duration": 0.7
+    },
+    {
+      "time": 9.3,
+      "lane": 2
+    },
+    {
+      "time": 9.65,
+      "lane": 1
+    },
+    {
+      "time": 9.75,
+      "lane": 2
+    },
+    {
+      "time": 10.0,
+      "lane": 0
     }
   ]
 }
